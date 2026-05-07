@@ -512,7 +512,7 @@ async function serveStatic(req, res) {
 const server = http.createServer(async (req, res) => {
     try {
         const url = new URL(req.url, `http://${req.headers.host}`);
-        if (url.pathname.startsWith('/api/')) {
+        if (url.pathname.startsWith('/api/') || url.pathname === '/health') {
             const handled = await handleApi(req, res, url);
             if (!handled) sendJson(res, 404, { error: 'Not found' });
             return;
