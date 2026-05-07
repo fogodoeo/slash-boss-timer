@@ -244,6 +244,11 @@ function publicState() {
 async function handleApi(req, res, url) {
     if (cleanupExpiredReservations()) await saveState();
 
+    if (url.pathname === '/health' && req.method === 'GET') {
+        sendJson(res, 200, { ok: true, now: new Date().toISOString() });
+        return true;
+    }
+
     if (url.pathname === '/api/state' && req.method === 'GET') {
         sendJson(res, 200, publicState());
         return true;
