@@ -1,0 +1,1449 @@
+@import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css");
+
+:root {
+    color-scheme: light;
+    --bg: #eef2f7;
+    --panel: #ffffff;
+    --soft: #f7f9fc;
+    --soft-strong: #f1f4f9;
+    --text: #101828;
+    --text-soft: #344054;
+    --muted: #667085;
+    --faint: #98a2b3;
+    --line: #d7deea;
+    --line-soft: #e8edf5;
+    --blue: #1457d9;
+    --blue-dark: #0f47b7;
+    --blue-soft: #edf4ff;
+    --green: #168a5b;
+    --green-soft: #ecfdf3;
+    --red: #d43f32;
+    --red-soft: #fff1ef;
+    --dark: #1d2736;
+    --shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
+    --shadow-pop: 0 16px 36px rgba(16, 24, 40, 0.14);
+}
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    min-height: 100vh;
+    background: var(--bg);
+    color: var(--text);
+    font-family: "Pretendard", "Malgun Gothic", "Segoe UI", sans-serif;
+    font-size: 14px;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+}
+
+html,
+body {
+    overflow-x: hidden;
+}
+
+button,
+input,
+textarea {
+    font: inherit;
+}
+
+button {
+    cursor: pointer;
+}
+
+.shell {
+    width: min(1320px, calc(100% - 32px));
+    margin: 0 auto;
+    padding: 18px 0 42px;
+}
+
+.topbar,
+.panel,
+.zoneCard {
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--panel);
+    box-shadow: var(--shadow);
+}
+
+.topbar {
+    display: grid;
+    grid-template-columns: minmax(260px, 1fr) auto minmax(260px, 1fr);
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 14px;
+    padding: 16px;
+}
+
+.topbar > *,
+.panel,
+.zoneCard {
+    min-width: 0;
+}
+
+.pageDesc {
+    max-width: 560px;
+    margin: 6px 0 0;
+    color: var(--muted);
+    font-size: 13px;
+    line-height: 1.45;
+}
+
+.eyebrow,
+.label {
+    display: block;
+    margin-bottom: 6px;
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 0;
+}
+
+h1 {
+    margin: 0;
+    color: var(--text);
+    font-size: 24px;
+    font-weight: 900;
+    letter-spacing: 0;
+    line-height: 1.2;
+}
+
+.profilePill {
+    justify-self: end;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 42px;
+    max-width: 100%;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--soft);
+    padding: 5px 5px 5px 12px;
+}
+
+.profileLabel {
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 800;
+    white-space: nowrap;
+}
+
+#selectedMemberLabel {
+    min-width: 0;
+    color: var(--text);
+    font-weight: 900;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.profilePill button,
+.zoneForm button,
+#saveMembersButton,
+.saveZone {
+    height: 32px;
+    border: 1px solid var(--blue);
+    border-radius: 6px;
+    background: var(--blue);
+    color: #ffffff;
+    padding: 0 12px;
+    font-size: 13px;
+    font-weight: 900;
+    white-space: nowrap;
+}
+
+.profilePill button:hover,
+.zoneForm button:hover,
+#saveMembersButton:hover,
+.saveZone:hover {
+    background: var(--blue-dark);
+    border-color: var(--blue-dark);
+}
+
+.profilePill .notifyButton {
+    border-color: var(--line);
+    background: #ffffff;
+    color: var(--text-soft);
+}
+
+.profilePill .notifyButton:not(:disabled):hover {
+    border-color: var(--blue);
+    background: var(--blue-soft);
+    color: var(--blue-dark);
+}
+
+.profilePill .notifyButton:disabled {
+    cursor: default;
+    opacity: 0.78;
+}
+
+.navTabs {
+    justify-self: center;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    min-width: 312px;
+    padding: 4px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--soft-strong);
+}
+
+.navTabs a {
+    flex: 1 1 0;
+    display: grid;
+    place-items: center;
+    min-width: 74px;
+    height: 34px;
+    border-radius: 6px;
+    color: var(--muted);
+    font-weight: 900;
+    text-decoration: none;
+}
+
+.navTabs a:hover {
+    color: var(--text);
+}
+
+.navTabs a.active {
+    background: var(--dark);
+    color: #ffffff;
+    box-shadow: 0 1px 2px rgba(16, 24, 40, 0.12);
+}
+
+.layout,
+.rankingLayout,
+.adminLayout,
+.mainColumn,
+.sideColumn {
+    display: grid;
+    gap: 12px;
+}
+
+.layout {
+    grid-template-columns: minmax(0, 1fr) 360px;
+    align-items: start;
+}
+
+.rankingLayout {
+    grid-template-columns: minmax(0, 1.35fr) minmax(360px, 0.65fr);
+    align-items: start;
+}
+
+.adminLayout {
+    grid-template-columns: minmax(0, 1fr);
+}
+
+.panel {
+    padding: 16px;
+}
+
+.panelHead {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.panelHead strong {
+    display: block;
+    color: var(--text);
+    font-size: 18px;
+    font-weight: 900;
+    line-height: 1.3;
+}
+
+.zoneForm {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 150px 108px;
+    gap: 10px;
+    align-items: end;
+}
+
+.zoneForm label,
+.rankingFilters label {
+    display: grid;
+    gap: 6px;
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 800;
+}
+
+.zoneForm input,
+.memberPanel textarea,
+.profileModal input,
+.rankingFilters input,
+.zoneManageRow input {
+    width: 100%;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    background: #ffffff;
+    color: var(--text);
+    outline: none;
+}
+
+.zoneForm input,
+.rankingFilters input {
+    height: 40px;
+    padding: 0 12px;
+}
+
+.zoneManageRow input {
+    height: 38px;
+    padding: 0 10px;
+}
+
+.zoneForm input:focus,
+.memberPanel textarea:focus,
+.profileModal input:focus,
+.rankingFilters input:focus,
+.zoneManageRow input:focus {
+    border-color: var(--blue);
+    box-shadow: 0 0 0 3px rgba(20, 87, 217, 0.12);
+}
+
+.zoneList {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(360px, 1fr));
+    gap: 10px;
+}
+
+.zoneCard {
+    position: relative;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 184px 122px;
+    gap: 14px;
+    align-items: center;
+    min-height: 112px;
+    padding: 15px 16px 15px 18px;
+    border-left: 4px solid var(--green);
+}
+
+.zoneCard.isLocked {
+    border-left-color: var(--red);
+    background: #fbfcfe;
+}
+
+.zoneMain {
+    display: grid;
+    gap: 7px;
+    min-width: 0;
+}
+
+.zoneName {
+    display: block;
+    color: var(--text);
+    font-size: 18px;
+    font-weight: 900;
+    line-height: 1.25;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.zoneMeta {
+    justify-self: start;
+    display: inline-flex;
+    align-items: center;
+    min-height: 24px;
+    border: 1px solid var(--line-soft);
+    border-radius: 999px;
+    background: var(--soft);
+    color: var(--text-soft);
+    padding: 0 9px;
+    font-size: 12px;
+    font-weight: 800;
+}
+
+.zoneStatus {
+    display: grid;
+    gap: 5px;
+    min-width: 0;
+    border: 1px solid var(--line-soft);
+    border-radius: 8px;
+    background: var(--soft);
+    padding: 10px 11px;
+    text-align: left;
+}
+
+.statusText {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--green);
+    font-size: 14px;
+    font-weight: 900;
+    line-height: 1.3;
+}
+
+.statusText::before {
+    content: "";
+    width: 7px;
+    height: 7px;
+    border-radius: 999px;
+    background: currentColor;
+}
+
+.zoneCard.isLocked .statusText {
+    color: var(--red);
+}
+
+.lastText,
+.reservationText {
+    min-width: 0;
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 1.35;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.reservationText {
+    color: var(--blue-dark);
+}
+
+.zoneActions {
+    display: grid;
+    gap: 8px;
+    justify-items: stretch;
+}
+
+.checkButton,
+.reserveButton {
+    width: 122px;
+    height: 40px;
+    border: 1px solid var(--blue);
+    border-radius: 6px;
+    background: var(--blue);
+    color: #ffffff;
+    font-size: 14px;
+    font-weight: 900;
+    white-space: nowrap;
+}
+
+.checkButton {
+    font-variant-numeric: tabular-nums;
+}
+
+.checkButton:not(:disabled):hover {
+    border-color: var(--blue-dark);
+    background: var(--blue-dark);
+}
+
+.reserveButton {
+    background: #ffffff;
+    color: var(--blue-dark);
+}
+
+.reserveButton:hover {
+    background: var(--blue-soft);
+}
+
+.reserveButton.isReserved {
+    border-color: var(--dark);
+    background: var(--dark);
+    color: #ffffff;
+}
+
+.checkButton:disabled,
+.reserveButton:disabled {
+    border-color: var(--line);
+    background: #e9edf4;
+    color: #6b7280;
+    cursor: not-allowed;
+}
+
+.checkButton.isCooldown:disabled {
+    border-color: #f0b7b1;
+    background: var(--red-soft);
+    color: var(--red);
+}
+
+.bossLayout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 380px;
+    gap: 12px;
+    align-items: start;
+}
+
+.bossMainPanel,
+.commandPanel {
+    min-width: 0;
+}
+
+.bossToolbar {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(220px, 320px);
+    gap: 12px;
+    align-items: end;
+    margin-bottom: 12px;
+}
+
+.bossToolbar strong {
+    display: block;
+    color: var(--text);
+    font-size: 18px;
+    font-weight: 900;
+}
+
+.bossSearch {
+    display: grid;
+    gap: 6px;
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 800;
+}
+
+.bossSearch input,
+.bossTimeField input,
+.commandPanel textarea {
+    width: 100%;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    background: #ffffff;
+    color: var(--text);
+    outline: none;
+}
+
+.bossSearch input {
+    height: 40px;
+    padding: 0 12px;
+}
+
+.bossTimeField input {
+    height: 40px;
+    padding: 0 10px;
+    text-align: center;
+    font-weight: 900;
+    font-variant-numeric: tabular-nums;
+}
+
+.bossSearch input:focus,
+.bossTimeField input:focus,
+.commandPanel textarea:focus {
+    border-color: var(--blue);
+    box-shadow: 0 0 0 3px rgba(20, 87, 217, 0.12);
+}
+
+.bossShortcutList {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 6px;
+    margin-bottom: 12px;
+}
+
+.bossShortcutButton {
+    min-width: 0;
+    height: 34px;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    background: var(--soft);
+    color: var(--text-soft);
+    font-size: 12px;
+    font-weight: 900;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.bossShortcutButton:hover {
+    border-color: var(--blue);
+    background: var(--blue-soft);
+    color: var(--blue-dark);
+}
+
+.bossShortcutButton.isCut {
+    border-color: var(--dark);
+    background: var(--dark);
+    color: #ffffff;
+}
+
+.bossList {
+    display: grid;
+    gap: 8px;
+}
+
+.bossRow {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 190px 96px 76px;
+    gap: 10px;
+    align-items: center;
+    min-height: 76px;
+    border: 1px solid var(--line-soft);
+    border-left: 4px solid var(--line);
+    border-radius: 8px;
+    background: var(--soft);
+    padding: 10px 12px;
+}
+
+.bossRow.isCut {
+    border-left-color: var(--blue);
+    background: #ffffff;
+}
+
+.bossTitle,
+.bossStatus {
+    display: grid;
+    gap: 4px;
+    min-width: 0;
+}
+
+.bossName {
+    color: var(--text);
+    font-size: 16px;
+    font-weight: 900;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.bossAlias,
+.bossMeta,
+.bossReporter {
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 700;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.bossCutText {
+    color: var(--text-soft);
+    font-size: 14px;
+    font-weight: 900;
+}
+
+.bossRow.isCut .bossCutText {
+    color: var(--blue-dark);
+}
+
+.bossReporter {
+    color: var(--blue-dark);
+}
+
+.bossTimeField {
+    display: grid;
+    gap: 5px;
+    color: var(--muted);
+    font-size: 11px;
+    font-weight: 800;
+}
+
+.bossCutButton,
+.copyCommandButton {
+    height: 40px;
+    border: 1px solid var(--blue);
+    border-radius: 6px;
+    background: var(--blue);
+    color: #ffffff;
+    font-weight: 900;
+}
+
+.bossCutButton:hover,
+.copyCommandButton:hover:not(:disabled) {
+    border-color: var(--blue-dark);
+    background: var(--blue-dark);
+}
+
+.bossCutButton.cancel {
+    border-color: var(--line);
+    background: #ffffff;
+    color: var(--red);
+}
+
+.bossCutButton.cancel:hover {
+    border-color: #f0b7b1;
+    background: var(--red-soft);
+}
+
+.copyCommandButton:disabled {
+    border-color: var(--line);
+    background: #e9edf4;
+    color: #6b7280;
+    cursor: not-allowed;
+}
+
+.commandPanel textarea {
+    min-height: 320px;
+    resize: vertical;
+    padding: 12px;
+    color: var(--text);
+    font-weight: 800;
+    line-height: 1.55;
+}
+
+.rankingFilters {
+    display: grid;
+    grid-template-columns: auto minmax(200px, 300px);
+    gap: 10px;
+    align-items: end;
+    margin-bottom: 12px;
+    padding: 10px;
+    border: 1px solid var(--line-soft);
+    border-radius: 8px;
+    background: var(--soft);
+}
+
+.segmented {
+    display: flex;
+    gap: 4px;
+    padding: 4px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: #ffffff;
+}
+
+.segmented button {
+    min-width: 66px;
+    height: 32px;
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--muted);
+    font-weight: 900;
+}
+
+.segmented button:hover {
+    color: var(--text);
+}
+
+.segmented button.active {
+    background: var(--dark);
+    color: #ffffff;
+}
+
+.rankingList,
+.logList,
+.zoneManageList {
+    display: grid;
+    gap: 8px;
+}
+
+.rankingList .rankRow,
+.logList .activityRow {
+    cursor: pointer;
+}
+
+.rankingList .rankRow:hover,
+.rankingList .rankRow:focus-visible,
+.logList .activityRow:hover,
+.logList .activityRow:focus-visible {
+    border-color: var(--blue);
+    background: #ffffff;
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(20, 87, 217, 0.08);
+}
+
+.rankRow,
+.logRow,
+.activityRow {
+    display: grid;
+    align-items: center;
+    border: 1px solid var(--line-soft);
+    border-radius: 8px;
+    background: var(--soft);
+    padding: 10px 12px;
+}
+
+.rankRow {
+    grid-template-columns: 32px minmax(0, 1fr) 62px;
+    gap: 10px;
+    min-height: 66px;
+}
+
+.rankRow strong {
+    min-width: 0;
+    color: var(--text);
+    font-size: 15px;
+    font-weight: 900;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.rankRow > span:nth-of-type(2) {
+    justify-self: end;
+    min-width: 48px;
+    border-radius: 999px;
+    background: var(--blue-soft);
+    color: var(--blue-dark);
+    padding: 4px 8px;
+    font-size: 12px;
+    font-weight: 900;
+    text-align: center;
+}
+
+.rankRow.detail small {
+    grid-column: 2 / -1;
+    min-width: 0;
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 1.45;
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+}
+
+.rankNo {
+    display: grid;
+    place-items: center;
+    width: 26px;
+    height: 26px;
+    border-radius: 999px;
+    background: var(--dark);
+    color: #ffffff;
+    font-size: 12px;
+    font-weight: 900;
+}
+
+.logRow {
+    grid-template-columns: 82px minmax(0, 1fr) 44px;
+    gap: 8px;
+}
+
+.activityRow {
+    grid-template-columns: 96px minmax(0, 1fr);
+    align-items: start;
+    min-height: 58px;
+}
+
+.activityRow time {
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 800;
+    line-height: 1.45;
+    white-space: nowrap;
+}
+
+.activityMain {
+    display: grid;
+    gap: 4px;
+    min-width: 0;
+}
+
+.activityMain strong,
+.activityMain span,
+.logRow span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.activityMain strong {
+    color: var(--text);
+    font-weight: 900;
+}
+
+.activityMain span,
+.logRow span {
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.logRow time {
+    color: var(--muted);
+    font-size: 12px;
+    text-align: right;
+}
+
+.memberPanel textarea {
+    min-height: 164px;
+    resize: vertical;
+    padding: 12px;
+    line-height: 1.5;
+}
+
+.zoneManageRow {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 132px 96px 70px;
+    gap: 8px;
+    align-items: center;
+    min-height: 54px;
+    border: 1px solid var(--line-soft);
+    border-radius: 8px;
+    background: var(--soft);
+    padding: 8px;
+}
+
+.deleteZone {
+    height: 34px;
+    border: 1px solid #f0b7b1;
+    border-radius: 6px;
+    background: #ffffff;
+    color: var(--red);
+    font-weight: 900;
+}
+
+.deleteZone:hover {
+    background: var(--red-soft);
+}
+
+#saveMembersButton {
+    width: 100%;
+    height: 40px;
+    margin-top: 10px;
+}
+
+.empty {
+    padding: 18px;
+    border: 1px solid var(--line-soft);
+    border-radius: 8px;
+    background: var(--soft);
+    color: var(--muted);
+    font-weight: 700;
+    text-align: center;
+}
+
+.empty.small {
+    padding: 14px;
+    font-size: 13px;
+}
+
+.modalOverlay {
+    position: fixed;
+    inset: 0;
+    z-index: 100;
+    display: grid;
+    place-items: center;
+    padding: 18px;
+    background: rgba(16, 24, 40, 0.45);
+}
+
+.modalOverlay.hidden {
+    display: none;
+}
+
+.profileModal {
+    position: relative;
+    width: min(440px, 100%);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: #ffffff;
+    padding: 24px;
+    box-shadow: var(--shadow-pop);
+}
+
+.modalClose {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    display: grid;
+    place-items: center;
+    width: 32px;
+    height: 32px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background: #ffffff;
+    color: var(--muted);
+    font-size: 20px;
+    line-height: 1;
+}
+
+.modalClose:hover {
+    border-color: var(--line);
+    background: var(--soft);
+    color: var(--text);
+}
+
+.modalEyebrow {
+    display: inline-flex;
+    margin-bottom: 10px;
+    border-radius: 999px;
+    background: var(--blue-soft);
+    color: var(--blue-dark);
+    padding: 4px 9px;
+    font-size: 12px;
+    font-weight: 900;
+}
+
+.profileModal h2 {
+    margin: 0 0 8px;
+    color: var(--text);
+    font-size: 22px;
+    font-weight: 900;
+    letter-spacing: 0;
+}
+
+.profileModal p {
+    margin: 0 0 18px;
+    color: var(--muted);
+    line-height: 1.5;
+}
+
+.profileModal input {
+    height: 44px;
+    padding: 0 12px;
+}
+
+.modalSkip {
+    width: 100%;
+    height: 42px;
+    margin-top: 12px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--soft);
+    color: var(--text-soft);
+    font-weight: 900;
+}
+
+.modalSkip:hover {
+    border-color: var(--blue);
+    background: var(--blue-soft);
+    color: var(--blue-dark);
+}
+
+.memberSuggest {
+    display: grid;
+    gap: 8px;
+    margin-top: 10px;
+}
+
+.suggestHint,
+.suggestItem {
+    width: 100%;
+    min-height: 42px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--soft);
+    color: var(--muted);
+    padding: 10px 12px;
+    text-align: left;
+}
+
+.suggestItem {
+    border-color: #c8d7ff;
+    background: var(--blue-soft);
+    color: var(--blue-dark);
+    font-weight: 900;
+}
+
+.suggestItem:hover {
+    border-color: var(--blue);
+    background: #ffffff;
+}
+
+.toastHost {
+    position: fixed;
+    right: 18px;
+    bottom: 18px;
+    z-index: 120;
+    display: grid;
+    gap: 8px;
+    width: min(360px, calc(100% - 36px));
+    pointer-events: none;
+}
+
+.toast {
+    display: grid;
+    gap: 4px;
+    border: 1px solid var(--line);
+    border-left: 4px solid var(--blue);
+    border-radius: 8px;
+    background: #ffffff;
+    box-shadow: var(--shadow-pop);
+    padding: 12px 14px;
+    opacity: 0;
+    transform: translateY(8px);
+    transition: opacity 0.18s ease, transform 0.18s ease;
+}
+
+.toast.show {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.toast strong {
+    color: var(--text);
+    font-size: 14px;
+}
+
+.toast span {
+    color: var(--muted);
+    font-size: 12px;
+    line-height: 1.45;
+}
+
+@media (max-width: 980px) {
+    .topbar,
+    .layout,
+    .rankingLayout,
+    .bossLayout {
+        grid-template-columns: 1fr;
+    }
+
+    .navTabs,
+    .profilePill {
+        justify-self: stretch;
+    }
+
+    .navTabs {
+        width: 100%;
+    }
+
+    .navTabs a {
+        min-width: 0;
+        width: auto;
+    }
+
+    .zoneList {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 640px) {
+    body {
+        padding-bottom: 74px;
+    }
+
+    .shell {
+        width: 100%;
+        padding: 8px 8px 20px;
+    }
+
+    .topbar {
+        gap: 10px;
+        margin-bottom: 8px;
+        padding: 12px;
+        border-radius: 8px;
+    }
+
+    .panel {
+        padding: 12px;
+        border-radius: 8px;
+    }
+
+    .pageDesc {
+        display: none;
+    }
+
+    .eyebrow,
+    .label {
+        margin-bottom: 4px;
+        font-size: 11px;
+    }
+
+    h1 {
+        font-size: 21px;
+    }
+
+    .navTabs {
+        position: fixed;
+        right: 10px;
+        bottom: calc(10px + env(safe-area-inset-bottom));
+        left: 10px;
+        z-index: 80;
+        min-width: 0;
+        width: auto;
+        height: 54px;
+        padding: 5px;
+        overflow: hidden;
+        border-color: #cfd7e6;
+        background: rgba(255, 255, 255, 0.96);
+        box-shadow: 0 10px 28px rgba(16, 24, 40, 0.18);
+    }
+
+    .navTabs a {
+        min-width: 0;
+        height: 42px;
+        font-size: 13px;
+    }
+
+    .profilePill {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr);
+        gap: 6px;
+        padding: 8px;
+        min-height: 0;
+    }
+
+    #selectedMemberLabel {
+        font-size: 13px;
+    }
+
+    .profilePill button {
+        height: 34px;
+        padding: 0 10px;
+        font-size: 12px;
+    }
+
+    .profilePill .notifyButton {
+        grid-column: 1 / 2;
+        width: 100%;
+    }
+
+    #openProfileButton {
+        grid-column: 2 / 3;
+        grid-row: auto;
+        width: 100%;
+        min-height: 34px;
+    }
+
+    .bossPage .profilePill {
+        grid-template-columns: minmax(0, 1fr) 68px;
+    }
+
+    .bossPage .profileLabel {
+        display: none;
+    }
+
+    .bossPage #selectedMemberLabel {
+        grid-column: 1;
+    }
+
+    .bossPage #openProfileButton {
+        grid-column: 2;
+        grid-row: 1;
+        width: 100%;
+        height: 34px;
+        padding: 0 8px;
+    }
+
+    .bossLayout {
+        gap: 8px;
+    }
+
+    .bossToolbar {
+        grid-template-columns: 1fr;
+        gap: 8px;
+        margin-bottom: 10px;
+    }
+
+    .bossShortcutList {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 6px;
+        margin-bottom: 10px;
+    }
+
+    .bossShortcutButton {
+        height: 34px;
+        font-size: 12px;
+    }
+
+    .bossList {
+        gap: 8px;
+    }
+
+    .bossRow {
+        grid-template-columns: minmax(0, 1fr) 84px;
+        gap: 8px;
+        min-height: 0;
+        padding: 11px;
+        border-left-width: 3px;
+    }
+
+    .bossTitle {
+        grid-column: 1 / 2;
+    }
+
+    .bossStatus {
+        grid-column: 1 / -1;
+        grid-row: 2;
+        padding: 8px 0;
+        border-top: 1px solid var(--line-soft);
+        border-bottom: 1px solid var(--line-soft);
+    }
+
+    .bossTimeField {
+        grid-column: 1 / 2;
+        grid-row: 3;
+    }
+
+    .bossCutButton {
+        grid-column: 2 / 3;
+        grid-row: 3;
+        align-self: end;
+        height: 40px;
+    }
+
+    .bossName {
+        font-size: 16px;
+    }
+
+    .bossCutText {
+        font-size: 13px;
+    }
+
+    .commandPanel textarea {
+        min-height: 180px;
+    }
+
+    .zoneForm,
+    .rankingFilters,
+    .zoneManageRow {
+        grid-template-columns: 1fr;
+    }
+
+    .zoneList {
+        gap: 8px;
+    }
+
+    .zoneCard {
+        grid-template-columns: 1fr;
+        gap: 10px;
+        min-height: 0;
+        padding: 12px;
+        border-left-width: 3px;
+    }
+
+    .zoneMain {
+        gap: 6px;
+    }
+
+    .zoneName {
+        font-size: 17px;
+    }
+
+    .zoneMeta {
+        min-height: 22px;
+        font-size: 11px;
+    }
+
+    .zoneStatus {
+        gap: 4px;
+        border: 0;
+        border-top: 1px solid var(--line-soft);
+        border-bottom: 1px solid var(--line-soft);
+        border-radius: 0;
+        background: transparent;
+        padding: 9px 0;
+    }
+
+    .statusText {
+        font-size: 13px;
+    }
+
+    .lastText,
+    .reservationText {
+        font-size: 12px;
+    }
+
+    .zoneActions {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px;
+    }
+
+    .checkButton,
+    .reserveButton {
+        width: 100%;
+        height: 44px;
+        font-size: 14px;
+    }
+
+    .rankingLayout {
+        gap: 8px;
+    }
+
+    .rankingFilters {
+        gap: 8px;
+        padding: 8px;
+    }
+
+    .segmented {
+        width: 100%;
+    }
+
+    .segmented button {
+        flex: 1 1 0;
+        min-width: 0;
+    }
+
+    .rankRow {
+        grid-template-columns: 30px minmax(0, 1fr) 54px;
+        gap: 8px;
+        min-height: 58px;
+        padding: 10px;
+    }
+
+    .rankRow strong {
+        font-size: 14px;
+    }
+
+    .rankRow.detail small {
+        overflow-wrap: anywhere;
+        word-break: keep-all;
+        white-space: normal;
+    }
+
+    .activityRow {
+        grid-template-columns: 78px minmax(0, 1fr);
+        min-height: 54px;
+        padding: 10px;
+    }
+
+    .activityRow time {
+        font-size: 11px;
+    }
+
+    .activityMain strong {
+        font-size: 13px;
+    }
+
+    .activityMain span {
+        display: -webkit-box;
+        overflow: hidden;
+        font-size: 11px;
+        white-space: normal;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+    }
+
+    .zoneManageRow .saveZone,
+    .zoneManageRow .deleteZone {
+        width: 100%;
+    }
+
+    .memberPanel textarea {
+        min-height: 140px;
+    }
+
+    .modalOverlay {
+        align-items: end;
+        padding: 0;
+    }
+
+    .profileModal {
+        width: 100%;
+        max-width: none;
+        border-right: 0;
+        border-bottom: 0;
+        border-left: 0;
+        border-radius: 16px 16px 0 0;
+        padding: 20px 16px calc(18px + env(safe-area-inset-bottom));
+    }
+
+    .profileModal h2 {
+        font-size: 20px;
+    }
+
+    .profileModal p {
+        margin-bottom: 14px;
+        font-size: 13px;
+        overflow-wrap: anywhere;
+    }
+
+    .profileModal input {
+        height: 46px;
+    }
+
+    .suggestHint,
+    .suggestItem {
+        min-height: 44px;
+    }
+
+    .toastHost {
+        right: 9px;
+        bottom: 12px;
+        left: 9px;
+        width: auto;
+    }
+}

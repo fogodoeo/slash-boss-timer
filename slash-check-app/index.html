@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="ko">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>썰자 체크판</title>
+    <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+    <main class="shell">
+        <header class="topbar">
+            <div>
+                <span class="eyebrow">진행 현황</span>
+                <h1>썰자 체크</h1>
+                <p class="pageDesc">구역을 예약하거나 완료 처리하세요. 예약자는 쿨타임 종료 후 10분까지 우선권을 가집니다.</p>
+            </div>
+            <nav class="navTabs" aria-label="페이지 이동">
+                <a class="active" href="./">체크</a>
+                <a href="./boss.html">보스</a>
+                <a href="./ranking.html">랭킹</a>
+                <a href="./admin.html">관리</a>
+            </nav>
+            <div class="profilePill">
+                <span class="profileLabel">내 닉네임</span>
+                <span id="selectedMemberLabel">길드원 미선택</span>
+                <button id="enableNotifyButton" class="notifyButton" type="button">알림 켜기</button>
+                <button id="openProfileButton" type="button">변경</button>
+            </div>
+        </header>
+
+        <section id="zoneList" class="zoneList" aria-label="썰자 구역 목록"></section>
+    </main>
+
+    <template id="zoneCardTemplate">
+        <article class="zoneCard">
+            <div class="zoneMain">
+                <strong class="zoneName"></strong>
+                <span class="zoneMeta"></span>
+            </div>
+            <div class="zoneStatus">
+                <strong class="statusText"></strong>
+                <span class="lastText"></span>
+                <span class="reservationText"></span>
+            </div>
+            <div class="zoneActions">
+                <button class="reserveButton" type="button">우선권</button>
+                <button class="checkButton" type="button">완료</button>
+            </div>
+        </article>
+    </template>
+
+    <div id="profileModal" class="modalOverlay hidden" role="dialog" aria-modal="true" aria-labelledby="profileTitle">
+        <form id="profileForm" class="profileModal">
+            <button id="closeProfileButton" class="modalClose" type="button" aria-label="닫기">×</button>
+            <span class="modalEyebrow">사용자 설정</span>
+            <h2 id="profileTitle">길드원을 선택하세요</h2>
+            <p>닉네임 일부를 입력하면 등록된 길드원이 추천됩니다. 목록에서 본인 닉네임을 선택하세요.</p>
+            <input id="memberSearchInput" type="text" autocomplete="off" placeholder="예: N건강">
+            <div id="memberSuggest" class="memberSuggest"></div>
+            <button id="skipProfileButton" class="modalSkip" type="button">나중에 선택</button>
+        </form>
+    </div>
+
+    <div id="toastHost" class="toastHost" aria-live="polite"></div>
+
+    <script src="./app.js"></script>
+</body>
+</html>

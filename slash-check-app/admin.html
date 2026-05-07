@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="ko">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>썰자 관리</title>
+    <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+    <main class="shell">
+        <header class="topbar">
+            <div>
+                <span class="eyebrow">설정</span>
+                <h1>관리</h1>
+                <p class="pageDesc">길드원 목록, 썰자 구역, 구역별 쿨타임을 관리합니다.</p>
+            </div>
+            <nav class="navTabs" aria-label="페이지 이동">
+                <a href="./">체크</a>
+                <a href="./boss.html">보스</a>
+                <a href="./ranking.html">랭킹</a>
+                <a class="active" href="./admin.html">관리</a>
+            </nav>
+        </header>
+
+        <section class="adminLayout">
+            <section class="panel">
+                <div class="panelHead">
+                    <div>
+                        <span class="label">구역 추가</span>
+                        <strong>새 썰자 구역</strong>
+                    </div>
+                </div>
+                <form id="zoneForm" class="zoneForm">
+                    <label>
+                        <span>썰자 구역명</span>
+                        <input id="zoneNameInput" type="text" placeholder="예: 잊혀진 협곡">
+                    </label>
+                    <label>
+                        <span>기본 쿨타임(분)</span>
+                        <input id="cooldownInput" type="number" min="1" max="1440" value="60">
+                    </label>
+                    <button type="submit">추가</button>
+                </form>
+            </section>
+
+            <section class="panel">
+                <div class="panelHead">
+                    <div>
+                        <span class="label">구역/쿨타임 관리</span>
+                        <strong id="zoneSummary">0개</strong>
+                    </div>
+                </div>
+                <div id="zoneManageList" class="zoneManageList"></div>
+            </section>
+
+            <section class="panel memberPanel">
+                <div class="panelHead">
+                    <div>
+                        <span class="label">길드원 목록</span>
+                        <strong id="memberSummary">0명</strong>
+                    </div>
+                </div>
+                <textarea id="memberBulkInput" placeholder="N건강&#10;N하늘&#10;N라온"></textarea>
+                <button id="saveMembersButton" type="button">길드원 목록 저장</button>
+            </section>
+        </section>
+    </main>
+
+    <script src="./admin.js"></script>
+</body>
+</html>

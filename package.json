@@ -1,0 +1,30 @@
+{
+  "name": "discord-boss-timer",
+  "version": "1.0.0",
+  "description": "Guild slash check and boss cut web app",
+  "main": "slash-check-app.js",
+  "scripts": {
+    "start": "node slash-check-app.js",
+    "start:slash": "node slash-check-app.js",
+    "start:boss": "node local-boss-app.js",
+    "start:bot": "node index.js",
+    "check": "node --check slash-check-app.js && node --check slash-check-app/app.js && node --check slash-check-app/boss.js && node --check slash-check-app/ranking.js && node --check slash-check-app/admin.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@discordjs/rest": "^2.5.0",
+    "@discordjs/voice": "^0.18.0",
+    "discord-api-types": "^0.37.120",
+    "discord.js": "^14.19.3",
+    "dotenv": "^17.2.2",
+    "google-tts-api": "^2.0.2",
+    "lowdb": "^7.0.1",
+    "node-cron": "^3.0.3",
+    "uuid": "^13.0.0"
+  }
+}

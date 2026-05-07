@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="ko">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>보스 컷판</title>
+    <link rel="stylesheet" href="./styles.css">
+</head>
+<body class="bossPage">
+    <main class="shell">
+        <header class="topbar">
+            <div>
+                <span class="eyebrow">보스 타이머</span>
+                <h1>시간 보스 컷</h1>
+                <p class="pageDesc">시간 보스만 모아 컷 시간을 입력하고, 디스코드 컷 명령어를 한 번에 복사합니다.</p>
+            </div>
+            <nav class="navTabs" aria-label="페이지 이동">
+                <a href="./">체크</a>
+                <a class="active" href="./boss.html">보스</a>
+                <a href="./ranking.html">랭킹</a>
+                <a href="./admin.html">관리</a>
+            </nav>
+            <div class="profilePill">
+                <span class="profileLabel">내 닉네임</span>
+                <span id="selectedMemberLabel">길드원 미선택</span>
+                <button id="openProfileButton" type="button">변경</button>
+            </div>
+        </header>
+
+        <section class="bossLayout">
+            <section class="panel bossMainPanel">
+                <div class="bossToolbar">
+                    <div>
+                        <span class="label">보스 숏컷</span>
+                        <strong id="bossSummary">0개</strong>
+                    </div>
+                    <label class="bossSearch">
+                        <span>검색</span>
+                        <input id="bossSearchInput" type="search" placeholder="보스명, 애칭, 위치">
+                    </label>
+                </div>
+                <div id="bossShortcutList" class="bossShortcutList" aria-label="보스 숏컷"></div>
+                <div id="bossList" class="bossList" aria-label="시간 보스 목록"></div>
+            </section>
+
+            <section class="panel commandPanel">
+                <div class="panelHead">
+                    <div>
+                        <span class="label">복붙용 명령어</span>
+                        <strong id="commandCount">선택된 보스 0개</strong>
+                    </div>
+                    <button id="copyCommandButton" class="copyCommandButton" type="button" disabled>복사</button>
+                </div>
+                <textarea id="commandOutput" readonly placeholder=".컷 베나투스 1820&#10;.컷 레이디달리아 1821"></textarea>
+            </section>
+        </section>
+    </main>
+
+    <template id="bossRowTemplate">
+        <article class="bossRow">
+            <div class="bossTitle">
+                <strong class="bossName"></strong>
+                <span class="bossAlias"></span>
+            </div>
+            <div class="bossStatus">
+                <strong class="bossCutText"></strong>
+                <span class="bossMeta"></span>
+                <span class="bossReporter"></span>
+            </div>
+            <label class="bossTimeField">
+                <span>컷 시간</span>
+                <input class="bossTimeInput" type="text" inputmode="numeric" maxlength="5" placeholder="1820">
+            </label>
+            <button class="bossCutButton" type="button">컷</button>
+        </article>
+    </template>
+
+    <div id="profileModal" class="modalOverlay hidden" role="dialog" aria-modal="true" aria-labelledby="profileTitle">
+        <form id="profileForm" class="profileModal">
+            <button id="closeProfileButton" class="modalClose" type="button" aria-label="닫기">×</button>
+            <span class="modalEyebrow">사용자 설정</span>
+            <h2 id="profileTitle">길드원을 선택하세요</h2>
+            <p>컷 입력자 이름으로 표시됩니다. 닉네임 일부를 입력하고 목록에서 선택하세요.</p>
+            <input id="memberSearchInput" type="text" autocomplete="off" placeholder="예: N건강">
+            <div id="memberSuggest" class="memberSuggest"></div>
+            <button id="skipProfileButton" class="modalSkip" type="button">나중에 선택</button>
+        </form>
+    </div>
+
+    <script src="./boss.js"></script>
+</body>
+</html>

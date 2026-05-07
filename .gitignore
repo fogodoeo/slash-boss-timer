@@ -1,0 +1,29 @@
+.env
+config.json
+node_modules/
+npm-debug.log*
+
+slash-check-state.json
+local-boss-state.json
+cloudflared.log
+data/screenshots/
+data/
+tools/cloudflared.exe
+status_info.json
+active_sets.json
+bosscut.txt
+
+# Legacy local bot/app files not needed for Render web deploy
+/[0-9][0-9][0-9][0-9]*.js
+/index.js
+/local-boss-app.js
+/local-boss-app/
+/restart*.bat
+/start*.bat
+/package - 복사본.json
+/길드검색기/
+/마지막보스우선세트.js
+/보스순서대로시간생략.js
+
+*.local
+storage/
