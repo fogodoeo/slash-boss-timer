@@ -327,6 +327,58 @@ h1 {
     gap: 10px;
 }
 
+.rouletteBar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin: -4px 0 12px;
+    padding: 10px 12px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--panel);
+    box-shadow: var(--shadow);
+}
+
+.rouletteBar div {
+    display: grid;
+    gap: 3px;
+    min-width: 0;
+}
+
+.rouletteBar strong {
+    color: var(--text);
+    font-size: 15px;
+    font-weight: 950;
+}
+
+.rouletteBar button,
+.rouletteActions button {
+    height: 34px;
+    border: 1px solid var(--blue);
+    border-radius: 6px;
+    background: var(--blue);
+    color: #ffffff;
+    padding: 0 14px;
+    font-size: 13px;
+    font-weight: 950;
+    white-space: nowrap;
+}
+
+.rouletteBar button:hover:not(:disabled),
+.rouletteActions button:hover:not(:disabled) {
+    border-color: var(--blue-dark);
+    background: var(--blue-dark);
+}
+
+.rouletteBar button:disabled,
+.rouletteActions button:disabled {
+    border-color: var(--line);
+    background: #e9edf4;
+    color: var(--muted);
+    cursor: not-allowed;
+}
+
 .zoneCard {
     position: relative;
     display: grid;
@@ -337,6 +389,14 @@ h1 {
     padding: 7px 10px 7px 14px;
     border-left: 4px solid var(--green);
     transition: background-color 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease, transform 0.16s ease;
+}
+
+.zoneCard:not(.hasMeta) {
+    grid-template-columns: minmax(0, 1fr) 190px;
+}
+
+.zoneCard:not(.hasMeta) .zoneStatus {
+    display: none;
 }
 
 .zoneCard.isLocked {
@@ -365,10 +425,6 @@ h1 {
     border-color: #b8cdf4;
     border-left-color: var(--blue);
     background: #f5f9ff;
-}
-
-.zoneCard.isInProgress .statusText {
-    color: var(--blue-dark);
 }
 
 .zoneMain {
@@ -431,36 +487,10 @@ h1 {
     text-align: left;
 }
 
-.statusText {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    color: var(--green);
-    font-size: 13px;
-    font-weight: 900;
-    line-height: 1.3;
-}
-
-.statusText::before {
-    content: "";
-    width: 7px;
-    height: 7px;
-    border-radius: 999px;
-    background: currentColor;
-}
-
-.zoneCard.isLocked .statusText {
-    color: #4f5b6f;
-}
-
 .zoneCard.isLocked.isTappable {
     border-left-color: var(--red);
     background: #fffafa;
     box-shadow: var(--shadow);
-}
-
-.zoneCard.isLocked.isTappable .statusText {
-    color: var(--red);
 }
 
 .lastText,
@@ -1248,6 +1278,123 @@ h1 {
     line-height: 1.45;
 }
 
+.rouletteSheet {
+    position: relative;
+    display: grid;
+    gap: 14px;
+    width: min(440px, 100%);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: var(--panel);
+    box-shadow: var(--shadow-pop);
+    padding: 22px;
+}
+
+.rouletteSheet h2 {
+    margin: 0;
+    color: var(--text);
+    font-size: 22px;
+    font-weight: 950;
+}
+
+.rouletteWindow {
+    position: relative;
+    height: 272px;
+    overflow: hidden;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: linear-gradient(180deg, #f5f7fb 0%, #ffffff 48%, #f5f7fb 100%);
+}
+
+.rouletteWindow::before,
+.rouletteWindow::after {
+    content: "";
+    position: absolute;
+    right: 0;
+    left: 0;
+    z-index: 2;
+    height: 52px;
+    pointer-events: none;
+}
+
+.rouletteWindow::before {
+    top: 0;
+    background: linear-gradient(180deg, #f5f7fb 0%, rgba(245, 247, 251, 0) 100%);
+}
+
+.rouletteWindow::after {
+    bottom: 0;
+    background: linear-gradient(0deg, #f5f7fb 0%, rgba(245, 247, 251, 0) 100%);
+}
+
+.rouletteMarker {
+    position: absolute;
+    top: 50%;
+    right: 10px;
+    left: 10px;
+    z-index: 1;
+    height: 42px;
+    border: 1px solid rgba(20, 87, 217, 0.34);
+    border-radius: 8px;
+    background: rgba(237, 244, 255, 0.76);
+    transform: translateY(-50%);
+}
+
+.rouletteTrack {
+    position: relative;
+    z-index: 3;
+    display: grid;
+    gap: 6px;
+    padding: 10px;
+    transition: filter 0.12s ease;
+}
+
+.rouletteTrack.isSpinning {
+    filter: blur(0.2px);
+}
+
+.rouletteItem {
+    display: grid;
+    place-items: center;
+    height: 30px;
+    border: 1px solid var(--line-soft);
+    border-radius: 6px;
+    background: #ffffff;
+    color: var(--muted);
+    font-size: 13px;
+    font-weight: 850;
+    transition: transform 0.12s ease, border-color 0.12s ease, background-color 0.12s ease, color 0.12s ease;
+}
+
+.rouletteItem.isCenter {
+    border-color: var(--blue);
+    background: var(--blue-soft);
+    color: var(--blue-dark);
+    font-size: 16px;
+    font-weight: 950;
+    transform: scale(1.02);
+}
+
+.rouletteResult {
+    margin: 0;
+    min-height: 20px;
+    color: var(--text-soft);
+    font-size: 13px;
+    font-weight: 800;
+    line-height: 1.45;
+    text-align: center;
+}
+
+.rouletteActions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+}
+
+.rouletteActions button {
+    height: 40px;
+}
+
 .zoneActionList {
     display: grid;
     gap: 8px;
@@ -1790,12 +1937,29 @@ h1 {
         gap: 7px;
     }
 
+    .rouletteBar {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 82px;
+        gap: 8px;
+        margin: -2px 0 8px;
+        padding: 9px 10px;
+    }
+
+    .rouletteBar button {
+        width: 100%;
+        padding: 0 8px;
+    }
+
     .zoneCard {
         grid-template-columns: minmax(0, 1fr) 156px;
         gap: 3px 8px;
         min-height: 0;
         padding: 7px 8px 7px 10px;
         border-left-width: 3px;
+    }
+
+    .zoneCard:not(.hasMeta) {
+        grid-template-columns: minmax(0, 1fr) 156px;
     }
 
     .zoneMain {
@@ -1823,10 +1987,6 @@ h1 {
         border-radius: 0;
         background: transparent;
         padding: 0;
-    }
-
-    .statusText {
-        font-size: 11px;
     }
 
     .lastText,
@@ -1949,6 +2109,7 @@ h1 {
 
     .profileModal,
     .zoneActionSheet,
+    .rouletteSheet,
     .logManageSheet {
         width: 100%;
         max-width: none;
@@ -1959,7 +2120,8 @@ h1 {
         padding: 20px 16px calc(18px + env(safe-area-inset-bottom));
     }
 
-    .zoneActionSheet {
+    .zoneActionSheet,
+    .rouletteSheet {
         padding: 14px 14px calc(12px + env(safe-area-inset-bottom));
     }
 
@@ -1969,17 +2131,20 @@ h1 {
     }
 
     .zoneActionSheet .modalEyebrow,
+    .rouletteSheet .modalEyebrow,
     .logManageSheet .modalEyebrow {
         display: none;
     }
 
     .profileModal h2,
     .zoneActionSheet h2,
+    .rouletteSheet h2,
     .logManageSheet h2 {
         font-size: 20px;
     }
 
     .zoneActionSheet h2,
+    .rouletteSheet h2,
     .logManageSheet h2 {
         margin-bottom: 4px;
         font-size: 18px;
@@ -1987,6 +2152,7 @@ h1 {
 
     .profileModal p,
     .zoneActionSheet p,
+    .rouletteSheet p,
     .logManageSheet p {
         margin-bottom: 14px;
         font-size: 13px;
@@ -1994,9 +2160,28 @@ h1 {
     }
 
     .zoneActionSheet p,
+    .rouletteSheet p,
     .logManageSheet p {
         margin-bottom: 10px;
         font-size: 12px;
+    }
+
+    .rouletteWindow {
+        height: 238px;
+    }
+
+    .rouletteItem {
+        height: 28px;
+        font-size: 12px;
+    }
+
+    .rouletteItem.isCenter {
+        font-size: 15px;
+    }
+
+    .rouletteActions {
+        grid-template-columns: 1fr;
+        gap: 6px;
     }
 
     .logDeleteBox {

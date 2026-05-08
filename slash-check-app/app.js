@@ -15,6 +15,14 @@ const zoneActionTitle = document.querySelector('#zoneActionTitle');
 const zoneActionDesc = document.querySelector('#zoneActionDesc');
 const resetZoneStateButton = document.querySelector('#resetZoneStateButton');
 const cancelLastCheckButton = document.querySelector('#cancelLastCheckButton');
+const openRouletteButton = document.querySelector('#openRouletteButton');
+const rouletteModal = document.querySelector('#rouletteModal');
+const closeRouletteButton = document.querySelector('#closeRouletteButton');
+const rouletteSummary = document.querySelector('#rouletteSummary');
+const rouletteTrack = document.querySelector('#rouletteTrack');
+const rouletteResult = document.querySelector('#rouletteResult');
+const rouletteSpinButton = document.querySelector('#rouletteSpinButton');
+const rouletteReserveButton = document.querySelector('#rouletteReserveButton');
 const toastHost = document.querySelector('#toastHost');
 
 const MEMBER_KEY = 'slashCheckMemberName';
@@ -23,6 +31,9 @@ let state = { now: new Date().toISOString(), members: [], zones: [], rankings: [
 let selectedMember = localStorage.getItem(MEMBER_KEY) || '';
 let lastSyncAt = Date.now();
 let selectedActionZone = null;
+let rouletteCandidates = [];
+let rouletteSelectedZone = null;
+let rouletteSpinning = false;
 const notifiedReadyReservations = new Set();
 
 function pad2(value) {
@@ -64,6 +75,16 @@ function cleanName(value) {
 
 function getNowMs() {
     return new Date(state.now).getTime() + (Date.now() - lastSyncAt);
+}
+
+function getActiveReservations(zone, now = getNowMs()) {
+    return (zone.reservations || []).filter((reservation) => {
+        return !reservation.expiresAt || new Date(reservation.expiresAt).getTime() > now;
+    });
+}
+
+function isZoneLocked(zone, now = getNowMs()) {
+    return Boolean(zone.cooldownUntil && new Date(zone.cooldownUntil).getTime() > now);
 }
 
 function showToast(title, message = '', tone = 'success') {
@@ -269,9 +290,11 @@ async function toggleReservation(zone) {
             reserved ? '예약을 취소했습니다' : '예약했습니다',
             reserved ? zone.name : wasLocked ? '쿨타임이 끝나면 알려드릴게요.' : '지금 바로 완료할 수 있습니다.'
         );
+        return true;
     } catch (err) {
         showToast('예약 처리 실패', err.message, 'error');
         fetchState(true).catch(() => {});
+        return false;
     }
 }
 
@@ -390,9 +413,134 @@ function renderMemberSuggest() {
     }
 }
 
+function getRouletteCandidates() {
+    const now = getNowMs();
+    return state.zones.filter((zone) => {
+        return !isZoneLocked(zone, now) && getActiveReservations(zone, now).length === 0;
+    });
+}
+
+function updateRouletteSummary() {
+    if (!rouletteSummary || !openRouletteButton) return;
+
+    const count = getRouletteCandidates().length;
+    rouletteSummary.textContent = count > 0 ? `가능 구역 ${count}개` : '가능 구역 없음';
+    openRouletteButton.disabled = count === 0;
+}
+
+function renderRouletteTrack(candidates = rouletteCandidates, centerIndex = 0) {
+    if (!rouletteTrack) return;
+    rouletteTrack.replaceChildren();
+
+    if (candidates.length === 0) {
+        const empty = document.createElement('div');
+        empty.className = 'rouletteItem isCenter';
+        empty.textContent = '가능 구역 없음';
+        rouletteTrack.append(empty);
+        return;
+    }
+
+    const visibleCount = Math.min(7, Math.max(3, candidates.length));
+    const half = Math.floor(visibleCount / 2);
+
+    for (let offset = -half; offset <= half; offset += 1) {
+        const index = (centerIndex + offset + candidates.length * 20) % candidates.length;
+        const zone = candidates[index];
+        const item = document.createElement('div');
+        item.className = 'rouletteItem';
+        item.classList.toggle('isCenter', offset === 0);
+        item.textContent = zone.name;
+        rouletteTrack.append(item);
+    }
+}
+
+function setRouletteResult(zone) {
+    rouletteSelectedZone = zone || null;
+    rouletteReserveButton.disabled = !zone;
+    rouletteResult.textContent = zone
+        ? `${zone.name} 선택됨`
+        : '쿨타임과 예약이 없는 구역 중에서 하나를 뽑습니다.';
+}
+
+function openRouletteModal() {
+    if (!requireMember()) return;
+
+    rouletteCandidates = getRouletteCandidates();
+    rouletteSelectedZone = null;
+    rouletteSpinning = false;
+    rouletteSpinButton.disabled = rouletteCandidates.length === 0;
+    rouletteReserveButton.disabled = true;
+    renderRouletteTrack(rouletteCandidates, 0);
+    setRouletteResult(null);
+
+    if (rouletteCandidates.length === 0) {
+        rouletteResult.textContent = '지금 바로 예약할 수 있는 구역이 없습니다.';
+    }
+
+    rouletteModal.classList.remove('hidden');
+}
+
+function closeRouletteModal() {
+    if (rouletteSpinning) return;
+    rouletteModal.classList.add('hidden');
+}
+
+function spinRoulette() {
+    if (rouletteSpinning) return;
+
+    rouletteCandidates = getRouletteCandidates();
+    if (rouletteCandidates.length === 0) {
+        setRouletteResult(null);
+        rouletteSpinButton.disabled = true;
+        showToast('룰렛 후보 없음', '쿨타임과 예약이 없는 구역이 없습니다.', 'error');
+        return;
+    }
+
+    rouletteSpinning = true;
+    rouletteSpinButton.disabled = true;
+    rouletteReserveButton.disabled = true;
+    rouletteResult.textContent = '돌리는 중...';
+    rouletteTrack.classList.add('isSpinning');
+
+    let currentIndex = Math.floor(Math.random() * rouletteCandidates.length);
+    const targetIndex = Math.floor(Math.random() * rouletteCandidates.length);
+    const baseRounds = Math.max(5, Math.ceil(34 / rouletteCandidates.length));
+    const offsetToTarget = (targetIndex - currentIndex + rouletteCandidates.length) % rouletteCandidates.length;
+    const totalSteps = baseRounds * rouletteCandidates.length + offsetToTarget;
+    let step = 0;
+
+    const tick = () => {
+        currentIndex = (currentIndex + 1) % rouletteCandidates.length;
+        renderRouletteTrack(rouletteCandidates, currentIndex);
+        step += 1;
+
+        if (step >= totalSteps) {
+            rouletteSpinning = false;
+            rouletteTrack.classList.remove('isSpinning');
+            rouletteSpinButton.disabled = false;
+            setRouletteResult(rouletteCandidates[targetIndex]);
+            return;
+        }
+
+        const progress = step / totalSteps;
+        const delay = 28 + Math.round(Math.pow(progress, 2.35) * 210);
+        setTimeout(tick, delay);
+    };
+
+    renderRouletteTrack(rouletteCandidates, currentIndex);
+    setTimeout(tick, 40);
+}
+
+async function reserveRouletteResult() {
+    if (!rouletteSelectedZone || rouletteSpinning) return;
+    const saved = await toggleReservation(rouletteSelectedZone);
+    if (saved) closeRouletteModal();
+}
+
 function renderZones() {
     const now = getNowMs();
     zoneList.replaceChildren();
+    updateRouletteSummary();
 
     if (state.zones.length === 0) {
         zoneList.innerHTML = '<div class="empty">아직 등록된 썰자 구역이 없습니다. 관리 페이지에서 구역을 추가하세요.</div>';
@@ -413,9 +561,7 @@ function renderZones() {
         card.querySelector('.lastText').textContent = zone.lastBy
             ? `최근 ${zone.lastBy} · ${formatTime(zone.lastAt)}`
             : '';
-        const reservations = (zone.reservations || []).filter((reservation) => {
-            return !reservation.expiresAt || new Date(reservation.expiresAt).getTime() > now;
-        });
+        const reservations = getActiveReservations(zone, now);
         const activeReservation = reservations[0];
         const reservedByMe = activeReservation?.memberName === selectedMember;
         const reservedByOther = Boolean(activeReservation && !reservedByMe);
@@ -429,9 +575,10 @@ function renderZones() {
         const reservationRemain = activeReservation?.expiresAt
             ? formatRemain(new Date(activeReservation.expiresAt).getTime() - now)
             : null;
+        const hasMeta = Boolean(zone.lastBy || reservations.length > 0);
 
+        card.classList.toggle('hasMeta', hasMeta);
         card.classList.toggle('isInProgress', inProgress);
-        card.querySelector('.statusText').textContent = locked ? '쿨타임' : inProgress ? '진행중' : '가능';
         card.classList.toggle('isTappable', canUseCardCheck);
         if (canUseCardCheck) {
             card.tabIndex = 0;
@@ -484,6 +631,10 @@ openProfileButton.addEventListener('click', openProfileModal);
 closeProfileButton.addEventListener('click', closeProfileModal);
 skipProfileButton.addEventListener('click', closeProfileModal);
 enableNotifyButton?.addEventListener('click', () => requestNotifications());
+openRouletteButton?.addEventListener('click', openRouletteModal);
+closeRouletteButton?.addEventListener('click', closeRouletteModal);
+rouletteSpinButton?.addEventListener('click', spinRoulette);
+rouletteReserveButton?.addEventListener('click', reserveRouletteResult);
 closeZoneActionButton.addEventListener('click', closeZoneActionModal);
 resetZoneStateButton.addEventListener('click', resetZoneState);
 cancelLastCheckButton.addEventListener('click', cancelLastCheck);
@@ -494,6 +645,9 @@ profileModal.addEventListener('click', (event) => {
 });
 zoneActionModal.addEventListener('click', (event) => {
     if (event.target === zoneActionModal) closeZoneActionModal();
+});
+rouletteModal?.addEventListener('click', (event) => {
+    if (event.target === rouletteModal) closeRouletteModal();
 });
 
 setSelectedMember(selectedMember);

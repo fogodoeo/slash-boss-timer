@@ -28,6 +28,14 @@
             </div>
         </header>
 
+        <section class="rouletteBar">
+            <div>
+                <span class="label">예약 룰렛</span>
+                <strong id="rouletteSummary">가능 구역 확인 중</strong>
+            </div>
+            <button id="openRouletteButton" type="button">돌리기</button>
+        </section>
+
         <section id="zoneList" class="zoneList" aria-label="썰자 구역 목록"></section>
     </main>
 
@@ -40,7 +48,6 @@
                 </div>
             </div>
             <div class="zoneStatus">
-                <strong class="statusText"></strong>
                 <span class="lastText"></span>
                 <span class="reservationText"></span>
             </div>
@@ -78,6 +85,23 @@
                     <strong>마지막 완료 기록 취소</strong>
                     <span>마지막 완료 로그를 삭제하고 랭킹 횟수도 차감합니다.</span>
                 </button>
+            </div>
+        </section>
+    </div>
+
+    <div id="rouletteModal" class="modalOverlay hidden" role="dialog" aria-modal="true" aria-labelledby="rouletteTitle">
+        <section class="rouletteSheet">
+            <button id="closeRouletteButton" class="modalClose" type="button" aria-label="닫기">×</button>
+            <span class="modalEyebrow">예약 룰렛</span>
+            <h2 id="rouletteTitle">가능 구역 뽑기</h2>
+            <div class="rouletteWindow" aria-live="polite">
+                <div id="rouletteTrack" class="rouletteTrack"></div>
+                <div class="rouletteMarker"></div>
+            </div>
+            <p id="rouletteResult" class="rouletteResult">쿨타임과 예약이 없는 구역 중에서 하나를 뽑습니다.</p>
+            <div class="rouletteActions">
+                <button id="rouletteSpinButton" type="button">룰렛 돌리기</button>
+                <button id="rouletteReserveButton" type="button" disabled>예약하기</button>
             </div>
         </section>
     </div>
