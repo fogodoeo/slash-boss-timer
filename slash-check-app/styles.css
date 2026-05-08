@@ -330,11 +330,11 @@ h1 {
 .zoneCard {
     position: relative;
     display: grid;
-    grid-template-columns: minmax(0, 1fr) 154px 224px;
-    gap: 8px;
+    grid-template-columns: minmax(0, 1fr) minmax(132px, 154px) 190px;
+    gap: 10px;
     align-items: center;
-    min-height: 62px;
-    padding: 8px 10px 8px 14px;
+    min-height: 58px;
+    padding: 7px 10px 7px 14px;
     border-left: 4px solid var(--green);
     transition: background-color 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease, transform 0.16s ease;
 }
@@ -380,7 +380,7 @@ h1 {
     min-width: 0;
     flex: 1 1 auto;
     color: var(--text);
-    font-size: 20px;
+    font-size: 19px;
     font-weight: 950;
     line-height: 1.18;
     overflow: hidden;
@@ -416,10 +416,10 @@ h1 {
     display: grid;
     gap: 2px;
     min-width: 0;
-    border: 1px solid var(--line-soft);
-    border-radius: 8px;
-    background: var(--soft);
-    padding: 6px 8px;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    padding: 0;
     text-align: left;
 }
 
@@ -477,15 +477,16 @@ h1 {
 }
 
 .zoneActions {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 6px;
-    justify-items: stretch;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 7px;
+    min-width: 0;
 }
 
 .checkButton,
 .reserveButton {
-    width: 100%;
+    flex: 0 0 auto;
     height: 34px;
     border: 1px solid var(--blue);
     border-radius: 6px;
@@ -498,7 +499,7 @@ h1 {
 }
 
 .checkButton {
-    order: -1;
+    width: 104px;
     font-variant-numeric: tabular-nums;
 }
 
@@ -508,18 +509,25 @@ h1 {
 }
 
 .reserveButton {
-    background: #ffffff;
-    color: var(--blue-dark);
+    width: auto;
+    min-width: 56px;
+    border-color: var(--line);
+    background: var(--soft);
+    color: var(--text-soft);
+    padding: 0 10px;
 }
 
 .reserveButton:hover {
+    border-color: var(--blue);
     background: var(--blue-soft);
+    color: var(--blue-dark);
 }
 
 .reserveButton.isReserved {
-    border-color: var(--dark);
-    background: var(--dark);
-    color: #ffffff;
+    min-width: 76px;
+    border-color: var(--blue);
+    background: var(--blue-soft);
+    color: var(--blue-dark);
 }
 
 .checkButton:disabled,
@@ -1756,17 +1764,35 @@ h1 {
     .zoneActions {
         grid-column: 2;
         grid-row: 1 / span 2;
-        grid-template-columns: 1fr;
-        gap: 6px;
+        flex-direction: column;
+        align-items: flex-end;
+        justify-content: center;
+        gap: 5px;
         align-self: stretch;
     }
 
     .checkButton,
     .reserveButton {
-        width: 100%;
         height: 35px;
         padding: 0 4px;
         font-size: 13px;
+    }
+
+    .checkButton {
+        order: -1;
+        width: 92px;
+    }
+
+    .reserveButton {
+        width: auto;
+        min-width: 52px;
+        height: 29px;
+        padding: 0 8px;
+        font-size: 12px;
+    }
+
+    .reserveButton.isReserved {
+        min-width: 68px;
     }
 
     .rankingLayout {

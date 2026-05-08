@@ -147,7 +147,7 @@ function notifyReservationReady(zone) {
 
     if ('Notification' in window && Notification.permission === 'granted') {
         new Notification('썰자 진행 가능', {
-            body: `${zone.name} 완료 처리가 가능합니다.`,
+            body: `${zone.name} 완료가 가능합니다.`,
             tag: `slash-ready-${zone.id}`
         });
     }
@@ -267,7 +267,7 @@ async function toggleReservation(zone) {
         render();
         showToast(
             reserved ? '예약을 취소했습니다' : '예약했습니다',
-            reserved ? zone.name : wasLocked ? '쿨타임이 끝나면 알려드릴게요.' : '지금 바로 완료 처리할 수 있습니다.'
+            reserved ? zone.name : wasLocked ? '쿨타임이 끝나면 알려드릴게요.' : '지금 바로 완료할 수 있습니다.'
         );
     } catch (err) {
         showToast('예약 처리 실패', err.message, 'error');
@@ -343,7 +343,7 @@ async function submitZoneCheck(zone) {
             showToast('완료 저장됨', `${zone.name} 쿨타임 ${zone.cooldownMin}분 시작`);
         }
     } catch (err) {
-        showToast('완료 처리 실패', err.message, 'error');
+        showToast('완료 실패', err.message, 'error');
         fetchState(true).catch(() => {});
     }
 }
@@ -434,7 +434,7 @@ function renderZones() {
         if (canUseCardCheck) {
             card.tabIndex = 0;
             card.setAttribute('role', 'button');
-            card.setAttribute('aria-label', canUndoCheck ? `${zone.name} 완료 취소` : `${zone.name} 완료 처리`);
+            card.setAttribute('aria-label', canUndoCheck ? `${zone.name} 완료 취소` : `${zone.name} 완료`);
         }
 
         if (shouldAlertReservationReady(zone, activeReservation, locked)) notifyReservationReady(zone);
@@ -450,10 +450,10 @@ function renderZones() {
         reserveButton.addEventListener('click', () => toggleReservation(zone));
 
         const button = card.querySelector('.checkButton');
-        button.textContent = canUndoCheck ? '되돌리기' : locked ? formatCountdown(remain) : reservedByOther ? '예약자 전용' : '완료 처리';
+        button.textContent = canUndoCheck ? '되돌리기' : locked ? formatCountdown(remain) : reservedByOther ? '예약자 전용' : '완료';
         button.classList.toggle('isCooldown', locked && !canUndoCheck);
         button.classList.toggle('isUndo', canUndoCheck);
-        button.setAttribute('aria-label', canUndoCheck ? `${zone.name} 완료 취소` : locked ? `${zone.name} ${formatCountdown(remain)} 남음` : `${zone.name} 완료 처리`);
+        button.setAttribute('aria-label', canUndoCheck ? `${zone.name} 완료 취소` : locked ? `${zone.name} ${formatCountdown(remain)} 남음` : `${zone.name} 완료`);
         button.disabled = (locked && !canUndoCheck) || reservedByOther;
         button.addEventListener('click', () => submitZoneCheck(zone));
 
