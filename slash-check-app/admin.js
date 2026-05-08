@@ -23,6 +23,7 @@ let state = { members: [], zones: [], bosses: [] };
 let baseline = { members: [], zones: [], bosses: [] };
 const REORDER_HOLD_MS = 420;
 const REORDER_MOVE_CANCEL_PX = 8;
+const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
 let zoneReorderPress = null;
 
 function cleanText(value, max = 40) {
@@ -63,6 +64,67 @@ function normalizeBossTime(value) {
     const minute = Number(match[2]);
     if (hour < 0 || hour > 23 || minute < 0 || minute > 59) return null;
     return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+}
+
+function nowKstParts() {
+    const now = new Date(Date.now() + KST_OFFSET_MS);
+    return {
+        year: now.getUTCFullYear(),
+        month: now.getUTCMonth() + 1,
+        day: now.getUTCDate()
+    };
+}
+
+function makeKstIso(year, month, day, hour, minute) {
+    if (month < 1 || month > 12 || day < 1 || day > 31 || hour < 0 || hour > 23 || minute < 0 || minute > 59) {
+        return '';
+    }
+
+    const ms = Date.UTC(year, month - 1, day, hour - 9, minute, 0, 0);
+    const kst = new Date(ms + KST_OFFSET_MS);
+    if (
+        kst.getUTCFullYear() !== year
+        || kst.getUTCMonth() + 1 !== month
+        || kst.getUTCDate() !== day
+        || kst.getUTCHours() !== hour
+        || kst.getUTCMinutes() !== minute
+    ) {
+        return '';
+    }
+
+    return new Date(ms).toISOString();
+}
+
+function normalizeBossNextSpawnAt(value) {
+    const text = String(value || '').trim();
+    if (!text) return '';
+
+    let match = text.match(/^(\d{4})[-./](\d{1,2})[-./](\d{1,2})\s+(\d{1,2}):?(\d{2})$/);
+    if (match) {
+        return makeKstIso(Number(match[1]), Number(match[2]), Number(match[3]), Number(match[4]), Number(match[5]));
+    }
+
+    match = text.match(/^(\d{1,2})[-./](\d{1,2})\s+(\d{1,2}):?(\d{2})$/);
+    if (match) {
+        const { year } = nowKstParts();
+        return makeKstIso(year, Number(match[1]), Number(match[2]), Number(match[3]), Number(match[4]));
+    }
+
+    match = text.match(/^(\d{1,2}):?(\d{2})$/);
+    if (match) {
+        const { year, month, day } = nowKstParts();
+        return makeKstIso(year, month, day, Number(match[1]), Number(match[2]));
+    }
+
+    const ms = new Date(text).getTime();
+    return Number.isFinite(ms) ? new Date(ms).toISOString() : '';
+}
+
+function formatBossNextSpawnInput(value) {
+    const ms = new Date(value || '').getTime();
+    if (!Number.isFinite(ms)) return '';
+    const kst = new Date(ms + KST_OFFSET_MS);
+    return `${String(kst.getUTCMonth() + 1).padStart(2, '0')}-${String(kst.getUTCDate()).padStart(2, '0')} ${String(kst.getUTCHours()).padStart(2, '0')}:${String(kst.getUTCMinutes()).padStart(2, '0')}`;
 }
 
 function normalizeBossDays(value) {
@@ -112,6 +174,10 @@ function normalizeBossDraft(raw) {
     const cooldown = normalizeBossCooldown(raw.cooldown);
     if (!cooldown) return null;
     boss.쿨타임 = cooldown;
+
+    const nextSpawnAt = normalizeBossNextSpawnAt(raw.nextSpawnAt);
+    if (raw.nextSpawnAt && !nextSpawnAt) return null;
+    if (nextSpawnAt) boss.nextSpawnAt = nextSpawnAt;
     return boss;
 }
 
@@ -122,6 +188,7 @@ function bossIdentity(boss) {
         위치: boss.위치 || '',
         타입: boss.타입,
         쿨타임: boss.쿨타임 || null,
+        nextSpawnAt: boss.nextSpawnAt || '',
         시간: boss.시간 || '',
         요일: boss.요일 || [],
         점수: boss.점수 || 0
@@ -422,6 +489,7 @@ function getAdminDraft() {
             location: row.querySelector('.bossManageLocation').value,
             type: row.querySelector('.bossManageType').value,
             cooldown: row.querySelector('.bossManageCooldown').value,
+            nextSpawnAt: row.querySelector('.bossManageNextSpawn').value,
             time: row.querySelector('.bossManageTime').value,
             days: row.querySelector('.bossManageDays').value,
             score: row.querySelector('.bossManageScore').value
@@ -617,6 +685,7 @@ function updateBossRowMode(row) {
     const isFixed = row.querySelector('.bossManageType').value === '고정';
     row.classList.toggle('isFixedBoss', isFixed);
     row.querySelector('.bossManageCooldown').disabled = isFixed;
+    row.querySelector('.bossManageNextSpawn').disabled = isFixed;
     row.querySelector('.bossManageTime').disabled = !isFixed;
     row.querySelector('.bossManageDays').disabled = !isFixed;
 }
@@ -666,6 +735,13 @@ function createBossManageRow(boss) {
     cooldownInput.value = boss.쿨타임 || 24;
     cooldownInput.placeholder = '쿨(h)';
 
+    const nextSpawnInput = document.createElement('input');
+    nextSpawnInput.className = 'bossManageNextSpawn';
+    nextSpawnInput.type = 'text';
+    nextSpawnInput.value = formatBossNextSpawnInput(boss.nextSpawnAt);
+    nextSpawnInput.placeholder = '다음젠';
+    nextSpawnInput.title = '시간보스만 사용합니다. 예: 05-09 18:20';
+
     const timeInput = document.createElement('input');
     timeInput.className = 'bossManageTime';
     timeInput.type = 'text';
@@ -707,7 +783,7 @@ function createBossManageRow(boss) {
         renderChangeState();
     });
 
-    row.append(nameInput, aliasInput, locationInput, typeSelect, cooldownInput, timeInput, daysInput, scoreInput, status, deleteButton);
+    row.append(nameInput, aliasInput, locationInput, typeSelect, cooldownInput, nextSpawnInput, timeInput, daysInput, scoreInput, status, deleteButton);
     updateBossRowMode(row);
     return row;
 }

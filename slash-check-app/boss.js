@@ -361,6 +361,10 @@ function bossNextSpawnMs(boss) {
         const ms = new Date(latest.nextSpawnAt).getTime();
         if (Number.isFinite(ms)) return ms;
     }
+    if (boss.nextSpawnAt) {
+        const ms = new Date(boss.nextSpawnAt).getTime();
+        if (Number.isFinite(ms)) return ms;
+    }
     if (boss.타입 === '고정') return nextFixedSpawnMs(boss);
     return null;
 }
@@ -388,10 +392,11 @@ function buildTimeline() {
         }
 
         const latest = latestRecordForBoss(boss);
-        if (!latest?.nextSpawnAt) continue;
-        const spawnMs = new Date(latest.nextSpawnAt).getTime();
+        const nextSpawnAt = latest?.nextSpawnAt || boss.nextSpawnAt;
+        if (!nextSpawnAt) continue;
+        const spawnMs = new Date(nextSpawnAt).getTime();
         if (Number.isFinite(spawnMs) && spawnMs >= floor && spawnMs <= end) {
-            items.push({ boss, spawnMs, source: 'cut', record: latest });
+            items.push({ boss, spawnMs, source: latest ? 'cut' : 'planned', record: latest });
         }
     }
 

@@ -137,6 +137,12 @@ function normalizeBossScore(value) {
     return Math.max(0, Math.min(999, Math.round(num)));
 }
 
+function normalizeBossNextSpawnAt(value) {
+    const ms = new Date(value || '').getTime();
+    if (!Number.isFinite(ms)) return null;
+    return new Date(ms).toISOString();
+}
+
 function normalizeBoss(value) {
     const name = cleanText(value?.이름 || value?.name, 40);
     if (!name) return null;
@@ -162,6 +168,9 @@ function normalizeBoss(value) {
     const cooldown = normalizeBossCooldown(value?.쿨타임 ?? value?.cooldownHours);
     if (!cooldown) return null;
     boss.쿨타임 = cooldown;
+
+    const nextSpawnAt = normalizeBossNextSpawnAt(value?.nextSpawnAt || value?.다음젠 || value?.nextSpawn);
+    if (nextSpawnAt) boss.nextSpawnAt = nextSpawnAt;
     return boss;
 }
 
