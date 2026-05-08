@@ -310,6 +310,7 @@ function renderZones() {
         const activeReservation = reservations[0];
         const reservedByMe = activeReservation?.memberName === selectedMember;
         const reservedByOther = Boolean(activeReservation && !reservedByMe);
+        const canUndoCheck = locked && zone.lastBy === selectedMember;
         const reservationRemain = activeReservation?.expiresAt
             ? formatRemain(new Date(activeReservation.expiresAt).getTime() - now)
             : null;
@@ -327,22 +328,28 @@ function renderZones() {
         reserveButton.addEventListener('click', () => toggleReservation(zone));
 
         const button = card.querySelector('.checkButton');
-        button.textContent = locked ? formatCountdown(remain) : reservedByOther ? '예약자 전용' : '완료 처리';
-        button.classList.toggle('isCooldown', locked);
-        button.setAttribute('aria-label', locked ? `${zone.name} ${formatCountdown(remain)} 남음` : `${zone.name} 완료 처리`);
-        button.disabled = locked || reservedByOther;
+        button.textContent = canUndoCheck ? '되돌리기' : locked ? formatCountdown(remain) : reservedByOther ? '예약자 전용' : '완료 처리';
+        button.classList.toggle('isCooldown', locked && !canUndoCheck);
+        button.classList.toggle('isUndo', canUndoCheck);
+        button.setAttribute('aria-label', canUndoCheck ? `${zone.name} 완료 취소` : locked ? `${zone.name} ${formatCountdown(remain)} 남음` : `${zone.name} 완료 처리`);
+        button.disabled = (locked && !canUndoCheck) || reservedByOther;
         button.addEventListener('click', async () => {
             const memberName = requireMember();
             if (!memberName) return;
 
             try {
-                state = await api('/api/check', {
+                const data = await api('/api/check', {
                     method: 'POST',
                     body: JSON.stringify({ zoneId: zone.id, memberName })
                 });
+                state = data;
                 lastSyncAt = Date.now();
                 render();
-                showToast('완료 저장됨', `${zone.name} 쿨타임 ${zone.cooldownMin}분 시작`);
+                if (data.action === 'undo') {
+                    showToast('완료 취소됨', `${zone.name} 이전 상태로 복구`);
+                } else {
+                    showToast('완료 저장됨', `${zone.name} 쿨타임 ${zone.cooldownMin}분 시작`);
+                }
             } catch (err) {
                 showToast('완료 처리 실패', err.message, 'error');
                 fetchState(true).catch(() => {});

@@ -145,6 +145,44 @@ function cleanupExpiredReservations(now = Date.now()) {
     return changed;
 }
 
+function snapshotZone(zone) {
+    return {
+        cooldownUntil: zone.cooldownUntil || null,
+        lastBy: zone.lastBy || null,
+        lastAt: zone.lastAt || null,
+        reservations: Array.isArray(zone.reservations) ? structuredClone(zone.reservations) : []
+    };
+}
+
+function restoreZoneAfterUndo(zone, removedLog) {
+    const previous = removedLog?.previousZoneState;
+    if (previous && typeof previous === 'object') {
+        zone.cooldownUntil = previous.cooldownUntil || null;
+        zone.lastBy = previous.lastBy || null;
+        zone.lastAt = previous.lastAt || null;
+        zone.reservations = Array.isArray(previous.reservations) ? previous.reservations : [];
+        return;
+    }
+
+    const previousLog = state.logs.find((log) => log.zoneId === zone.id);
+    if (!previousLog) {
+        zone.cooldownUntil = null;
+        zone.lastBy = null;
+        zone.lastAt = null;
+        zone.reservations = [];
+        return;
+    }
+
+    const previousAt = new Date(previousLog.checkedAt).getTime();
+    const previousCooldown = normalizeCooldown(previousLog.cooldownMin) || zone.cooldownMin;
+    zone.cooldownUntil = Number.isFinite(previousAt)
+        ? new Date(previousAt + previousCooldown * 60000).toISOString()
+        : null;
+    zone.lastBy = previousLog.memberName || previousLog.checkedBy || null;
+    zone.lastAt = previousLog.checkedAt || null;
+    zone.reservations = [];
+}
+
 function readBody(req) {
     return new Promise((resolve, reject) => {
         let body = '';
@@ -501,7 +539,27 @@ async function handleApi(req, res, url) {
             return true;
         }
 
-        if (zone.cooldownUntil && new Date(zone.cooldownUntil).getTime() > now) {
+        const isLocked = Boolean(zone.cooldownUntil && new Date(zone.cooldownUntil).getTime() > now);
+        if (isLocked && zone.lastBy === memberName) {
+            const logIndex = state.logs.findIndex((log) => {
+                return log.zoneId === zone.id
+                    && log.memberName === memberName
+                    && (!zone.lastAt || log.checkedAt === zone.lastAt);
+            });
+
+            if (logIndex === -1) {
+                sendJson(res, 409, { error: '되돌릴 완료 기록을 찾을 수 없습니다.', state: publicState() });
+                return true;
+            }
+
+            const [removedLog] = state.logs.splice(logIndex, 1);
+            restoreZoneAfterUndo(zone, removedLog);
+            await saveState();
+            sendJson(res, 200, { ...publicState(), action: 'undo' });
+            return true;
+        }
+
+        if (isLocked) {
             sendJson(res, 409, { error: '아직 쿨타임 중입니다.', state: publicState() });
             return true;
         }
@@ -514,6 +572,7 @@ async function handleApi(req, res, url) {
 
         const checkedAt = new Date(now).toISOString();
         const cooldownUntil = new Date(now + zone.cooldownMin * 60000).toISOString();
+        const previousZoneState = snapshotZone(zone);
 
         zone.cooldownUntil = cooldownUntil;
         zone.lastBy = memberName;
@@ -528,12 +587,13 @@ async function handleApi(req, res, url) {
             checkedBy: memberName,
             participantCount: 1,
             checkedAt,
-            cooldownMin: zone.cooldownMin
+            cooldownMin: zone.cooldownMin,
+            previousZoneState
         });
         state.logs = state.logs.slice(0, 500);
 
         await saveState();
-        sendJson(res, 200, publicState());
+        sendJson(res, 200, { ...publicState(), action: 'check' });
         return true;
     }
 

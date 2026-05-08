@@ -485,6 +485,16 @@ h1 {
     color: var(--red);
 }
 
+.checkButton.isUndo {
+    border-color: #f0b7b1;
+    background: #ffffff;
+    color: var(--red);
+}
+
+.checkButton.isUndo:hover {
+    background: var(--red-soft);
+}
+
 .bossLayout {
     display: grid;
     grid-template-columns: minmax(0, 1fr) 380px;
