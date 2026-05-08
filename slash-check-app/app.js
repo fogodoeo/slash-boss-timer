@@ -574,10 +574,10 @@ function renderZones() {
         menuButton.addEventListener('click', () => openZoneActionModal(zone));
         const lastText = card.querySelector('.lastText');
         lastText.textContent = zone.lastBy
-            ? `최근 ${zone.lastBy} · ${formatRecentTime(zone.lastAt, now)}`
+            ? `${zone.lastBy} · ${formatRecentTime(zone.lastAt, now)}`
             : '';
         lastText.title = zone.lastBy
-            ? `최근 ${zone.lastBy} · ${formatKstDateTime(zone.lastAt)}`
+            ? `${zone.lastBy} · ${formatKstDateTime(zone.lastAt)}`
             : '';
         const reservations = getActiveReservations(zone, now);
         const activeReservation = reservations[0];

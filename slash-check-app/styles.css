@@ -435,14 +435,6 @@ h1 {
     transition: background-color 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease, transform 0.16s ease;
 }
 
-.zoneCard:not(.hasMeta) {
-    grid-template-columns: minmax(0, 1fr) 190px;
-}
-
-.zoneCard:not(.hasMeta) .zoneStatus {
-    display: none;
-}
-
 .zoneCard.isLocked {
     border-color: #c8d0dc;
     border-left-color: #6f7b8f;
@@ -2025,10 +2017,6 @@ h1 {
     .rouletteCardSpacer {
         width: 52px;
         height: 30px;
-    }
-
-    .zoneCard:not(.hasMeta) {
-        grid-template-columns: minmax(0, 1fr) 156px;
     }
 
     .zoneMain {
