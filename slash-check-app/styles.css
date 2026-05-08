@@ -163,6 +163,14 @@ h1 {
     border-color: var(--blue-dark);
 }
 
+.zoneForm button:disabled,
+#saveMembersButton:disabled,
+.saveZone:disabled,
+.deleteZone:disabled {
+    cursor: wait;
+    opacity: 0.72;
+}
+
 .profilePill .notifyButton {
     border-color: var(--line);
     background: #ffffff;
@@ -1055,6 +1063,16 @@ h1 {
     opacity: 0;
     transform: translateY(8px);
     transition: opacity 0.18s ease, transform 0.18s ease;
+}
+
+.toast.success {
+    border-left-color: var(--green);
+    background: linear-gradient(90deg, var(--green-soft), #ffffff 42%);
+}
+
+.toast.error {
+    border-left-color: var(--red);
+    background: linear-gradient(90deg, var(--red-soft), #ffffff 42%);
 }
 
 .toast.show {

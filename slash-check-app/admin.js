@@ -6,8 +6,46 @@ const zoneSummary = document.querySelector('#zoneSummary');
 const memberSummary = document.querySelector('#memberSummary');
 const memberBulkInput = document.querySelector('#memberBulkInput');
 const saveMembersButton = document.querySelector('#saveMembersButton');
+const toastHost = document.querySelector('#toastHost');
 
 let state = { members: [], zones: [] };
+
+function showToast(title, message = '', tone = 'success') {
+    if (!toastHost) return;
+
+    const toast = document.createElement('div');
+    toast.className = `toast ${tone}`;
+
+    const titleEl = document.createElement('strong');
+    titleEl.textContent = title;
+    toast.append(titleEl);
+
+    if (message) {
+        const messageEl = document.createElement('span');
+        messageEl.textContent = message;
+        toast.append(messageEl);
+    }
+
+    toastHost.append(toast);
+    setTimeout(() => toast.classList.add('show'), 10);
+    setTimeout(() => {
+        toast.classList.remove('show');
+        setTimeout(() => toast.remove(), 180);
+    }, 3600);
+}
+
+async function withPending(button, pendingText, task) {
+    const previousText = button.textContent;
+    button.disabled = true;
+    button.textContent = pendingText;
+
+    try {
+        return await task();
+    } finally {
+        button.disabled = false;
+        button.textContent = previousText;
+    }
+}
 
 async function api(path, options = {}) {
     const res = await fetch(path, {
@@ -66,27 +104,35 @@ function renderZones() {
 
         saveButton.addEventListener('click', async () => {
             try {
-                state = await api('/api/zones', {
-                    method: 'PUT',
-                    body: JSON.stringify({
-                        id: zone.id,
-                        name: nameInput.value,
-                        cooldownMin: cooldownInput.value
-                    })
+                await withPending(saveButton, '저장 중', async () => {
+                    const nextName = nameInput.value.trim();
+                    const nextCooldown = Number(cooldownInput.value);
+                    state = await api('/api/zones', {
+                        method: 'PUT',
+                        body: JSON.stringify({
+                            id: zone.id,
+                            name: nextName,
+                            cooldownMin: nextCooldown
+                        })
+                    });
+                    render();
+                    showToast('구역 변경 저장됨', `${nextName} / ${nextCooldown}분`);
                 });
-                render();
             } catch (err) {
-                alert(err.message);
+                showToast('저장 실패', err.message, 'error');
             }
         });
 
         deleteButton.addEventListener('click', async () => {
             if (!confirm(`${zone.name} 구역을 삭제할까요?`)) return;
             try {
-                state = await api(`/api/zones?id=${encodeURIComponent(zone.id)}`, { method: 'DELETE' });
-                render();
+                await withPending(deleteButton, '삭제 중', async () => {
+                    state = await api(`/api/zones?id=${encodeURIComponent(zone.id)}`, { method: 'DELETE' });
+                    render();
+                    showToast('구역 삭제됨', zone.name);
+                });
             } catch (err) {
-                alert(err.message);
+                showToast('삭제 실패', err.message, 'error');
             }
         });
 
@@ -111,27 +157,34 @@ zoneForm.addEventListener('submit', async (event) => {
     if (!name || !cooldownMin) return;
 
     try {
-        state = await api('/api/zones', {
-            method: 'POST',
-            body: JSON.stringify({ name, cooldownMin })
+        const submitButton = zoneForm.querySelector('button[type="submit"]');
+        await withPending(submitButton, '추가 중', async () => {
+            state = await api('/api/zones', {
+                method: 'POST',
+                body: JSON.stringify({ name, cooldownMin })
+            });
+            zoneNameInput.value = '';
+            render();
+            showToast('구역 추가됨', `${name} / ${cooldownMin}분`);
         });
-        zoneNameInput.value = '';
-        render();
     } catch (err) {
-        alert(err.message);
+        showToast('추가 실패', err.message, 'error');
     }
 });
 
 saveMembersButton.addEventListener('click', async () => {
     try {
-        state = await api('/api/members', {
-            method: 'POST',
-            body: JSON.stringify({ raw: memberBulkInput.value })
+        await withPending(saveMembersButton, '저장 중', async () => {
+            state = await api('/api/members', {
+                method: 'POST',
+                body: JSON.stringify({ raw: memberBulkInput.value })
+            });
+            render();
+            showToast('길드원 목록 저장됨', `${state.members.length}명 반영`);
         });
-        render();
     } catch (err) {
-        alert(err.message);
+        showToast('저장 실패', err.message, 'error');
     }
 });
 
-fetchState();
+fetchState().catch((err) => showToast('불러오기 실패', err.message, 'error'));

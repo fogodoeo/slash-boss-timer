@@ -58,11 +58,11 @@ function getNowMs() {
     return new Date(state.now).getTime() + (Date.now() - lastSyncAt);
 }
 
-function showToast(title, message = '') {
+function showToast(title, message = '', tone = 'success') {
     if (!toastHost) return;
 
     const toast = document.createElement('div');
-    toast.className = 'toast';
+    toast.className = `toast ${tone}`;
 
     const titleEl = document.createElement('strong');
     titleEl.textContent = title;
@@ -234,7 +234,7 @@ async function toggleReservation(zone) {
             reserved ? zone.name : wasLocked ? '쿨타임이 끝나면 알려드릴게요.' : '지금 바로 완료 처리할 수 있습니다.'
         );
     } catch (err) {
-        alert(err.message);
+        showToast('우선권 처리 실패', err.message, 'error');
         fetchState(true).catch(() => {});
     }
 }
@@ -342,8 +342,9 @@ function renderZones() {
                 });
                 lastSyncAt = Date.now();
                 render();
+                showToast('완료 저장됨', `${zone.name} 쿨타임 ${zone.cooldownMin}분 시작`);
             } catch (err) {
-                alert(err.message);
+                showToast('완료 처리 실패', err.message, 'error');
                 fetchState(true).catch(() => {});
             }
         });

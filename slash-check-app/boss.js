@@ -14,6 +14,7 @@ const profileModal = document.querySelector('#profileModal');
 const profileForm = document.querySelector('#profileForm');
 const memberSearchInput = document.querySelector('#memberSearchInput');
 const memberSuggest = document.querySelector('#memberSuggest');
+const toastHost = document.querySelector('#toastHost');
 
 const MEMBER_KEY = 'slashCheckMemberName';
 let state = { members: [], bossCuts: {} };
@@ -47,6 +48,30 @@ function formatNowCommandTime() {
 function displayTime(value) {
     if (!isValidCommandTime(value)) return '--:--';
     return `${value.slice(0, 2)}:${value.slice(2, 4)}`;
+}
+
+function showToast(title, message = '', tone = 'success') {
+    if (!toastHost) return;
+
+    const toast = document.createElement('div');
+    toast.className = `toast ${tone}`;
+
+    const titleEl = document.createElement('strong');
+    titleEl.textContent = title;
+    toast.append(titleEl);
+
+    if (message) {
+        const messageEl = document.createElement('span');
+        messageEl.textContent = message;
+        toast.append(messageEl);
+    }
+
+    toastHost.append(toast);
+    setTimeout(() => toast.classList.add('show'), 10);
+    setTimeout(() => {
+        toast.classList.remove('show');
+        setTimeout(() => toast.remove(), 180);
+    }, 3600);
 }
 
 function describeCooldown(boss) {
@@ -297,8 +322,9 @@ async function saveBossCut(boss, rawValue) {
         });
         normalizeCuts(data.cuts);
         render();
+        showToast('컷 저장됨', commandFor(boss, state.bossCuts[boss.이름]));
     } catch (err) {
-        alert(err.message);
+        showToast('컷 저장 실패', err.message, 'error');
         fetchState(true).catch(() => {});
     }
 }
@@ -311,8 +337,9 @@ async function clearBossCut(boss) {
         const data = await api(`/api/boss-cuts?bossName=${encodeURIComponent(boss.이름)}`, { method: 'DELETE' });
         normalizeCuts(data.cuts);
         render();
+        showToast('컷 취소됨', boss.이름);
     } catch (err) {
-        alert(err.message);
+        showToast('컷 취소 실패', err.message, 'error');
         fetchState(true).catch(() => {});
     }
 }
@@ -324,12 +351,14 @@ async function copyCommands() {
     try {
         await navigator.clipboard.writeText(text);
         copyCommandButton.textContent = '복사됨';
+        showToast('명령어 복사됨', `${text.split('\n').length}개 줄`);
         setTimeout(() => {
             copyCommandButton.textContent = '복사';
         }, 900);
     } catch {
         commandOutput.focus();
         commandOutput.select();
+        showToast('복사 권한 필요', '텍스트가 선택됐습니다. 직접 복사하세요.', 'error');
     }
 }
 
