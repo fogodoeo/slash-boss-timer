@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="ko">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>썰자 분석</title>
+    <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+    <main class="shell">
+        <header class="topbar">
+            <div>
+                <span class="eyebrow">운영 지표</span>
+                <h1>분석</h1>
+                <p class="pageDesc">썰자 기록의 시간대, 구역 집중도, 현재 상태를 한국시간 기준으로 확인합니다.</p>
+            </div>
+            <nav class="navTabs" aria-label="페이지 이동">
+                <a href="./">체크</a>
+                <a href="./ranking.html">랭킹</a>
+                <a class="active" href="./analytics.html">분석</a>
+                <a href="./boss.html">보스</a>
+                <a href="./admin.html">관리</a>
+            </nav>
+        </header>
+
+        <section class="analyticsToolbar">
+            <div>
+                <span class="label">분석 기간</span>
+                <strong id="analyticsSummary">기록 불러오는 중</strong>
+            </div>
+            <div class="segmented" aria-label="분석 기간 선택">
+                <button type="button" data-period="day">일간</button>
+                <button class="active" type="button" data-period="week">주간</button>
+                <button type="button" data-period="all">전체</button>
+            </div>
+        </section>
+
+        <section class="analyticsStats" aria-label="요약 지표">
+            <article class="metricCard">
+                <span>완료</span>
+                <strong id="metricChecks">0</strong>
+                <small id="metricChecksHint">선택 기간</small>
+            </article>
+            <article class="metricCard">
+                <span>참여</span>
+                <strong id="metricMembers">0</strong>
+                <small id="metricMembersHint">길드원</small>
+            </article>
+            <article class="metricCard">
+                <span>구역</span>
+                <strong id="metricZones">0</strong>
+                <small id="metricZonesHint">활동 구역</small>
+            </article>
+            <article class="metricCard">
+                <span>현재 쿨</span>
+                <strong id="metricLocked">0</strong>
+                <small id="metricLockedHint">진행 중</small>
+            </article>
+        </section>
+
+        <section class="analyticsLayout">
+            <section class="panel analyticsWide">
+                <div class="panelHead">
+                    <div>
+                        <span class="label">시간대 분포</span>
+                        <strong id="hourSummary">0건</strong>
+                    </div>
+                </div>
+                <div id="hourChart" class="hourChart"></div>
+            </section>
+
+            <section class="panel">
+                <div class="panelHead">
+                    <div>
+                        <span class="label">현재 상태</span>
+                        <strong id="statusSummary">0개 구역</strong>
+                    </div>
+                </div>
+                <div id="statusStack" class="statusStack"></div>
+            </section>
+
+            <section class="panel">
+                <div class="panelHead">
+                    <div>
+                        <span class="label">구역 집중도</span>
+                        <strong id="zoneSummary">0건</strong>
+                    </div>
+                </div>
+                <div id="zoneAnalysisList" class="analysisList"></div>
+            </section>
+
+            <section class="panel">
+                <div class="panelHead">
+                    <div>
+                        <span class="label">길드원 흐름</span>
+                        <strong id="memberSummary">0명</strong>
+                    </div>
+                </div>
+                <div id="memberAnalysisList" class="analysisList"></div>
+            </section>
+
+            <section class="panel analyticsWide">
+                <div class="panelHead">
+                    <div>
+                        <span class="label">최근 7일</span>
+                        <strong id="dailySummary">0건</strong>
+                    </div>
+                </div>
+                <div id="dailyTrend" class="dailyTrend"></div>
+            </section>
+
+            <section class="panel">
+                <div class="panelHead">
+                    <div>
+                        <span class="label">요약</span>
+                        <strong id="insightSummary">대기 중</strong>
+                    </div>
+                </div>
+                <div id="insightList" class="insightList"></div>
+            </section>
+        </section>
+    </main>
+
+    <script src="./analytics.js"></script>
+</body>
+</html>
