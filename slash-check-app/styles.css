@@ -342,9 +342,7 @@ h1 {
 .zoneCard.isLocked {
     border-color: #c8d0dc;
     border-left-color: #6f7b8f;
-    background:
-        repeating-linear-gradient(135deg, rgba(113, 123, 140, 0.11) 0, rgba(113, 123, 140, 0.11) 7px, transparent 7px, transparent 15px),
-        linear-gradient(180deg, #e9edf3 0%, #dfe5ee 100%);
+    background: #e7ecf3;
     box-shadow: inset 0 2px 7px rgba(16, 24, 40, 0.14);
     transform: translateY(1px);
 }
@@ -361,6 +359,16 @@ h1 {
 
 .zoneCard.isTappable:active {
     transform: translateY(1px);
+}
+
+.zoneCard.isInProgress {
+    border-color: #b8cdf4;
+    border-left-color: var(--blue);
+    background: #f5f9ff;
+}
+
+.zoneCard.isInProgress .statusText {
+    color: var(--blue-dark);
 }
 
 .zoneMain {

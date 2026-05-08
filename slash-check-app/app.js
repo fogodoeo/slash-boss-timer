@@ -410,7 +410,6 @@ function renderZones() {
         const menuButton = card.querySelector('.zoneMenuButton');
         menuButton.setAttribute('aria-label', `${zone.name} 관리 메뉴`);
         menuButton.addEventListener('click', () => openZoneActionModal(zone));
-        card.querySelector('.statusText').textContent = locked ? '쿨타임' : '가능';
         card.querySelector('.lastText').textContent = zone.lastBy
             ? `최근 ${zone.lastBy} · ${formatTime(zone.lastAt)}`
             : '';
@@ -420,6 +419,7 @@ function renderZones() {
         const activeReservation = reservations[0];
         const reservedByMe = activeReservation?.memberName === selectedMember;
         const reservedByOther = Boolean(activeReservation && !reservedByMe);
+        const inProgress = reservedByOther && !locked;
         const checkedByMeAt = zone.lastAt ? new Date(zone.lastAt).getTime() : 0;
         const canUndoCheck = locked
             && zone.lastBy === selectedMember
@@ -430,6 +430,8 @@ function renderZones() {
             ? formatRemain(new Date(activeReservation.expiresAt).getTime() - now)
             : null;
 
+        card.classList.toggle('isInProgress', inProgress);
+        card.querySelector('.statusText').textContent = locked ? '쿨타임' : inProgress ? '진행중' : '가능';
         card.classList.toggle('isTappable', canUseCardCheck);
         if (canUseCardCheck) {
             card.tabIndex = 0;
