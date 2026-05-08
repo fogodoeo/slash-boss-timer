@@ -59,6 +59,8 @@ function filteredLogs() {
     const query = memberQuery();
 
     return state.logs.filter((log) => {
+        if (!isCheckLog(log)) return false;
+
         const timeOk = !start || new Date(log.checkedAt).getTime() >= start;
         const memberOk = !query || log.memberName.toLowerCase().includes(query);
         return timeOk && memberOk;
@@ -119,10 +121,8 @@ function periodLabel() {
 function renderRankings() {
     rankingList.replaceChildren();
     const logs = filteredLogs();
-    const checkLogs = logs.filter(isCheckLog);
     const rankings = buildRankings(logs);
-    const actionCount = logs.length - checkLogs.length;
-    rankingSummary.textContent = `${periodLabel()} ${rankings.length}명 · 완료 ${checkLogs.length}건${actionCount ? ` · 관리 ${actionCount}건` : ''}`;
+    rankingSummary.textContent = `${periodLabel()} ${rankings.length}명 · 완료 ${logs.length}건`;
 
     if (rankings.length === 0) {
         rankingList.innerHTML = '<div class="empty small">조건에 맞는 랭킹 기록이 없습니다.</div>';
