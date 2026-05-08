@@ -354,7 +354,7 @@ h1 {
 .rouletteCard {
     position: relative;
     display: grid;
-    grid-template-columns: minmax(0, 1fr) 92px;
+    grid-template-columns: minmax(0, 1fr) 104px;
     gap: 10px;
     align-items: center;
     min-height: 58px;
@@ -390,7 +390,7 @@ h1 {
 }
 
 .rouletteCardButton {
-    width: 100%;
+    width: 104px;
     height: 34px;
     border: 1px solid var(--dark);
     border-radius: 6px;
@@ -1974,7 +1974,7 @@ h1 {
     }
 
     .rouletteCard {
-        grid-template-columns: minmax(0, 1fr) 78px;
+        grid-template-columns: minmax(0, 1fr) 88px;
         gap: 3px 8px;
         min-height: 0;
         padding: 7px 8px 7px 10px;
@@ -1991,6 +1991,7 @@ h1 {
     }
 
     .rouletteCardButton {
+        width: 88px;
         height: 32px;
         padding: 0 8px;
         font-size: 13px;
