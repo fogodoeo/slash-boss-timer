@@ -450,7 +450,7 @@ function renderZones() {
         reserveButton.addEventListener('click', () => toggleReservation(zone));
 
         const button = card.querySelector('.checkButton');
-        button.textContent = canUndoCheck ? '되돌리기' : locked ? formatCountdown(remain) : reservedByOther ? '진행중' : '완료';
+        button.textContent = canUndoCheck ? '되돌리기' : locked ? formatCountdown(remain) : reservedByOther ? '예약자 전용' : '완료';
         button.classList.toggle('isCooldown', locked && !canUndoCheck);
         button.classList.toggle('isUndo', canUndoCheck);
         button.setAttribute('aria-label', canUndoCheck ? `${zone.name} 완료 취소` : locked ? `${zone.name} ${formatCountdown(remain)} 남음` : `${zone.name} 완료`);
