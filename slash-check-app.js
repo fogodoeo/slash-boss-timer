@@ -976,15 +976,9 @@ async function handleApi(req, res, url) {
         const body = await readJson(req);
         const recordId = cleanText(body.recordId || url.searchParams.get('recordId'), 80);
         const actorName = cleanText(body.actorName || url.searchParams.get('actorName'), 24);
-        const adminPassword = body.adminPassword;
 
         if (!state.members.includes(actorName)) {
-            sendJson(res, 400, { error: '등록된 길드원만 컷 기록을 되돌릴 수 있습니다.' });
-            return true;
-        }
-
-        if (!verifyAdminPassword(adminPassword)) {
-            sendJson(res, 403, { error: '관리자 비밀번호가 맞지 않습니다.' });
+            sendJson(res, 400, { error: '등록된 길드원만 컷 기록을 취소할 수 있습니다.' });
             return true;
         }
 
@@ -1036,11 +1030,6 @@ async function handleApi(req, res, url) {
 
         if (!state.members.includes(actorName)) {
             sendJson(res, 400, { error: '등록된 길드원만 컷 기록을 취소할 수 있습니다.' });
-            return true;
-        }
-
-        if (!verifyAdminPassword(body.adminPassword)) {
-            sendJson(res, 403, { error: '관리자 비밀번호가 맞지 않습니다.' });
             return true;
         }
 

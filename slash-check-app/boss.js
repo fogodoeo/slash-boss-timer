@@ -882,10 +882,6 @@ async function cancelParticipantRecord() {
     if (!memberName || !selectedParticipantRecord) return;
 
     const record = selectedParticipantRecord;
-    if (!participantAdminPasswordInput.value.trim()) {
-        showToast('관리자 확인', '관리자 비밀번호를 입력하세요.', 'error');
-        return;
-    }
     if (!confirm(`${record.bossName} ${formatKstDateTime(record.cutAt)} 컷 기록을 취소 처리할까요?\n기록은 최근 컷에 취소됨으로 남습니다.`)) return;
 
     try {
@@ -893,8 +889,7 @@ async function cancelParticipantRecord() {
             method: 'DELETE',
             body: JSON.stringify({
                 recordId: record.id,
-                actorName: memberName,
-                adminPassword: participantAdminPasswordInput.value
+                actorName: memberName
             })
         });
         state.bossCuts = data.cuts || {};
