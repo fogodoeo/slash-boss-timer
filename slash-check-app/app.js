@@ -601,6 +601,7 @@ function renderZones() {
             && zone.lastBy === selectedMember
             && Number.isFinite(checkedByMeAt)
             && now - checkedByMeAt <= CHECK_UNDO_GRACE_MS;
+        const undoRemainText = canUndoCheck ? formatCountdown(CHECK_UNDO_GRACE_MS - (now - checkedByMeAt)) : '';
         const canUseCardCheck = !reservedByOther && (!locked || canUndoCheck);
         const reservationRemain = activeReservation?.expiresAt
             ? formatRemain(new Date(activeReservation.expiresAt).getTime() - now)
@@ -629,10 +630,10 @@ function renderZones() {
         reserveButton.addEventListener('click', () => toggleReservation(zone));
 
         const button = card.querySelector('.checkButton');
-        button.textContent = canUndoCheck ? '되돌리기' : locked ? formatCountdown(remain) : reservedByOther ? '예약자 전용' : '완료';
+        button.textContent = canUndoCheck ? `되돌리기 ${undoRemainText}` : locked ? formatCountdown(remain) : reservedByOther ? '예약자 전용' : '완료';
         button.classList.toggle('isCooldown', locked && !canUndoCheck);
         button.classList.toggle('isUndo', canUndoCheck);
-        button.setAttribute('aria-label', canUndoCheck ? `${zone.name} 완료 취소` : locked ? `${zone.name} ${formatCountdown(remain)} 남음` : `${zone.name} 완료`);
+        button.setAttribute('aria-label', canUndoCheck ? `${zone.name} 완료 취소 ${undoRemainText} 남음` : locked ? `${zone.name} ${formatCountdown(remain)} 남음` : `${zone.name} 완료`);
         button.disabled = (locked && !canUndoCheck) || reservedByOther;
         button.addEventListener('click', () => submitZoneCheck(zone));
 

@@ -56,6 +56,7 @@ const bossCardTemplate = document.querySelector('#bossCardTemplate');
 const recordItemTemplate = document.querySelector('#recordItemTemplate');
 const liveParticipationTemplate = document.querySelector('#liveParticipationTemplate');
 const toastHost = document.querySelector('#toastHost');
+const resetTimeBossButton = document.querySelector('#resetTimeBossButton');
 
 const MEMBER_KEY = 'slashCheckMemberName';
 const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
@@ -342,6 +343,10 @@ function renderMemberSuggest() {
     }
 }
 
+function isBossCardControl(target) {
+    return Boolean(target.closest('button, a, input, select, textarea, label'));
+}
+
 function bossNeedsParticipation(boss) {
     return Number(boss.점수 || 0) > 0;
 }
@@ -356,6 +361,21 @@ function latestRecordForBoss(boss) {
             location: boss.위치 || '',
             ...state.bossCuts[boss.이름]
         } : null);
+}
+
+function manualNextSpawnMs(boss, latest) {
+    if (!boss.nextSpawnAt) return null;
+    const spawnMs = new Date(boss.nextSpawnAt).getTime();
+    if (!Number.isFinite(spawnMs)) return null;
+
+    const manualUpdatedMs = new Date(boss.nextSpawnUpdatedAt || '').getTime();
+    const latestUpdatedMs = new Date(latest?.updatedAt || latest?.cutAt || '').getTime();
+    if (latest && Number.isFinite(manualUpdatedMs) && Number.isFinite(latestUpdatedMs) && manualUpdatedMs <= latestUpdatedMs) {
+        return null;
+    }
+
+    if (latest && !Number.isFinite(manualUpdatedMs)) return null;
+    return spawnMs;
 }
 
 function nextFixedSpawnMs(boss, fromMs = getNowMs()) {
@@ -377,6 +397,8 @@ function nextFixedSpawnMs(boss, fromMs = getNowMs()) {
 
 function bossNextSpawnMs(boss) {
     const latest = latestRecordForBoss(boss);
+    const manualMs = manualNextSpawnMs(boss, latest);
+    if (manualMs) return manualMs;
     if (latest?.nextSpawnAt) {
         const ms = new Date(latest.nextSpawnAt).getTime();
         if (Number.isFinite(ms)) return ms;
@@ -412,11 +434,11 @@ function buildTimeline() {
         }
 
         const latest = latestRecordForBoss(boss);
-        const nextSpawnAt = latest?.nextSpawnAt || boss.nextSpawnAt;
-        if (!nextSpawnAt) continue;
-        const spawnMs = new Date(nextSpawnAt).getTime();
+        const manualMs = manualNextSpawnMs(boss, latest);
+        const nextSpawnAt = manualMs ? null : latest?.nextSpawnAt || boss.nextSpawnAt;
+        const spawnMs = manualMs || new Date(nextSpawnAt || '').getTime();
         if (Number.isFinite(spawnMs) && spawnMs >= floor && spawnMs <= end) {
-            items.push({ boss, spawnMs, source: latest ? 'cut' : 'planned', record: latest });
+            items.push({ boss, spawnMs, source: manualMs ? 'manual' : latest ? 'cut' : 'planned', record: manualMs ? null : latest });
         }
     }
 
@@ -562,6 +584,11 @@ function renderTimeline() {
             timelineMeta.textContent += ` · ${lock.memberName}`;
         }
         cutButton.addEventListener('click', () => openCutModal(item.boss, item.spawnMs));
+        row.addEventListener('click', (event) => {
+            if (isBossCardControl(event.target)) return;
+            if (latest?.id) openParticipantModal(latest);
+            else openCutModal(item.boss, item.spawnMs);
+        });
         bossTimeline.append(row);
     }
 }
@@ -641,6 +668,12 @@ function renderBosses() {
         joinButton.disabled = !participationOpen;
         joinButton.textContent = participationOpen ? '참여' : record?.requiresParticipation ? '마감' : '-';
         joinButton.addEventListener('click', () => openJoinModal(record));
+
+        card.addEventListener('click', (event) => {
+            if (isBossCardControl(event.target)) return;
+            if (record?.id) openParticipantModal(record);
+            else openCutModal(boss, Number.isFinite(nextMs) ? nextMs : getNowMs());
+        });
 
         bossList.append(card);
     }
@@ -1059,6 +1092,40 @@ async function loadBosses() {
     render();
 }
 
+async function resetTimeBossSpawns() {
+    const actorName = selectedMember || '';
+    const adminPassword = prompt('시간보스 전체를 지금 즉시 젠된 상태로 초기화합니다.\n관리자 비밀번호를 입력하세요.');
+    if (!adminPassword) return;
+    if (!confirm('모든 시간보스의 다음 젠을 지금 시각으로 맞출까요? 최근 컷 기록은 삭제하지 않습니다.')) return;
+
+    try {
+        if (resetTimeBossButton) {
+            resetTimeBossButton.disabled = true;
+            resetTimeBossButton.textContent = '초기화 중';
+        }
+        const data = await api('/api/bosses/reset-time-spawns', {
+            method: 'POST',
+            body: JSON.stringify({ actorName, adminPassword })
+        });
+        bosses = data.bosses || bosses;
+        state.bossCuts = data.cuts || state.bossCuts;
+        state.bossCutRecords = data.records || state.bossCutRecords;
+        state.bossCutLocks = data.locks || {};
+        state.now = data.resetAt || new Date().toISOString();
+        lastSyncAt = Date.now();
+        render();
+        showToast('시간보스 초기화 완료', `${data.resetCount || 0}개 보스가 즉시 젠 상태가 됐습니다.`);
+    } catch (err) {
+        showToast('초기화 실패', err.message, 'error');
+        fetchState(true).catch(() => {});
+    } finally {
+        if (resetTimeBossButton) {
+            resetTimeBossButton.disabled = false;
+            resetTimeBossButton.textContent = '시간보스 초기화';
+        }
+    }
+}
+
 filterButtons.forEach((button) => {
     button.addEventListener('click', () => {
         selectedFilter = button.dataset.filter;
@@ -1066,6 +1133,7 @@ filterButtons.forEach((button) => {
     });
 });
 bossSearchInput.addEventListener('input', renderBosses);
+resetTimeBossButton?.addEventListener('click', resetTimeBossSpawns);
 enableBossNotifyButton?.addEventListener('click', requestNotifications);
 openProfileButton.addEventListener('click', openProfileModal);
 closeProfileButton.addEventListener('click', closeProfileModal);

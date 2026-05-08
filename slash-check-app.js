@@ -171,6 +171,8 @@ function normalizeBoss(value) {
 
     const nextSpawnAt = normalizeBossNextSpawnAt(value?.nextSpawnAt || value?.다음젠 || value?.nextSpawn);
     if (nextSpawnAt) boss.nextSpawnAt = nextSpawnAt;
+    const nextSpawnUpdatedAt = normalizeBossNextSpawnAt(value?.nextSpawnUpdatedAt || value?.다음젠수정시각);
+    if (nextSpawnUpdatedAt) boss.nextSpawnUpdatedAt = nextSpawnUpdatedAt;
     return boss;
 }
 
@@ -837,6 +839,50 @@ async function handleApi(req, res, url) {
 
     if (url.pathname === '/api/bosses' && req.method === 'GET') {
         sendJson(res, 200, await readBosses());
+        return true;
+    }
+
+    if (url.pathname === '/api/bosses/reset-time-spawns' && req.method === 'POST') {
+        const body = await readJson(req);
+        if (rejectInvalidAdmin(res, body.adminPassword)) return true;
+
+        const actorName = cleanText(body.actorName, 24);
+        const nowIso = new Date().toISOString();
+        const bosses = await readBosses();
+        let resetCount = 0;
+
+        state.bosses = bosses.map((boss) => {
+            if (boss.타입 !== '시간') return { ...boss };
+            resetCount += 1;
+            return {
+                ...boss,
+                nextSpawnAt: nowIso,
+                nextSpawnUpdatedAt: nowIso
+            };
+        });
+
+        for (const boss of state.bosses) {
+            if (boss.타입 !== '시간') continue;
+            releaseBossCutLock(boss.이름);
+        }
+
+        appendBossAuditLog('time-reset', {
+            bossName: '시간보스 전체',
+            actorName,
+            detail: {
+                count: resetCount,
+                nextSpawnAt: nowIso
+            }
+        });
+        await saveState();
+        sendJson(res, 200, {
+            bosses: state.bosses,
+            cuts: publicBossCuts(),
+            records: publicBossCutRecords(),
+            locks: publicBossCutLocks(),
+            resetAt: nowIso,
+            resetCount
+        });
         return true;
     }
 

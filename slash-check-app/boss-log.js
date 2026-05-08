@@ -1,5 +1,6 @@
 const bossLogSummary = document.querySelector('#bossLogSummary');
 const bossLogSearchInput = document.querySelector('#bossLogSearchInput');
+const bossLogCategoryFilter = document.querySelector('#bossLogCategoryFilter');
 const bossLogActionFilter = document.querySelector('#bossLogActionFilter');
 const bossLogBossFilter = document.querySelector('#bossLogBossFilter');
 const bossLogActorFilter = document.querySelector('#bossLogActorFilter');
@@ -63,23 +64,35 @@ async function api(path) {
     return data;
 }
 
+function categoryLabel(category) {
+    return category === 'slash' ? '썰자' : '보스';
+}
+
 function actionLabel(action) {
-    if (action === 'cut-create') return '컷 등록';
-    if (action === 'cut-update') return '시간 수정';
-    if (action === 'cut-cancel') return '컷 취소';
-    if (action === 'participant-add') return '참여 확인';
-    return action || '기록';
+    const labels = {
+        check: '완료',
+        'reset-state': '상태 초기화',
+        'cancel-last-check': '완료 취소',
+        'edit-log': '완료자 수정',
+        'delete-log': '기록 취소',
+        'cut-create': '컷 등록',
+        'cut-update': '시간 수정',
+        'cut-cancel': '컷 취소',
+        'participant-add': '참여 확인',
+        'time-reset': '시간보스 초기화'
+    };
+    return labels[action] || action || '기록';
 }
 
 function actionTone(action) {
-    if (action === 'cut-create') return 'create';
-    if (action === 'cut-update') return 'update';
-    if (action === 'cut-cancel') return 'cancel';
+    if (action === 'check' || action === 'cut-create') return 'create';
+    if (action === 'edit-log' || action === 'cut-update' || action === 'time-reset' || action === 'reset-state') return 'update';
+    if (action === 'delete-log' || action === 'cancel-last-check' || action === 'cut-cancel') return 'cancel';
     if (action === 'participant-add') return 'participant';
     return 'default';
 }
 
-function describeLog(log) {
+function describeBossLog(log) {
     const detail = log.detail || {};
     if (log.action === 'cut-create') {
         return `${displayTimeValue(detail.timeValue)} 컷 · 다음 ${formatKstDateTime(detail.nextSpawnAt)}`;
@@ -93,17 +106,34 @@ function describeLog(log) {
     if (log.action === 'participant-add') {
         return `${detail.participantName || log.actorName || '-'} 참여 · ${displayTimeValue(detail.timeValue)} 컷`;
     }
+    if (log.action === 'time-reset') {
+        return `${detail.count || 0}개 시간보스 · ${formatKstDateTime(detail.nextSpawnAt)} 즉시 젠`;
+    }
     return JSON.stringify(detail);
+}
+
+function describeSlashLog(log) {
+    if (log.action === 'check' || !log.action) return `${log.memberName || '-'} 완료`;
+    if (log.action === 'reset-state') return `${log.memberName || '-'} · 잠김/예약 초기화`;
+    if (log.action === 'cancel-last-check') return `${log.detail?.targetMemberName || '-'} 완료 취소`;
+    if (log.action === 'edit-log') return `${log.detail?.oldMemberName || '-'} → ${log.detail?.newMemberName || '-'}`;
+    if (log.action === 'delete-log') return `${log.detail?.targetMemberName || '-'} 기록 취소`;
+    return JSON.stringify(log.detail || {});
+}
+
+function describeLog(log) {
+    return log.category === 'slash' ? describeSlashLog(log) : describeBossLog(log);
 }
 
 function logMatches(log) {
     const query = bossLogSearchInput.value.trim().toLowerCase();
+    const categoryOk = bossLogCategoryFilter.value === 'all' || log.category === bossLogCategoryFilter.value;
     const actionOk = bossLogActionFilter.value === 'all' || log.action === bossLogActionFilter.value;
-    const bossOk = bossLogBossFilter.value === 'all' || log.bossName === bossLogBossFilter.value;
+    const targetOk = bossLogBossFilter.value === 'all' || log.targetName === bossLogBossFilter.value;
     const actorOk = bossLogActorFilter.value === 'all' || log.actorName === bossLogActorFilter.value;
-    if (!actionOk || !bossOk || !actorOk) return false;
+    if (!categoryOk || !actionOk || !targetOk || !actorOk) return false;
     if (!query) return true;
-    return `${log.bossName} ${log.actorName} ${actionLabel(log.action)} ${describeLog(log)}`.toLowerCase().includes(query);
+    return `${log.targetName} ${log.actorName} ${categoryLabel(log.category)} ${actionLabel(log.action)} ${describeLog(log)}`.toLowerCase().includes(query);
 }
 
 function option(label, value) {
@@ -114,23 +144,29 @@ function option(label, value) {
 }
 
 function renderFilterOptions() {
-    const selectedBoss = bossLogBossFilter.value;
+    const selectedTarget = bossLogBossFilter.value;
     const selectedActor = bossLogActorFilter.value;
-    const bosses = [...new Set(logs.map((log) => log.bossName).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'ko'));
+    const selectedAction = bossLogActionFilter.value;
+    const targets = [...new Set(logs.map((log) => log.targetName).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'ko'));
     const actors = [...new Set(logs.map((log) => log.actorName).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'ko'));
+    const actions = [...new Set(logs.map((log) => log.action).filter(Boolean))];
 
-    bossLogBossFilter.replaceChildren(option('전체 보스', 'all'), ...bosses.map((boss) => option(boss, boss)));
+    bossLogBossFilter.replaceChildren(option('전체 대상', 'all'), ...targets.map((target) => option(target, target)));
     bossLogActorFilter.replaceChildren(option('전체 작업자', 'all'), ...actors.map((actor) => option(actor, actor)));
+    bossLogActionFilter.replaceChildren(option('전체 작업', 'all'), ...actions.map((action) => option(actionLabel(action), action)));
 
-    bossLogBossFilter.value = bosses.includes(selectedBoss) ? selectedBoss : 'all';
+    bossLogBossFilter.value = targets.includes(selectedTarget) ? selectedTarget : 'all';
     bossLogActorFilter.value = actors.includes(selectedActor) ? selectedActor : 'all';
+    bossLogActionFilter.value = actions.includes(selectedAction) ? selectedAction : 'all';
 }
 
 function renderStats() {
+    const slashCount = logs.filter((log) => log.category === 'slash').length;
+    const bossCount = logs.filter((log) => log.category === 'boss').length;
     logMetricTotal.textContent = logs.length;
-    logMetricCreate.textContent = logs.filter((log) => log.action === 'cut-create').length;
-    logMetricUpdate.textContent = logs.filter((log) => log.action === 'cut-update').length;
-    logMetricCancel.textContent = logs.filter((log) => log.action === 'cut-cancel').length;
+    logMetricCreate.textContent = slashCount;
+    logMetricUpdate.textContent = bossCount;
+    logMetricCancel.textContent = logs.filter((log) => ['delete-log', 'cancel-last-check', 'cut-cancel'].includes(log.action)).length;
     bossLogSummary.textContent = `최근 ${logs.length}건`;
 }
 
@@ -140,7 +176,7 @@ function renderLogs() {
     bossLogList.replaceChildren();
 
     if (visible.length === 0) {
-        bossLogList.innerHTML = '<div class="empty small">표시할 보스 로그가 없습니다.</div>';
+        bossLogList.innerHTML = '<div class="empty small">표시할 로그가 없습니다.</div>';
         return;
     }
 
@@ -150,11 +186,11 @@ function renderLogs() {
 
         const badge = document.createElement('span');
         badge.className = 'bossLogBadge';
-        badge.textContent = actionLabel(log.action);
+        badge.textContent = `${categoryLabel(log.category)} · ${actionLabel(log.action)}`;
 
         const main = document.createElement('div');
         const title = document.createElement('strong');
-        title.textContent = log.bossName || '-';
+        title.textContent = log.targetName || '-';
         const desc = document.createElement('span');
         desc.textContent = describeLog(log);
         main.append(title, desc);
@@ -172,6 +208,29 @@ function renderLogs() {
     }
 }
 
+function normalizeSlashLog(log) {
+    return {
+        id: `slash-${log.id}`,
+        category: 'slash',
+        action: log.action || 'check',
+        targetName: log.zoneName || '-',
+        actorName: log.checkedBy || log.memberName || '',
+        memberName: log.memberName || '',
+        createdAt: log.checkedAt,
+        detail: log.detail || log
+    };
+}
+
+function normalizeBossLog(log) {
+    return {
+        ...log,
+        id: `boss-${log.id}`,
+        category: 'boss',
+        targetName: log.bossName || '-',
+        createdAt: log.createdAt
+    };
+}
+
 function render() {
     renderFilterOptions();
     renderStats();
@@ -179,12 +238,18 @@ function render() {
 }
 
 async function loadLogs() {
-    const data = await api('/api/boss-logs');
-    logs = data.logs || [];
+    const [stateData, bossData] = await Promise.all([api('/api/state'), api('/api/boss-logs')]);
+    logs = [
+        ...(stateData.logs || []).map(normalizeSlashLog),
+        ...(bossData.logs || []).map(normalizeBossLog)
+    ].filter((log) => log.createdAt)
+        .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+        .slice(0, 500);
     render();
 }
 
 bossLogSearchInput.addEventListener('input', renderLogs);
+bossLogCategoryFilter.addEventListener('change', renderLogs);
 bossLogActionFilter.addEventListener('change', renderLogs);
 bossLogBossFilter.addEventListener('change', renderLogs);
 bossLogActorFilter.addEventListener('change', renderLogs);

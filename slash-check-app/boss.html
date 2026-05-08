@@ -16,8 +16,6 @@
             </div>
             <nav class="navTabs" aria-label="페이지 이동">
                 <a href="./">썰자</a>
-                <a href="./ranking.html">랭킹</a>
-                <a href="./analytics.html">분석</a>
                 <a class="active" href="./boss.html">보스</a>
                 <a href="./boss-log.html">로그</a>
                 <a href="./admin.html">관리</a>
@@ -28,6 +26,12 @@
                 <button id="openProfileButton" type="button">변경</button>
             </div>
         </header>
+
+        <nav class="sectionTabs" aria-label="보스 메뉴">
+            <a class="active" href="./boss.html">일정</a>
+            <a href="./boss-ranking.html">랭킹</a>
+            <a href="./boss-analytics.html">분석</a>
+        </nav>
 
         <section class="bossOverview">
             <article>
@@ -70,7 +74,10 @@
                             <span class="label">24시간 보스 일정</span>
                             <strong id="timelineSummary">불러오는 중</strong>
                         </div>
-                        <button id="enableBossNotifyButton" class="copyCommandButton subtle" type="button">알림 켜기</button>
+                        <div class="panelActions">
+                            <button id="resetTimeBossButton" class="copyCommandButton subtle dangerSubtle" type="button">시간보스 초기화</button>
+                            <button id="enableBossNotifyButton" class="copyCommandButton subtle" type="button">알림 켜기</button>
+                        </div>
                     </div>
                     <div id="bossTimeline" class="bossTimeline"></div>
                 </section>

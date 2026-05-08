@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>보스 로그</title>
+    <title>운영 로그</title>
     <link rel="stylesheet" href="./styles.css">
 </head>
 <body class="bossPage">
@@ -12,12 +12,10 @@
             <div>
                 <span class="eyebrow">감사 로그</span>
                 <h1>로그</h1>
-                <p class="pageDesc">보스 컷 등록, 시간 수정, 취소, 참여 확인 이력을 확인합니다.</p>
+                <p class="pageDesc">썰자 완료, 보스 컷, 수정, 취소 이력을 한곳에서 확인합니다.</p>
             </div>
             <nav class="navTabs" aria-label="페이지 이동">
                 <a href="./">썰자</a>
-                <a href="./ranking.html">랭킹</a>
-                <a href="./analytics.html">분석</a>
                 <a href="./boss.html">보스</a>
                 <a class="active" href="./boss-log.html">로그</a>
                 <a href="./admin.html">관리</a>
@@ -26,14 +24,22 @@
 
         <section class="bossLogToolbar panel">
             <div>
-                <span class="label">보스 로그</span>
+                <span class="label">운영 로그</span>
                 <strong id="bossLogSummary">기록 불러오는 중</strong>
             </div>
             <label class="bossSearch">
                 <span>검색</span>
-                <input id="bossLogSearchInput" type="search" placeholder="보스명, 작업자, 내용">
+                <input id="bossLogSearchInput" type="search" placeholder="대상, 작업자, 내용">
             </label>
             <div class="bossLogFilterGrid">
+                <label>
+                    <span>구분</span>
+                    <select id="bossLogCategoryFilter">
+                        <option value="all">전체</option>
+                        <option value="slash">썰자</option>
+                        <option value="boss">보스</option>
+                    </select>
+                </label>
                 <label>
                     <span>작업</span>
                     <select id="bossLogActionFilter">
@@ -45,9 +51,9 @@
                     </select>
                 </label>
                 <label>
-                    <span>보스</span>
+                    <span>대상</span>
                     <select id="bossLogBossFilter">
-                        <option value="all">전체 보스</option>
+                        <option value="all">전체 대상</option>
                     </select>
                 </label>
                 <label>
@@ -66,14 +72,14 @@
                 <small>최근 로그</small>
             </article>
             <article class="metricCard">
-                <span>컷 등록</span>
+                <span>썰자</span>
                 <strong id="logMetricCreate">0</strong>
-                <small>저장됨</small>
+                <small>완료/관리</small>
             </article>
             <article class="metricCard">
-                <span>수정</span>
+                <span>보스</span>
                 <strong id="logMetricUpdate">0</strong>
-                <small>시간 변경</small>
+                <small>컷/참여</small>
             </article>
             <article class="metricCard">
                 <span>취소</span>

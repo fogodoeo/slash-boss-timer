@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="ko">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>보스 분석</title>
+    <link rel="stylesheet" href="./styles.css">
+</head>
+<body class="bossPage">
+    <main class="shell">
+        <header class="topbar">
+            <div>
+                <span class="eyebrow">보스 운영</span>
+                <h1>보스 분석</h1>
+                <p class="pageDesc">보스 컷, 참여, 시간대, 보스별 집중도를 확인합니다.</p>
+            </div>
+            <nav class="navTabs" aria-label="페이지 이동">
+                <a href="./">썰자</a>
+                <a class="active" href="./boss.html">보스</a>
+                <a href="./boss-log.html">로그</a>
+                <a href="./admin.html">관리</a>
+            </nav>
+        </header>
+
+        <nav class="sectionTabs" aria-label="보스 메뉴">
+            <a href="./boss.html">일정</a>
+            <a href="./boss-ranking.html">랭킹</a>
+            <a class="active" href="./boss-analytics.html">분석</a>
+        </nav>
+
+        <section class="analyticsToolbar">
+            <div>
+                <span class="label">분석 기간</span>
+                <strong id="bossAnalyticsSummary">기록 불러오는 중</strong>
+            </div>
+            <div class="segmented" aria-label="분석 기간 선택">
+                <button type="button" data-period="day">일간</button>
+                <button class="active" type="button" data-period="week">주간</button>
+                <button type="button" data-period="all">전체</button>
+            </div>
+        </section>
+
+        <section class="analyticsStats" aria-label="보스 요약">
+            <article class="metricCard">
+                <span>컷</span>
+                <strong id="metricBossCuts">0</strong>
+                <small id="metricBossCutsHint">선택 기간</small>
+            </article>
+            <article class="metricCard">
+                <span>참여</span>
+                <strong id="metricBossParticipants">0</strong>
+                <small id="metricBossParticipantsHint">확인된 인원</small>
+            </article>
+            <article class="metricCard">
+                <span>참여 확인</span>
+                <strong id="metricBossConfirm">0</strong>
+                <small>비번 기록</small>
+            </article>
+            <article class="metricCard">
+                <span>취소</span>
+                <strong id="metricBossCanceled">0</strong>
+                <small>취소 기록</small>
+            </article>
+        </section>
+
+        <section class="analyticsLayout">
+            <section class="panel analyticsWide">
+                <div class="panelHead">
+                    <div>
+                        <span class="label">시간대 분포</span>
+                        <strong id="bossHourSummary">0건</strong>
+                    </div>
+                </div>
+                <div id="bossHourChart" class="hourChart"></div>
+            </section>
+
+            <section class="panel">
+                <div class="panelHead">
+                    <div>
+                        <span class="label">보스 집중도</span>
+                        <strong id="bossFocusSummary">0건</strong>
+                    </div>
+                </div>
+                <div id="bossFocusList" class="analysisList"></div>
+            </section>
+
+            <section class="panel">
+                <div class="panelHead">
+                    <div>
+                        <span class="label">참여자 흐름</span>
+                        <strong id="bossMemberSummary">0명</strong>
+                    </div>
+                </div>
+                <div id="bossMemberList" class="analysisList"></div>
+            </section>
+        </section>
+    </main>
+
+    <script src="./boss-analytics.js"></script>
+</body>
+</html>
