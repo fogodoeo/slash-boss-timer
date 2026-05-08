@@ -1,5 +1,8 @@
 const bossLogSummary = document.querySelector('#bossLogSummary');
 const bossLogSearchInput = document.querySelector('#bossLogSearchInput');
+const bossLogActionFilter = document.querySelector('#bossLogActionFilter');
+const bossLogBossFilter = document.querySelector('#bossLogBossFilter');
+const bossLogActorFilter = document.querySelector('#bossLogActorFilter');
 const bossLogListSummary = document.querySelector('#bossLogListSummary');
 const bossLogList = document.querySelector('#bossLogList');
 const logMetricTotal = document.querySelector('#logMetricTotal');
@@ -85,7 +88,7 @@ function describeLog(log) {
         return `${displayTimeValue(detail.previous?.timeValue)} → ${displayTimeValue(detail.next?.timeValue)} · 다음 ${formatKstDateTime(detail.next?.nextSpawnAt)}`;
     }
     if (log.action === 'cut-cancel') {
-        return `${displayTimeValue(detail.timeValue)} 컷 취소 · 참여 ${detail.participants || 0}명`;
+        return `${displayTimeValue(detail.timeValue)} 컷 취소 · 참여 ${detail.participants || 0}명${detail.reason ? ` · ${detail.reason}` : ''}`;
     }
     if (log.action === 'participant-add') {
         return `${detail.participantName || log.actorName || '-'} 참여 · ${displayTimeValue(detail.timeValue)} 컷`;
@@ -95,8 +98,32 @@ function describeLog(log) {
 
 function logMatches(log) {
     const query = bossLogSearchInput.value.trim().toLowerCase();
+    const actionOk = bossLogActionFilter.value === 'all' || log.action === bossLogActionFilter.value;
+    const bossOk = bossLogBossFilter.value === 'all' || log.bossName === bossLogBossFilter.value;
+    const actorOk = bossLogActorFilter.value === 'all' || log.actorName === bossLogActorFilter.value;
+    if (!actionOk || !bossOk || !actorOk) return false;
     if (!query) return true;
     return `${log.bossName} ${log.actorName} ${actionLabel(log.action)} ${describeLog(log)}`.toLowerCase().includes(query);
+}
+
+function option(label, value) {
+    const item = document.createElement('option');
+    item.value = value;
+    item.textContent = label;
+    return item;
+}
+
+function renderFilterOptions() {
+    const selectedBoss = bossLogBossFilter.value;
+    const selectedActor = bossLogActorFilter.value;
+    const bosses = [...new Set(logs.map((log) => log.bossName).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'ko'));
+    const actors = [...new Set(logs.map((log) => log.actorName).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'ko'));
+
+    bossLogBossFilter.replaceChildren(option('전체 보스', 'all'), ...bosses.map((boss) => option(boss, boss)));
+    bossLogActorFilter.replaceChildren(option('전체 작업자', 'all'), ...actors.map((actor) => option(actor, actor)));
+
+    bossLogBossFilter.value = bosses.includes(selectedBoss) ? selectedBoss : 'all';
+    bossLogActorFilter.value = actors.includes(selectedActor) ? selectedActor : 'all';
 }
 
 function renderStats() {
@@ -146,6 +173,7 @@ function renderLogs() {
 }
 
 function render() {
+    renderFilterOptions();
     renderStats();
     renderLogs();
 }
@@ -157,6 +185,9 @@ async function loadLogs() {
 }
 
 bossLogSearchInput.addEventListener('input', renderLogs);
+bossLogActionFilter.addEventListener('change', renderLogs);
+bossLogBossFilter.addEventListener('change', renderLogs);
+bossLogActorFilter.addEventListener('change', renderLogs);
 loadLogs().catch((err) => {
     bossLogList.innerHTML = `<div class="empty">${err.message}</div>`;
     showToast('로그 로드 실패', err.message, 'error');

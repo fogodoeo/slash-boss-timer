@@ -33,6 +33,30 @@
                 <span>검색</span>
                 <input id="bossLogSearchInput" type="search" placeholder="보스명, 작업자, 내용">
             </label>
+            <div class="bossLogFilterGrid">
+                <label>
+                    <span>작업</span>
+                    <select id="bossLogActionFilter">
+                        <option value="all">전체 작업</option>
+                        <option value="cut-create">컷 등록</option>
+                        <option value="cut-update">시간 수정</option>
+                        <option value="cut-cancel">컷 취소</option>
+                        <option value="participant-add">참여 확인</option>
+                    </select>
+                </label>
+                <label>
+                    <span>보스</span>
+                    <select id="bossLogBossFilter">
+                        <option value="all">전체 보스</option>
+                    </select>
+                </label>
+                <label>
+                    <span>작업자</span>
+                    <select id="bossLogActorFilter">
+                        <option value="all">전체 작업자</option>
+                    </select>
+                </label>
+            </div>
         </section>
 
         <section class="bossLogStats">

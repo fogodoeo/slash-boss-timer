@@ -221,6 +221,7 @@ function normalizeBossCutRecord(value) {
         status: normalizeBossRecordStatus(value.status),
         canceledAt: value.canceledAt || null,
         canceledBy: cleanText(value.canceledBy, 24),
+        cancelReason: cleanText(value.cancelReason, 80),
         editedBy: cleanText(value.editedBy, 24),
         requiresParticipation: Boolean(value.requiresParticipation),
         participantPasswordHash: cleanText(value.participantPasswordHash, 128),
@@ -353,6 +354,7 @@ function publicBossCutRecords() {
         status: record.status || 'active',
         canceledAt: record.canceledAt || null,
         canceledBy: record.canceledBy || '',
+        cancelReason: record.cancelReason || '',
         editedBy: record.editedBy || '',
         requiresParticipation: Boolean(record.requiresParticipation),
         hasParticipantPassword: Boolean(record.participantPasswordHash),
@@ -976,6 +978,7 @@ async function handleApi(req, res, url) {
         const body = await readJson(req);
         const recordId = cleanText(body.recordId || url.searchParams.get('recordId'), 80);
         const actorName = cleanText(body.actorName || url.searchParams.get('actorName'), 24);
+        const cancelReason = cleanText(body.cancelReason || url.searchParams.get('cancelReason'), 80);
 
         if (!state.members.includes(actorName)) {
             sendJson(res, 400, { error: '등록된 길드원만 컷 기록을 취소할 수 있습니다.' });
@@ -997,6 +1000,7 @@ async function handleApi(req, res, url) {
         record.status = 'canceled';
         record.canceledAt = nowIso;
         record.canceledBy = actorName;
+        record.cancelReason = cancelReason;
         record.updatedAt = nowIso;
         record.participationOpenUntil = null;
         state.bossCutRecords = [record, ...(state.bossCutRecords || []).filter((item) => item.id !== record.id)]
@@ -1010,7 +1014,8 @@ async function handleApi(req, res, url) {
                 timeValue: record.timeValue,
                 cutAt: record.cutAt,
                 nextSpawnAt: record.nextSpawnAt || null,
-                participants: Array.isArray(record.participants) ? record.participants.length : 0
+                participants: Array.isArray(record.participants) ? record.participants.length : 0,
+                reason: cancelReason
             }
         });
 
@@ -1023,6 +1028,7 @@ async function handleApi(req, res, url) {
         const body = await readJson(req);
         const bossName = cleanText(body.bossName || url.searchParams.get('bossName'), 40);
         const actorName = cleanText(body.actorName || url.searchParams.get('actorName'), 24);
+        const cancelReason = cleanText(body.cancelReason || url.searchParams.get('cancelReason'), 80);
         if (!bossName) {
             sendJson(res, 400, { error: '보스명을 확인하세요.' });
             return true;
@@ -1039,6 +1045,7 @@ async function handleApi(req, res, url) {
             record.status = 'canceled';
             record.canceledAt = nowIso;
             record.canceledBy = actorName;
+            record.cancelReason = cancelReason;
             record.updatedAt = nowIso;
             record.participationOpenUntil = null;
             state.bossCutRecords = [record, ...(state.bossCutRecords || []).filter((item) => item.id !== record.id)]
@@ -1051,7 +1058,8 @@ async function handleApi(req, res, url) {
                     timeValue: record.timeValue,
                     cutAt: record.cutAt,
                     nextSpawnAt: record.nextSpawnAt || null,
-                    participants: Array.isArray(record.participants) ? record.participants.length : 0
+                    participants: Array.isArray(record.participants) ? record.participants.length : 0,
+                    reason: cancelReason
                 }
             });
         }

@@ -45,6 +45,7 @@ const participantList = document.querySelector('#participantList');
 const participantCutDateInput = document.querySelector('#participantCutDateInput');
 const participantCutTimeInput = document.querySelector('#participantCutTimeInput');
 const participantAdminPasswordInput = document.querySelector('#participantAdminPasswordInput');
+const participantCancelReasonInput = document.querySelector('#participantCancelReasonInput');
 const saveParticipantRecordButton = document.querySelector('#saveParticipantRecordButton');
 const deleteParticipantRecordButton = document.querySelector('#deleteParticipantRecordButton');
 const timelineItemTemplate = document.querySelector('#timelineItemTemplate');
@@ -183,6 +184,10 @@ function isParticipationOpen(record, now = getNowMs()) {
 
 function participantNames(record) {
     return (record?.participants || []).map((item) => item.memberName).filter(Boolean);
+}
+
+function cancelReasonText(record) {
+    return String(record?.cancelReason || '').trim();
 }
 
 function activeCutRecords() {
@@ -604,9 +609,10 @@ function renderRecords() {
         item.querySelector('.recordMeta').textContent = canceled
             ? `${record.canceledBy || '-'} 취소 · ${formatKstDateTime(record.canceledAt || record.updatedAt)}`
             : `${record.reporterName || '-'} · 다음 ${record.nextSpawnAt ? formatKstDateTime(record.nextSpawnAt) : '-'}`;
+        const reason = cancelReasonText(record);
         const open = isParticipationOpen(record, now);
         item.querySelector('.recordParticipants').textContent = canceled
-            ? `원 입력 ${record.reporterName || '-'} · 참여 ${record.participants?.length || 0}명`
+            ? `원 입력 ${record.reporterName || '-'} · 참여 ${record.participants?.length || 0}명${reason ? ` · ${reason}` : ''}`
             : record.requiresParticipation
             ? `참여 ${record.participants?.length || 0}명${open ? ` · ${formatDuration(participationOpenMs(record) - now)}` : record.hasParticipantPassword ? ' · 마감' : ' · 비번 없음'}`
             : '참여 확인 없음';
@@ -718,9 +724,10 @@ function openParticipantModal(record) {
     const names = participantNames(record);
     const cutMs = new Date(record.cutAt).getTime();
     const canceled = record.status === 'canceled';
+    const reason = cancelReasonText(record);
     participantModalTitle.textContent = canceled ? `${record.bossName} 취소 기록` : `${record.bossName} 컷 상세`;
     participantModalDesc.textContent = canceled
-        ? `${formatKstDateTime(record.cutAt)} 컷 · ${record.canceledBy || '-'} 취소 · 참여 ${names.length}명`
+        ? `${formatKstDateTime(record.cutAt)} 컷 · ${record.canceledBy || '-'} 취소${reason ? ` · ${reason}` : ''} · 참여 ${names.length}명`
         : `${formatKstDateTime(record.cutAt)} 컷 · 입력 ${record.reporterName || '-'} · 참여 ${names.length}명`;
     participantCutDateInput.value = Number.isFinite(cutMs) ? dateInputValueFromMs(cutMs) : dateInputValueFromMs(getNowMs());
     participantCutTimeInput.value = Number.isFinite(cutMs) ? timeInputValueFromMs(cutMs) : displayTimeValue(record.timeValue).replace(':', '');
@@ -728,6 +735,8 @@ function openParticipantModal(record) {
     participantCutTimeInput.disabled = canceled;
     participantAdminPasswordInput.value = '';
     participantAdminPasswordInput.disabled = canceled;
+    participantCancelReasonInput.value = reason;
+    participantCancelReasonInput.disabled = canceled;
     saveParticipantRecordButton.disabled = canceled;
     deleteParticipantRecordButton.disabled = canceled;
     deleteParticipantRecordButton.textContent = canceled ? '취소됨' : '컷 취소';
@@ -889,7 +898,8 @@ async function cancelParticipantRecord() {
             method: 'DELETE',
             body: JSON.stringify({
                 recordId: record.id,
-                actorName: memberName
+                actorName: memberName,
+                cancelReason: participantCancelReasonInput.value.trim()
             })
         });
         state.bossCuts = data.cuts || {};
