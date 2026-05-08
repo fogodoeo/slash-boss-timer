@@ -99,6 +99,21 @@ function setSelectedMember(name) {
     }
 }
 
+function chooseMember(member) {
+    const previousMember = selectedMember;
+    setSelectedMember(member);
+    closeProfileModal();
+
+    if (previousMember && previousMember !== member) {
+        showToast('닉네임 변경됨', `${previousMember} → ${member}`);
+        render();
+        return;
+    }
+
+    showToast(previousMember === member ? '닉네임 확인됨' : '닉네임 설정됨', `현재 닉네임: ${member}`);
+    render();
+}
+
 function openProfileModal() {
     profileModal.classList.remove('hidden');
     memberSearchInput.value = '';
@@ -152,9 +167,7 @@ function renderMemberSuggest() {
         button.className = 'suggestItem';
         button.textContent = member;
         button.addEventListener('click', () => {
-            setSelectedMember(member);
-            closeProfileModal();
-            render();
+            chooseMember(member);
         });
         memberSuggest.append(button);
     }
