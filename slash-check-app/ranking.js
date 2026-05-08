@@ -11,6 +11,8 @@ const closeLogManageButton = document.querySelector('#closeLogManageButton');
 const logManageTitle = document.querySelector('#logManageTitle');
 const logManageDesc = document.querySelector('#logManageDesc');
 const logMemberSelect = document.querySelector('#logMemberSelect');
+const logActorSelect = document.querySelector('#logActorSelect');
+const logAdminPasswordInput = document.querySelector('#logAdminPasswordInput');
 const saveLogEditButton = document.querySelector('#saveLogEditButton');
 const deleteConfirmInput = document.querySelector('#deleteConfirmInput');
 const deleteLogButton = document.querySelector('#deleteLogButton');
@@ -100,14 +102,22 @@ async function api(path, options = {}) {
 }
 
 function actorName() {
-    const name = localStorage.getItem(MEMBER_KEY) || '';
+    const name = logActorSelect?.value || localStorage.getItem(MEMBER_KEY) || '';
     return state.members.includes(name) ? name : '';
 }
 
 function requireActor() {
     const name = actorName();
     if (name) return name;
-    showToast('닉네임 선택 필요', '체크 화면에서 본인 닉네임을 먼저 선택하세요.', 'error');
+    showToast('작업자 선택 필요', '수정/취소 작업자를 선택하세요.', 'error');
+    return null;
+}
+
+function requireAdminPassword() {
+    const password = String(logAdminPasswordInput?.value || '').trim();
+    if (password) return password;
+    showToast('관리자 확인 필요', '관리자 비밀번호를 입력하세요.', 'error');
+    logAdminPasswordInput?.focus();
     return null;
 }
 
@@ -118,6 +128,8 @@ function closeLogManageModal() {
 
 function renderMemberOptions(selectedMemberName) {
     logMemberSelect.replaceChildren();
+    logActorSelect.replaceChildren();
+    const savedActor = localStorage.getItem(MEMBER_KEY) || '';
 
     for (const member of state.members) {
         const option = document.createElement('option');
@@ -125,6 +137,12 @@ function renderMemberOptions(selectedMemberName) {
         option.textContent = member;
         option.selected = member === selectedMemberName;
         logMemberSelect.append(option);
+
+        const actorOption = document.createElement('option');
+        actorOption.value = member;
+        actorOption.textContent = member;
+        actorOption.selected = member === savedActor;
+        logActorSelect.append(actorOption);
     }
 }
 
@@ -133,6 +151,7 @@ function openLogManageModal(log) {
     logManageTitle.textContent = `${log.zoneName} 완료 기록`;
     logManageDesc.textContent = `${formatTime(log.checkedAt)} · 현재 완료자 ${log.memberName}`;
     renderMemberOptions(log.memberName);
+    logAdminPasswordInput.value = '';
     deleteConfirmInput.value = '';
     deleteLogButton.disabled = true;
     logManageModal.classList.remove('hidden');
@@ -142,6 +161,8 @@ async function saveLogEdit() {
     if (!selectedLog) return;
     const actor = requireActor();
     if (!actor) return;
+    const adminPassword = requireAdminPassword();
+    if (!adminPassword) return;
     const zoneName = selectedLog.zoneName;
     const nextMemberName = logMemberSelect.value;
 
@@ -151,7 +172,8 @@ async function saveLogEdit() {
             body: JSON.stringify({
                 logId: selectedLog.id,
                 memberName: nextMemberName,
-                actorName: actor
+                actorName: actor,
+                adminPassword
             })
         });
         closeLogManageModal();
@@ -167,6 +189,8 @@ async function deleteSelectedLog() {
     if (!selectedLog || deleteConfirmInput.value.trim() !== '취소') return;
     const actor = requireActor();
     if (!actor) return;
+    const adminPassword = requireAdminPassword();
+    if (!adminPassword) return;
     const zoneName = selectedLog.zoneName;
 
     try {
@@ -174,7 +198,8 @@ async function deleteSelectedLog() {
             method: 'POST',
             body: JSON.stringify({
                 logId: selectedLog.id,
-                actorName: actor
+                actorName: actor,
+                adminPassword
             })
         });
         closeLogManageModal();

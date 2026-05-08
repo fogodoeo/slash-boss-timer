@@ -514,6 +514,12 @@ function verifyAdminPassword(value) {
     return String(value || '') === ADMIN_PASSWORD;
 }
 
+function rejectInvalidAdmin(res, value) {
+    if (verifyAdminPassword(value)) return false;
+    sendJson(res, 403, { error: '관리자 비밀번호가 맞지 않습니다.' });
+    return true;
+}
+
 function isCheckLog(log) {
     return !log.action || log.action === 'check';
 }
@@ -1296,6 +1302,8 @@ async function handleApi(req, res, url) {
 
     if (url.pathname === '/api/members' && req.method === 'POST') {
         const body = await readJson(req);
+        if (rejectInvalidAdmin(res, body.adminPassword)) return true;
+
         const members = parseMembers(body.members ?? body.raw);
         if (members.length === 0) {
             sendJson(res, 400, { error: '길드원 목록이 비어 있습니다.' });
@@ -1309,6 +1317,8 @@ async function handleApi(req, res, url) {
 
     if (url.pathname === '/api/zones' && req.method === 'POST') {
         const body = await readJson(req);
+        if (rejectInvalidAdmin(res, body.adminPassword)) return true;
+
         const name = cleanText(body.name, 40);
         const cooldownMin = normalizeCooldown(body.cooldownMin);
 
@@ -1333,6 +1343,8 @@ async function handleApi(req, res, url) {
 
     if (url.pathname === '/api/admin/bulk' && req.method === 'POST') {
         const body = await readJson(req);
+        if (rejectInvalidAdmin(res, body.adminPassword)) return true;
+
         const zoneUpdates = Array.isArray(body.zones) ? body.zones : [];
         const hasMembers = Object.prototype.hasOwnProperty.call(body, 'members')
             || Object.prototype.hasOwnProperty.call(body, 'raw');
@@ -1473,6 +1485,8 @@ async function handleApi(req, res, url) {
 
     if (url.pathname === '/api/zones' && (req.method === 'PUT' || req.method === 'PATCH')) {
         const body = await readJson(req);
+        if (rejectInvalidAdmin(res, body.adminPassword)) return true;
+
         const zone = state.zones.find((item) => item.id === body.id);
         const name = cleanText(body.name, 40);
         const cooldownMin = normalizeCooldown(body.cooldownMin);
@@ -1500,6 +1514,9 @@ async function handleApi(req, res, url) {
     }
 
     if (url.pathname === '/api/zones' && req.method === 'DELETE') {
+        const body = await readJson(req).catch(() => ({}));
+        if (rejectInvalidAdmin(res, body.adminPassword || url.searchParams.get('adminPassword'))) return true;
+
         const zoneId = String(url.searchParams.get('id') || '');
         state.zones = state.zones.filter((zone) => zone.id !== zoneId);
         await saveState();
@@ -1509,6 +1526,8 @@ async function handleApi(req, res, url) {
 
     if (url.pathname === '/api/zones/reset-state' && req.method === 'POST') {
         const body = await readJson(req);
+        if (rejectInvalidAdmin(res, body.adminPassword)) return true;
+
         const zone = state.zones.find((item) => item.id === body.zoneId);
         const memberName = cleanText(body.memberName, 24);
 
@@ -1535,6 +1554,8 @@ async function handleApi(req, res, url) {
 
     if (url.pathname === '/api/zones/cancel-last-check' && req.method === 'POST') {
         const body = await readJson(req);
+        if (rejectInvalidAdmin(res, body.adminPassword)) return true;
+
         const zone = state.zones.find((item) => item.id === body.zoneId);
         const memberName = cleanText(body.memberName, 24);
 
@@ -1575,6 +1596,8 @@ async function handleApi(req, res, url) {
 
     if (url.pathname === '/api/logs/update' && req.method === 'POST') {
         const body = await readJson(req);
+        if (rejectInvalidAdmin(res, body.adminPassword)) return true;
+
         const logId = String(body.logId || '');
         const memberName = cleanText(body.memberName, 24);
         const actorName = cleanText(body.actorName, 24);
@@ -1622,6 +1645,8 @@ async function handleApi(req, res, url) {
 
     if (url.pathname === '/api/logs/delete' && req.method === 'POST') {
         const body = await readJson(req);
+        if (rejectInvalidAdmin(res, body.adminPassword)) return true;
+
         const logId = String(body.logId || '');
         const actorName = cleanText(body.actorName, 24);
         const logIndex = state.logs.findIndex((item) => item.id === logId && isCheckLog(item));

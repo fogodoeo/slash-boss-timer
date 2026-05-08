@@ -13,6 +13,7 @@ const zoneActionModal = document.querySelector('#zoneActionModal');
 const closeZoneActionButton = document.querySelector('#closeZoneActionButton');
 const zoneActionTitle = document.querySelector('#zoneActionTitle');
 const zoneActionDesc = document.querySelector('#zoneActionDesc');
+const zoneActionAdminPasswordInput = document.querySelector('#zoneActionAdminPasswordInput');
 const resetZoneStateButton = document.querySelector('#resetZoneStateButton');
 const cancelLastCheckButton = document.querySelector('#cancelLastCheckButton');
 const rouletteModal = document.querySelector('#rouletteModal');
@@ -245,6 +246,7 @@ function openZoneActionModal(zone) {
     selectedActionZone = zone;
     zoneActionTitle.textContent = zone.name;
     zoneActionDesc.textContent = `${memberName} 이름으로 처리됩니다.`;
+    zoneActionAdminPasswordInput.value = '';
     zoneActionModal.classList.remove('hidden');
 }
 
@@ -314,13 +316,18 @@ async function resetZoneState() {
     const zone = selectedActionZone;
     const memberName = requireMember();
     if (!zone || !memberName) return;
+    const adminPassword = zoneActionAdminPasswordInput.value.trim();
+    if (!adminPassword) {
+        showToast('관리자 확인 필요', '관리자 비밀번호를 입력하세요.', 'error');
+        return;
+    }
 
     if (!confirm(`${zone.name} 상태를 초기화할까요?\n랭킹 기록은 유지됩니다.`)) return;
 
     try {
         const data = await api('/api/zones/reset-state', {
             method: 'POST',
-            body: JSON.stringify({ zoneId: zone.id, memberName })
+            body: JSON.stringify({ zoneId: zone.id, memberName, adminPassword })
         });
         state = data;
         lastSyncAt = Date.now();
@@ -337,13 +344,18 @@ async function cancelLastCheck() {
     const zone = selectedActionZone;
     const memberName = requireMember();
     if (!zone || !memberName) return;
+    const adminPassword = zoneActionAdminPasswordInput.value.trim();
+    if (!adminPassword) {
+        showToast('관리자 확인 필요', '관리자 비밀번호를 입력하세요.', 'error');
+        return;
+    }
 
     if (!confirm(`${zone.name}의 마지막 완료 기록을 취소할까요?\n랭킹 횟수도 차감됩니다.`)) return;
 
     try {
         const data = await api('/api/zones/cancel-last-check', {
             method: 'POST',
-            body: JSON.stringify({ zoneId: zone.id, memberName })
+            body: JSON.stringify({ zoneId: zone.id, memberName, adminPassword })
         });
         state = data;
         lastSyncAt = Date.now();

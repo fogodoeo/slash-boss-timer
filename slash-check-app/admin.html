@@ -30,7 +30,13 @@
                 <strong id="changeSummary">변경 없음</strong>
                 <p id="changeHint">구역명, 쿨타임, 길드원 목록, 보스 일정을 수정한 뒤 일괄 저장하세요.</p>
             </div>
-            <button id="bulkSaveButton" type="button" disabled>일괄 저장</button>
+            <div class="adminAuthBox">
+                <label>
+                    <span>관리자 비밀번호</span>
+                    <input id="adminPasswordInput" type="password" autocomplete="off" placeholder="저장/삭제 시 입력">
+                </label>
+                <button id="bulkSaveButton" type="button" disabled>일괄 저장</button>
+            </div>
         </section>
 
         <section id="changeReport" class="changeReport hidden" aria-live="polite"></section>

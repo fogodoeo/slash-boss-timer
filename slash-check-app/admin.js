@@ -5,6 +5,7 @@ const zoneManageList = document.querySelector('#zoneManageList');
 const zoneSummary = document.querySelector('#zoneSummary');
 const memberSummary = document.querySelector('#memberSummary');
 const memberBulkInput = document.querySelector('#memberBulkInput');
+const adminPasswordInput = document.querySelector('#adminPasswordInput');
 const bulkSaveButton = document.querySelector('#bulkSaveButton');
 const changeSummary = document.querySelector('#changeSummary');
 const changeHint = document.querySelector('#changeHint');
@@ -207,6 +208,18 @@ function formatList(names) {
     const visible = names.slice(0, 8).join(', ');
     const rest = names.length > 8 ? ` 외 ${names.length - 8}명` : '';
     return `${visible}${rest}`;
+}
+
+function adminPassword() {
+    return String(adminPasswordInput?.value || '').trim();
+}
+
+function requireAdminPassword() {
+    const value = adminPassword();
+    if (value) return value;
+    showToast('관리자 확인 필요', '관리자 비밀번호를 입력하세요.', 'error');
+    adminPasswordInput?.focus();
+    return null;
 }
 
 function makeChange(title, detail) {
@@ -516,6 +529,11 @@ function renderChangeState() {
     }
 
     changeSummary.textContent = `${draft.changes.length}개 변경 대기`;
+    if (!adminPassword()) {
+        changeHint.textContent = '관리자 비밀번호를 입력하면 저장할 수 있습니다.';
+        bulkSaveButton.disabled = true;
+        return;
+    }
     changeHint.textContent = draft.changes.slice(0, 2).map((item) => `${item.title}: ${item.detail}`).join(' / ');
     bulkSaveButton.disabled = false;
 }
@@ -569,9 +587,14 @@ function renderZones() {
 
         deleteButton.addEventListener('click', async () => {
             if (!confirm(`${zone.name} 구역을 삭제할까요?`)) return;
+            const password = requireAdminPassword();
+            if (!password) return;
             try {
                 await withPending(deleteButton, '삭제 중', async () => {
-                    const data = await api(`/api/zones?id=${encodeURIComponent(zone.id)}`, { method: 'DELETE' });
+                    const data = await api(`/api/zones?id=${encodeURIComponent(zone.id)}`, {
+                        method: 'DELETE',
+                        body: JSON.stringify({ adminPassword: password })
+                    });
                     applyState(data);
                     renderChangeReport([makeChange('구역 삭제', zone.name)]);
                     showToast('구역 삭제됨', zone.name);
@@ -736,13 +759,15 @@ zoneForm.addEventListener('submit', async (event) => {
     const name = zoneNameInput.value.trim();
     const cooldownMin = Number(cooldownInput.value);
     if (!name || !cooldownMin) return;
+    const password = requireAdminPassword();
+    if (!password) return;
 
     try {
         const submitButton = zoneForm.querySelector('button[type="submit"]');
         await withPending(submitButton, '추가 중', async () => {
             const data = await api('/api/zones', {
                 method: 'POST',
-                body: JSON.stringify({ name, cooldownMin })
+                body: JSON.stringify({ name, cooldownMin, adminPassword: password })
             });
             zoneNameInput.value = '';
             applyState(data);
@@ -795,6 +820,8 @@ bossForm.addEventListener('submit', (event) => {
 
 bulkSaveButton.addEventListener('click', async () => {
     const draft = getAdminDraft();
+    const password = requireAdminPassword();
+    if (!password) return;
 
     if (draft.errors.length > 0) {
         showToast('일괄 저장 불가', draft.errors[0], 'error');
@@ -814,6 +841,7 @@ bulkSaveButton.addEventListener('click', async () => {
             if (draft.membersChanged) body.members = draft.members;
             if (draft.zoneOrderChanged) body.zoneOrderIds = draft.zoneOrderIds;
             if (draft.bossesChanged) body.bosses = draft.bosses;
+            body.adminPassword = password;
 
             const data = await api('/api/admin/bulk', {
                 method: 'POST',
@@ -833,6 +861,7 @@ bulkSaveButton.addEventListener('click', async () => {
 
 zoneManageList.addEventListener('input', renderChangeState);
 memberBulkInput.addEventListener('input', renderChangeState);
+adminPasswordInput.addEventListener('input', renderChangeState);
 bossManageList.addEventListener('input', () => {
     applyBossSearchFilter();
     renderChangeState();
