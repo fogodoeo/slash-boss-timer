@@ -3478,3 +3478,1124 @@ h1 {
         width: auto;
     }
 }
+
+/* Renewal layer: compact guild operations console */
+:root {
+    --bg: #edf1f6;
+    --panel: #ffffff;
+    --soft: #f8fafc;
+    --soft-strong: #eef3f9;
+    --text: #0f172a;
+    --text-soft: #334155;
+    --muted: #64748b;
+    --faint: #94a3b8;
+    --line: #d8e0ea;
+    --line-soft: #e8eef5;
+    --blue: #155eef;
+    --blue-dark: #0f46bd;
+    --blue-soft: #eff5ff;
+    --green: #0f9f6e;
+    --green-soft: #ecfdf5;
+    --red: #d92d20;
+    --red-soft: #fff1f0;
+    --amber: #b7791f;
+    --amber-soft: #fff8e6;
+    --dark: #111827;
+    --shadow: 0 1px 2px rgba(15, 23, 42, 0.06), 0 8px 22px rgba(15, 23, 42, 0.05);
+    --shadow-pop: 0 20px 48px rgba(15, 23, 42, 0.18);
+}
+
+* {
+    letter-spacing: 0;
+}
+
+body {
+    background:
+        linear-gradient(180deg, #f5f7fb 0, #edf1f6 260px),
+        var(--bg);
+    color: var(--text);
+}
+
+.shell {
+    width: min(1400px, calc(100% - 32px));
+    padding: 16px 0 44px;
+}
+
+.topbar {
+    align-items: center;
+    background: rgba(255, 255, 255, 0.96);
+    border: 1px solid var(--line);
+    border-top: 3px solid var(--dark);
+    border-radius: 12px;
+    box-shadow: var(--shadow);
+    gap: 14px;
+    margin-bottom: 12px;
+    padding: 14px 16px;
+}
+
+.topbar > div {
+    gap: 4px;
+}
+
+.eyebrow {
+    color: var(--blue);
+    font-size: 11px;
+    font-weight: 900;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.topbar h1 {
+    color: var(--text);
+    font-size: clamp(24px, 2vw, 34px);
+    font-weight: 950;
+    line-height: 1.05;
+}
+
+.topbar .pageDesc {
+    color: var(--muted);
+    font-size: 13px;
+}
+
+.navTabs {
+    background: #f3f6fb;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    gap: 4px;
+    justify-content: center;
+    min-width: 520px;
+    padding: 4px;
+}
+
+.navTabs a {
+    border-radius: 7px;
+    color: var(--text-soft);
+    font-size: 13px;
+    font-weight: 850;
+    height: 36px;
+    min-width: 58px;
+    padding: 0 12px;
+    transition: background 0.16s ease, color 0.16s ease, box-shadow 0.16s ease, transform 0.16s ease;
+}
+
+.navTabs a:hover {
+    background: #ffffff;
+    color: var(--text);
+}
+
+.navTabs a.active {
+    background: var(--dark);
+    box-shadow: 0 6px 14px rgba(17, 24, 39, 0.18);
+    color: #ffffff;
+}
+
+.profilePill {
+    background: #ffffff;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    box-shadow: 0 1px 1px rgba(15, 23, 42, 0.03);
+    color: var(--text-soft);
+    gap: 8px;
+    justify-content: flex-end;
+    min-height: 42px;
+    padding: 6px 8px 6px 12px;
+}
+
+.profileName {
+    color: var(--text);
+    font-weight: 900;
+}
+
+.profileLabel {
+    color: var(--muted);
+}
+
+#selectedMemberLabel {
+    color: var(--text);
+    font-weight: 950;
+}
+
+.profilePill button {
+    border-radius: 8px;
+    font-weight: 900;
+}
+
+.profilePill .notifyButton {
+    background: var(--soft);
+    border-color: var(--line);
+    color: var(--text-soft);
+}
+
+.profilePill .notifyButton:not(:disabled):hover {
+    background: var(--blue-soft);
+    border-color: #bcd0ff;
+    color: var(--blue);
+}
+
+.changeProfileButton,
+.ghostButton,
+.adminButton,
+.resetButton,
+.bossModalGhost,
+.bossModalPrimary,
+.bossDangerButton,
+.logApplyButton,
+.logClearButton {
+    border-radius: 8px;
+    font-weight: 850;
+}
+
+.changeProfileButton {
+    background: var(--soft);
+    border-color: var(--line);
+    color: var(--text-soft);
+}
+
+.changeProfileButton:hover {
+    background: var(--blue-soft);
+    border-color: #c7d7fe;
+    color: var(--blue);
+}
+
+.panel,
+.adminSaveBar,
+.changeReport,
+.analyticsToolbar,
+.metricCard {
+    background: rgba(255, 255, 255, 0.97);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    box-shadow: var(--shadow);
+}
+
+.panel {
+    overflow: hidden;
+}
+
+.panelHead {
+    background: #ffffff;
+    border-bottom: 1px solid var(--line-soft);
+    padding: 14px 16px;
+}
+
+.panelTitle h2,
+.panelTitle h3 {
+    color: var(--text);
+    font-weight: 950;
+    letter-spacing: 0;
+}
+
+.panelTitle p,
+.subtle,
+.emptyState,
+.bossHint,
+.filterMeta,
+.logMuted,
+.bossLogReason,
+.rouletteMeta {
+    color: var(--muted);
+}
+
+.statPill,
+.miniBadge,
+.categoryBadge,
+.memberBadge,
+.recordStatus,
+.logStatusPill,
+.bossLogBadge,
+.bossLockTag {
+    border-radius: 999px;
+    font-weight: 900;
+}
+
+.statPill,
+.miniBadge {
+    background: var(--soft);
+    border: 1px solid var(--line);
+    color: var(--text-soft);
+}
+
+.zoneList {
+    gap: 10px;
+}
+
+.zoneCard,
+.bossCard,
+.timelineItem,
+.bossRecordItem,
+.liveParticipationItem,
+.rouletteCard,
+.rankRow,
+.activityRow,
+.analysisRow,
+.statusItem,
+.zoneManageRow,
+.bossLogItem {
+    background: #ffffff;
+    border: 1px solid var(--line-soft);
+    border-radius: 10px;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
+    transition: transform 0.16s ease, box-shadow 0.16s ease, border-color 0.16s ease, background 0.16s ease, opacity 0.16s ease;
+}
+
+.zoneCard:hover,
+.bossCard:hover,
+.timelineItem:hover,
+.bossRecordItem:hover,
+.bossLogItem:hover {
+    border-color: #cbd5e1;
+    box-shadow: 0 7px 18px rgba(15, 23, 42, 0.08);
+    transform: translateY(-1px);
+}
+
+.zoneCard {
+    border-left: 4px solid var(--green);
+    min-height: 64px;
+    padding: 10px 12px 10px 14px;
+}
+
+.zoneCard.isInProgress {
+    background: linear-gradient(90deg, #f4f8ff 0, #ffffff 50%);
+    border-color: #c7d7fe;
+    border-left-color: var(--blue);
+}
+
+.zoneCard.isLocked {
+    background: #e9edf3;
+    border-color: #cdd6e3;
+    border-left-color: #64748b;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45), 0 1px 2px rgba(15, 23, 42, 0.05);
+}
+
+.zoneCard.isLocked .zoneName,
+.zoneCard.isLocked .lastText,
+.zoneCard.isLocked .reservationText {
+    color: #475569;
+}
+
+.zoneCard.isLocked .zoneName {
+    opacity: 0.82;
+}
+
+.zoneCard.isLocked.isTappable {
+    background: linear-gradient(90deg, var(--red-soft) 0, #ffffff 58%);
+    border-color: #fecaca;
+    border-left-color: var(--red);
+}
+
+.zoneCard[draggable="true"] {
+    cursor: grab;
+}
+
+.zoneCard.dragging {
+    opacity: 0.72;
+    transform: scale(0.99);
+}
+
+.zoneCardBody {
+    gap: 5px;
+}
+
+.zoneName {
+    color: var(--text);
+    font-size: 18px;
+    font-weight: 950;
+    line-height: 1.2;
+}
+
+.zoneMeta {
+    gap: 8px;
+}
+
+.lastText,
+.reservationText,
+.bossAlias,
+.bossMeta,
+.bossReporter,
+.recordMeta,
+.recordParticipants,
+.timelineMain span,
+.timelineMeta,
+.rankMeta,
+.activityMeta,
+.statusMeta {
+    color: var(--muted);
+    font-weight: 700;
+}
+
+.lastText::before,
+.reservationText::before {
+    opacity: 0.72;
+}
+
+.zoneMenuButton,
+.recordMenuButton,
+.bossRecordMenuButton,
+.bossLogMenuButton {
+    background: transparent;
+    border: 0;
+    border-radius: 7px;
+    color: var(--faint);
+    height: 32px;
+    min-width: 32px;
+}
+
+.zoneMenuButton:hover,
+.recordMenuButton:hover,
+.bossRecordMenuButton:hover,
+.bossLogMenuButton:hover {
+    background: var(--soft);
+    color: var(--text);
+}
+
+.zoneActions {
+    gap: 8px;
+}
+
+.checkButton,
+.reserveButton,
+.bossCutButton,
+.bossJoinButton,
+.timelineCutButton,
+.recordJoinButton,
+.copyCommandButton,
+.rouletteSpinButton,
+.logApplyButton,
+.bossModalPrimary {
+    border-radius: 8px;
+    font-weight: 950;
+    min-height: 34px;
+}
+
+.checkButton,
+.bossCutButton,
+.timelineCutButton,
+.recordJoinButton,
+.rouletteSpinButton,
+.logApplyButton,
+.bossModalPrimary {
+    background: var(--blue);
+    border-color: var(--blue);
+    box-shadow: 0 6px 14px rgba(21, 94, 239, 0.18);
+    color: #ffffff;
+}
+
+.checkButton:hover,
+.bossCutButton:hover,
+.timelineCutButton:hover,
+.recordJoinButton:hover,
+.rouletteSpinButton:hover,
+.logApplyButton:hover,
+.bossModalPrimary:hover {
+    background: var(--blue-dark);
+    border-color: var(--blue-dark);
+}
+
+.reserveButton,
+.bossJoinButton,
+.copyCommandButton {
+    background: #ffffff;
+    border-color: #cbd5e1;
+    color: var(--text-soft);
+}
+
+.reserveButton:hover,
+.bossJoinButton:hover,
+.copyCommandButton:hover {
+    background: var(--blue-soft);
+    border-color: #bcd0ff;
+    color: var(--blue);
+}
+
+.checkButton.isUndo {
+    background: var(--red);
+    border-color: var(--red);
+    box-shadow: 0 6px 14px rgba(217, 45, 32, 0.16);
+}
+
+.checkButton.isCooldown:disabled,
+.checkButton:disabled,
+.bossCutButton:disabled,
+.timelineCutButton:disabled,
+.recordJoinButton:disabled {
+    background: #d9e0ea;
+    border-color: #d9e0ea;
+    box-shadow: none;
+    color: #64748b;
+    opacity: 1;
+}
+
+.rouletteCard {
+    border-left: 4px solid var(--dark);
+    padding: 14px;
+}
+
+.rouletteTitle {
+    color: var(--text);
+    font-weight: 950;
+}
+
+.rouletteSpinButton,
+.checkButton {
+    min-width: 104px;
+}
+
+.contentGrid,
+.bossLayout,
+.analyticsGrid,
+.rankingGrid {
+    gap: 12px;
+}
+
+.rankRow,
+.activityRow,
+.analysisRow,
+.statusItem {
+    padding: 12px;
+}
+
+.rankPosition {
+    background: var(--dark);
+    color: #ffffff;
+}
+
+.rankRow:first-child .rankPosition {
+    background: var(--blue);
+}
+
+.score {
+    color: var(--blue);
+    font-weight: 950;
+}
+
+.adminSaveBar {
+    bottom: 16px;
+    left: 50%;
+    padding: 12px 14px;
+    transform: translateX(-50%);
+    width: min(760px, calc(100% - 32px));
+}
+
+.saveButton,
+.primaryButton {
+    background: var(--dark);
+    border-color: var(--dark);
+    border-radius: 8px;
+    box-shadow: 0 8px 18px rgba(17, 24, 39, 0.18);
+    color: #ffffff;
+    font-weight: 950;
+}
+
+.saveButton:hover,
+.primaryButton:hover {
+    background: #000000;
+    border-color: #000000;
+}
+
+.dangerButton,
+.bossDangerButton {
+    background: var(--red);
+    border-color: var(--red);
+    color: #ffffff;
+}
+
+.dangerButton:hover,
+.bossDangerButton:hover {
+    background: #b42318;
+    border-color: #b42318;
+}
+
+.zoneManageRow,
+.memberRow,
+.bossManageRow {
+    border-radius: 10px;
+}
+
+.zoneManageRow input,
+.zoneManageRow select,
+.memberRow input,
+.bossManageRow input,
+.bossManageRow select,
+.manualForm input,
+.bossLogFilterGrid input,
+.bossLogFilterGrid select,
+.bossModalField input,
+.bossModalField select,
+.bossModalField textarea,
+.profileSearchInput {
+    border-color: var(--line);
+    border-radius: 8px;
+    color: var(--text);
+}
+
+.zoneManageRow input:focus,
+.zoneManageRow select:focus,
+.memberRow input:focus,
+.bossManageRow input:focus,
+.bossManageRow select:focus,
+.manualForm input:focus,
+.bossLogFilterGrid input:focus,
+.bossLogFilterGrid select:focus,
+.bossModalField input:focus,
+.bossModalField select:focus,
+.bossModalField textarea:focus,
+.profileSearchInput:focus {
+    border-color: #9db7ff;
+    box-shadow: 0 0 0 3px rgba(21, 94, 239, 0.12);
+    outline: none;
+}
+
+.bossOverview {
+    gap: 10px;
+}
+
+.bossOverview article {
+    background: #ffffff;
+    border: 1px solid var(--line);
+    border-left: 4px solid var(--blue);
+    border-radius: 10px;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
+    padding: 13px 14px;
+}
+
+.bossOverview article:nth-child(2) {
+    border-left-color: var(--green);
+}
+
+.bossOverview article:nth-child(3) {
+    border-left-color: var(--amber);
+}
+
+.bossOverview strong {
+    color: var(--text);
+    font-size: 24px;
+    font-weight: 950;
+}
+
+.bossTimeline,
+.bossList,
+.bossRecordList,
+.bossLogList {
+    gap: 9px;
+}
+
+.timelineItem,
+.bossCard {
+    border-left: 4px solid var(--blue);
+    min-height: 62px;
+}
+
+.timelineItem.soon,
+.bossCard.soon {
+    background: linear-gradient(90deg, var(--red-soft) 0, #ffffff 58%);
+    border-color: #fecaca;
+    border-left-color: var(--red);
+}
+
+.timelineItem.spawned,
+.bossCard.spawned {
+    background: linear-gradient(90deg, var(--green-soft) 0, #ffffff 58%);
+    border-color: #bbf7d0;
+    border-left-color: var(--green);
+}
+
+.timelineTime {
+    color: var(--text);
+    font-size: 15px;
+    font-weight: 950;
+}
+
+.timelineMain strong,
+.bossName,
+.recordBoss,
+.bossLogBoss {
+    color: var(--text);
+    font-weight: 950;
+}
+
+.bossCard {
+    padding: 12px;
+}
+
+.bossCardHead {
+    gap: 10px;
+}
+
+.bossTime {
+    background: var(--soft);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    color: var(--text);
+    min-width: 62px;
+    padding: 7px 8px;
+}
+
+.bossRecordItem,
+.bossLogItem {
+    border-left: 4px solid var(--blue);
+    padding: 12px;
+}
+
+.bossRecordItem.canceled,
+.bossLogItem.canceled {
+    background: #f1f5f9;
+    border-color: #d8e0ea;
+    border-left-color: var(--faint);
+}
+
+.bossRecordItem.canceled .recordBoss,
+.bossLogItem.canceled .bossLogBoss {
+    color: #64748b;
+}
+
+.recordStatus.isCanceled,
+.logStatusPill.isCanceled {
+    background: #e2e8f0;
+    color: #475569;
+}
+
+.recordStatus.isActive,
+.logStatusPill.isActive {
+    background: var(--green-soft);
+    color: #047857;
+}
+
+.bossLockTag {
+    background: var(--amber-soft);
+    color: var(--amber);
+}
+
+.bossLogToolbar {
+    background: rgba(255, 255, 255, 0.97);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    box-shadow: var(--shadow);
+    padding: 14px;
+}
+
+.bossLogStats {
+    gap: 10px;
+}
+
+.bossLogStat {
+    background: #ffffff;
+    border: 1px solid var(--line);
+    border-left: 4px solid var(--blue);
+    border-radius: 10px;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
+}
+
+.bossLogStat:nth-child(2) {
+    border-left-color: var(--green);
+}
+
+.bossLogStat:nth-child(3) {
+    border-left-color: var(--red);
+}
+
+.bossLogStat strong {
+    color: var(--text);
+    font-weight: 950;
+}
+
+.bossLogFilterGrid {
+    gap: 10px;
+}
+
+.bossLogBadge {
+    background: var(--soft);
+    color: var(--text-soft);
+}
+
+.bossLogBadge.isCanceled {
+    background: #e2e8f0;
+    color: #475569;
+}
+
+.bossLogBadge.isActive {
+    background: var(--green-soft);
+    color: #047857;
+}
+
+.bossModalSheet,
+.profileModal,
+.zoneActionSheet,
+.rouletteSheet,
+.logManageSheet {
+    background: #ffffff;
+    border: 1px solid rgba(255, 255, 255, 0.85);
+    border-radius: 16px;
+    box-shadow: var(--shadow-pop);
+}
+
+.modalClose,
+.profileClose,
+.zoneActionClose,
+.rouletteClose,
+.logManageClose {
+    background: var(--soft);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    color: var(--text-soft);
+}
+
+.modalClose:hover,
+.profileClose:hover,
+.zoneActionClose:hover,
+.rouletteClose:hover,
+.logManageClose:hover {
+    background: #ffffff;
+    color: var(--text);
+}
+
+.profileOption,
+.suggestionList button {
+    border-radius: 8px;
+}
+
+.profileOption:hover,
+.suggestionList button:hover {
+    background: var(--blue-soft);
+    color: var(--blue);
+}
+
+.toast {
+    border-radius: 10px;
+    box-shadow: var(--shadow-pop);
+}
+
+@media (max-width: 1180px) {
+    .topbar {
+        grid-template-columns: 1fr;
+    }
+
+    .navTabs {
+        justify-self: stretch;
+        min-width: 0;
+        width: 100%;
+    }
+
+    .profilePill {
+        justify-content: space-between;
+    }
+}
+
+@media (max-width: 760px) {
+    body {
+        background: var(--bg);
+    }
+
+    .shell {
+        width: 100%;
+        padding: 8px 8px 88px;
+    }
+
+    .topbar {
+        border-radius: 12px;
+        gap: 10px;
+        margin-bottom: 8px;
+        padding: 12px;
+    }
+
+    .topbar h1 {
+        font-size: 23px;
+    }
+
+    .topbar .pageDesc {
+        font-size: 12px;
+        line-height: 1.35;
+    }
+
+    .profilePill {
+        display: flex;
+        align-items: center;
+        justify-content: flex-start;
+        overflow: hidden;
+        min-height: 38px;
+        padding: 5px 6px 5px 10px;
+    }
+
+    .profileLabel,
+    .profilePill button {
+        flex: 0 0 auto;
+    }
+
+    #selectedMemberLabel {
+        flex: 1 1 auto;
+        min-width: 0;
+    }
+
+    .profilePill .notifyButton,
+    #openProfileButton {
+        width: auto;
+        min-height: 30px;
+        padding: 0 9px;
+    }
+
+    .profilePill .notifyButton {
+        min-width: 64px;
+    }
+
+    #openProfileButton {
+        min-width: 52px;
+    }
+
+    .bossPage .profileLabel {
+        display: inline;
+    }
+
+    .navTabs {
+        background: rgba(255, 255, 255, 0.98);
+        border: 1px solid rgba(203, 213, 225, 0.95);
+        border-radius: 14px;
+        bottom: 8px;
+        box-shadow: 0 14px 34px rgba(15, 23, 42, 0.2);
+        gap: 3px;
+        left: 8px;
+        padding: 5px;
+        right: 8px;
+        width: auto;
+    }
+
+    .navTabs a {
+        border-radius: 10px;
+        font-size: 11.5px;
+        height: 46px;
+        min-width: 0;
+        padding: 0 2px;
+    }
+
+    .contentGrid,
+    .rankingGrid,
+    .analyticsGrid,
+    .bossLayout {
+        gap: 8px;
+    }
+
+    .panel,
+    .adminSaveBar,
+    .changeReport,
+    .analyticsToolbar,
+    .metricCard,
+    .bossLogToolbar {
+        border-radius: 10px;
+    }
+
+    .panelHead {
+        padding: 11px 12px;
+    }
+
+    .panelTitle h2,
+    .panelTitle h3 {
+        font-size: 16px;
+    }
+
+    .panelTitle p {
+        font-size: 12px;
+    }
+
+    .zoneList,
+    .bossTimeline,
+    .bossList,
+    .bossRecordList,
+    .bossLogList {
+        gap: 7px;
+    }
+
+    .zoneCard {
+        border-left-width: 4px;
+        min-height: 58px;
+        padding: 8px 8px 8px 11px;
+    }
+
+    .zoneName {
+        font-size: 16px;
+        line-height: 1.18;
+    }
+
+    .zoneMeta {
+        gap: 6px;
+    }
+
+    .lastText,
+    .reservationText,
+    .bossMeta,
+    .recordMeta,
+    .recordParticipants,
+    .bossReporter,
+    .timelineMain span {
+        font-size: 11.5px;
+    }
+
+    .zoneActions {
+        gap: 5px;
+    }
+
+    .reserveButton,
+    .checkButton,
+    .rouletteSpinButton {
+        min-height: 32px;
+        min-width: 64px;
+        padding: 0 10px;
+    }
+
+    .zoneMenuButton,
+    .recordMenuButton,
+    .bossRecordMenuButton,
+    .bossLogMenuButton {
+        height: 30px;
+        min-width: 30px;
+    }
+
+    .rouletteCard {
+        padding: 10px;
+    }
+
+    .bossOverview {
+        gap: 7px;
+    }
+
+    .bossOverview article {
+        border-radius: 9px;
+        padding: 10px 11px;
+    }
+
+    .bossOverview strong {
+        font-size: 21px;
+    }
+
+    .timelineItem,
+    .bossCard,
+    .bossRecordItem,
+    .bossLogItem {
+        border-left-width: 4px;
+        min-height: 56px;
+        padding: 10px;
+    }
+
+    .timelineTime {
+        font-size: 14px;
+        min-width: 46px;
+    }
+
+    .timelineCutButton,
+    .bossCutButton,
+    .bossJoinButton,
+    .recordJoinButton {
+        min-height: 32px;
+        padding: 0 10px;
+    }
+
+    .bossTime {
+        min-width: 56px;
+        padding: 6px;
+    }
+
+    .bossLogToolbar {
+        gap: 10px;
+        padding: 11px;
+    }
+
+    .bossLogStats {
+        gap: 7px;
+    }
+
+    .bossLogFilterGrid {
+        grid-template-columns: 1fr;
+    }
+
+    .bossModalSheet,
+    .profileModal,
+    .zoneActionSheet,
+    .rouletteSheet,
+    .logManageSheet {
+        border-radius: 14px 14px 0 0;
+    }
+
+    .adminSaveBar {
+        bottom: 76px;
+        left: 8px;
+        right: 8px;
+        transform: none;
+        width: auto;
+    }
+}
+
+@media (max-width: 760px) {
+    .profilePill {
+        display: grid !important;
+        grid-template-columns: minmax(0, 1fr) 66px 52px !important;
+        gap: 6px !important;
+        overflow: hidden;
+        width: 100%;
+    }
+
+    .profileLabel {
+        display: none !important;
+    }
+
+    #selectedMemberLabel {
+        grid-column: 1 !important;
+        min-width: 0;
+    }
+
+    .profilePill .notifyButton {
+        grid-column: 2 !important;
+        width: 66px !important;
+        min-width: 66px !important;
+        padding: 0 !important;
+    }
+
+    #openProfileButton {
+        grid-column: 3 !important;
+        width: 52px !important;
+        min-width: 52px !important;
+        padding: 0 !important;
+    }
+
+    .zoneCard,
+    .rouletteCard {
+        grid-template-columns: minmax(0, 1fr) 136px !important;
+        overflow: hidden;
+    }
+
+    .zoneActions {
+        grid-column: 2 !important;
+        display: grid !important;
+        grid-template-columns: 54px 76px;
+        gap: 5px;
+        justify-content: end;
+        width: 136px;
+    }
+
+    .reserveButton {
+        width: 54px !important;
+        min-width: 54px !important;
+        padding: 0 !important;
+    }
+
+    .checkButton {
+        width: 76px !important;
+        min-width: 76px !important;
+        padding: 0 !important;
+    }
+
+    .rouletteCardActions {
+        grid-column: 2 !important;
+        display: grid !important;
+        grid-template-columns: 54px 76px;
+        gap: 5px;
+        justify-content: end;
+        width: 136px;
+    }
+
+    .rouletteCardSpacer {
+        width: 54px !important;
+    }
+
+    .rouletteCardButton {
+        width: 76px !important;
+        min-width: 76px !important;
+        padding: 0 !important;
+    }
+}
