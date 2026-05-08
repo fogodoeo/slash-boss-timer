@@ -295,6 +295,31 @@ function publicBossCutRecords() {
     }));
 }
 
+function bossCutStateFromRecord(record) {
+    return {
+        recordId: record.id,
+        timeValue: record.timeValue,
+        cutAt: record.cutAt,
+        nextSpawnAt: record.nextSpawnAt || null,
+        reporterName: record.reporterName || '',
+        updatedAt: record.updatedAt || null,
+        requiresParticipation: Boolean(record.requiresParticipation),
+        participantPasswordHash: record.participantPasswordHash || '',
+        participationOpenUntil: record.participationOpenUntil || null,
+        participants: Array.isArray(record.participants) ? record.participants : []
+    };
+}
+
+function refreshCurrentBossCut(bossName) {
+    state.bossCuts = state.bossCuts || {};
+    const latest = (state.bossCutRecords || []).find((record) => record.bossName === bossName);
+    if (latest) {
+        state.bossCuts[bossName] = bossCutStateFromRecord(latest);
+    } else {
+        delete state.bossCuts[bossName];
+    }
+}
+
 function isCheckLog(log) {
     return !log.action || log.action === 'check';
 }
@@ -579,6 +604,11 @@ async function handleApi(req, res, url) {
             return true;
         }
 
+        if (requiresParticipation && !participantPasswordHash) {
+            sendJson(res, 400, { error: '참여 확인을 켰으면 참여 비번을 입력하세요.' });
+            return true;
+        }
+
         if (!state.members.includes(reporterName)) {
             sendJson(res, 400, { error: '등록된 길드원만 컷을 입력할 수 있습니다.' });
             return true;
@@ -629,6 +659,75 @@ async function handleApi(req, res, url) {
             participationOpenUntil,
             participants: []
         };
+
+        await saveState();
+        sendJson(res, 200, { cuts: publicBossCuts(), records: publicBossCutRecords() });
+        return true;
+    }
+
+    if (url.pathname === '/api/boss-cuts/record' && req.method === 'PATCH') {
+        const body = await readJson(req);
+        const recordId = cleanText(body.recordId, 80);
+        const actorName = cleanText(body.actorName, 24);
+        let timeValue = normalizeBossCutTime(body.timeValue || formatCommandTimeFromIso(body.cutAt));
+        const cutAt = isoFromBossCutInput(body.cutAt, timeValue);
+        if (!timeValue && cutAt) timeValue = formatCommandTimeFromIso(cutAt);
+
+        if (!state.members.includes(actorName)) {
+            sendJson(res, 400, { error: '등록된 길드원만 컷 기록을 수정할 수 있습니다.' });
+            return true;
+        }
+
+        if (!recordId || !timeValue || !cutAt) {
+            sendJson(res, 400, { error: '수정할 컷 날짜와 시간을 확인하세요.' });
+            return true;
+        }
+
+        const record = (state.bossCutRecords || []).find((item) => item.id === recordId);
+        if (!record) {
+            sendJson(res, 404, { error: '컷 기록을 찾을 수 없습니다.' });
+            return true;
+        }
+
+        const bosses = await readBosses();
+        const boss = bosses.find((item) => item.이름 === record.bossName || item.애칭 === record.bossName);
+        if (!boss) {
+            sendJson(res, 404, { error: '보스 정보를 찾을 수 없습니다.' });
+            return true;
+        }
+
+        const nowIso = new Date().toISOString();
+        record.timeValue = timeValue;
+        record.cutAt = cutAt;
+        record.nextSpawnAt = calcBossNextSpawnAt(boss, cutAt);
+        record.updatedAt = nowIso;
+        record.editedBy = actorName;
+
+        const cut = state.bossCuts?.[record.bossName];
+        if (cut && cut.recordId === record.id) state.bossCuts[record.bossName] = bossCutStateFromRecord(record);
+
+        await saveState();
+        sendJson(res, 200, { cuts: publicBossCuts(), records: publicBossCutRecords() });
+        return true;
+    }
+
+    if (url.pathname === '/api/boss-cuts/record' && req.method === 'DELETE') {
+        const recordId = cleanText(url.searchParams.get('recordId'), 80);
+        const actorName = cleanText(url.searchParams.get('actorName'), 24);
+
+        if (!state.members.includes(actorName)) {
+            sendJson(res, 400, { error: '등록된 길드원만 컷 기록을 되돌릴 수 있습니다.' });
+            return true;
+        }
+
+        const recordIndex = (state.bossCutRecords || []).findIndex((item) => item.id === recordId);
+        if (recordIndex === -1) {
+            sendJson(res, 404, { error: '컷 기록을 찾을 수 없습니다.' });
+            return true;
+        }
+
+        const [removed] = state.bossCutRecords.splice(recordIndex, 1);
+        if (state.bossCuts?.[removed.bossName]?.recordId === removed.id) refreshCurrentBossCut(removed.bossName);
 
         await saveState();
         sendJson(res, 200, { cuts: publicBossCuts(), records: publicBossCutRecords() });

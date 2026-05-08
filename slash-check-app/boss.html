@@ -96,17 +96,6 @@
             </section>
 
             <aside class="bossSideColumn">
-                <section class="panel commandPanel">
-                    <div class="panelHead">
-                        <div>
-                            <span class="label">복붙용 명령어</span>
-                            <strong id="commandCount">최근 컷 0개</strong>
-                        </div>
-                        <button id="copyCommandButton" class="copyCommandButton" type="button" disabled>복사</button>
-                    </div>
-                    <textarea id="commandOutput" readonly placeholder=".컷 베나투스 1820&#10;.컷 레이디달리아 1821"></textarea>
-                </section>
-
                 <section class="panel">
                     <div class="panelHead">
                         <div>
@@ -223,9 +212,29 @@
     <div id="participantModal" class="modalOverlay hidden" role="dialog" aria-modal="true" aria-labelledby="participantModalTitle">
         <section class="bossModalSheet">
             <button id="closeParticipantModalButton" class="modalClose" type="button" aria-label="닫기">×</button>
-            <span class="modalEyebrow">참여자 명단</span>
-            <h2 id="participantModalTitle">참여자</h2>
-            <p id="participantModalDesc">확인된 참여자를 표시합니다.</p>
+            <span class="modalEyebrow">컷 상세</span>
+            <h2 id="participantModalTitle">컷 상세</h2>
+            <p id="participantModalDesc">컷 기록과 참여자를 표시합니다.</p>
+            <div class="bossRecordManage">
+                <div class="bossRecordManageHead">
+                    <strong>컷 시간 관리</strong>
+                    <span>수정하면 다음 젠 계산도 함께 바뀝니다.</span>
+                </div>
+                <div class="bossDateTimeFields">
+                    <label>
+                        <span>컷 날짜</span>
+                        <input id="participantCutDateInput" type="date">
+                    </label>
+                    <label>
+                        <span>컷 시간</span>
+                        <input id="participantCutTimeInput" type="text" inputmode="numeric" maxlength="5" placeholder="1820">
+                    </label>
+                </div>
+                <div class="bossRecordManageActions">
+                    <button id="saveParticipantRecordButton" class="bossModalPrimary" type="button">시간 수정</button>
+                    <button id="deleteParticipantRecordButton" class="bossDangerButton" type="button">컷 되돌리기</button>
+                </div>
+            </div>
             <div id="participantList" class="participantList"></div>
         </section>
     </div>

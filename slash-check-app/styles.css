@@ -1266,6 +1266,38 @@ h1 {
     font-weight: 750;
 }
 
+.bossRecordManage {
+    display: grid;
+    gap: 10px;
+    border: 1px solid var(--line-soft);
+    border-radius: 8px;
+    background: var(--soft);
+    padding: 12px;
+}
+
+.bossRecordManageHead {
+    display: grid;
+    gap: 3px;
+}
+
+.bossRecordManageHead strong {
+    color: var(--text);
+    font-size: 14px;
+    font-weight: 950;
+}
+
+.bossRecordManageHead span {
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 750;
+}
+
+.bossRecordManageActions {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 8px;
+}
+
 .bossModalSheet {
     position: relative;
     display: grid;
@@ -1346,6 +1378,19 @@ h1 {
     background: #e9edf4;
     color: #7b8494;
     cursor: not-allowed;
+}
+
+.bossDangerButton {
+    height: 40px;
+    border: 1px solid #f0b7b1;
+    border-radius: 6px;
+    background: #ffffff;
+    color: var(--red);
+    font-weight: 900;
+}
+
+.bossDangerButton:hover {
+    background: var(--red-soft);
 }
 
 .hiddenField {
