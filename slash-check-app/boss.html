@@ -30,9 +30,9 @@
 
         <section class="bossOverview">
             <article>
-                <span>오늘 일정</span>
+                <span>24시간 일정</span>
                 <strong id="todayBossCount">0</strong>
-                <small>내일 새벽 2시까지</small>
+                <small>현재 기준</small>
             </article>
             <article>
                 <span>곧 젠</span>
@@ -53,10 +53,20 @@
 
         <section class="bossLayout">
             <section class="bossMainColumn">
+                <section class="panel bossLivePanel">
+                    <div class="panelHead">
+                        <div>
+                            <span class="label">참여 확인 대기</span>
+                            <strong id="liveParticipationSummary">열린 기록 0건</strong>
+                        </div>
+                    </div>
+                    <div id="liveParticipationList" class="liveParticipationList"></div>
+                </section>
+
                 <section class="panel bossTimelinePanel">
                     <div class="panelHead">
                         <div>
-                            <span class="label">오늘 보스 일정</span>
+                            <span class="label">24시간 보스 일정</span>
                             <strong id="timelineSummary">불러오는 중</strong>
                         </div>
                         <button id="enableBossNotifyButton" class="copyCommandButton subtle" type="button">알림 켜기</button>
@@ -118,6 +128,7 @@
                 <span class="timelineMeta"></span>
             </div>
             <span class="timelineRemain"></span>
+            <button class="timelineCutButton" type="button">컷</button>
         </article>
     </template>
 
@@ -149,7 +160,21 @@
                 <span class="recordMeta"></span>
                 <span class="recordParticipants"></span>
             </div>
-            <button class="recordJoinButton" type="button">참여</button>
+            <div class="recordActions">
+                <button class="recordDetailButton" type="button" aria-label="참여자 보기">⋯</button>
+                <button class="recordJoinButton" type="button">참여</button>
+            </div>
+        </article>
+    </template>
+
+    <template id="liveParticipationTemplate">
+        <article class="liveParticipationItem">
+            <div>
+                <strong class="liveTitle"></strong>
+                <span class="liveMeta"></span>
+            </div>
+            <button class="liveDetailButton" type="button" aria-label="참여자 보기">⋯</button>
+            <button class="liveJoinButton" type="button">참여 입력</button>
         </article>
     </template>
 
@@ -187,6 +212,16 @@
             </label>
             <button class="bossModalPrimary" type="submit">참여 확인</button>
         </form>
+    </div>
+
+    <div id="participantModal" class="modalOverlay hidden" role="dialog" aria-modal="true" aria-labelledby="participantModalTitle">
+        <section class="bossModalSheet">
+            <button id="closeParticipantModalButton" class="modalClose" type="button" aria-label="닫기">×</button>
+            <span class="modalEyebrow">참여자 명단</span>
+            <h2 id="participantModalTitle">참여자</h2>
+            <p id="participantModalDesc">확인된 참여자를 표시합니다.</p>
+            <div id="participantList" class="participantList"></div>
+        </section>
     </div>
 
     <div id="profileModal" class="modalOverlay hidden" role="dialog" aria-modal="true" aria-labelledby="profileTitle">

@@ -13,6 +13,8 @@ const commandOutput = document.querySelector('#commandOutput');
 const copyCommandButton = document.querySelector('#copyCommandButton');
 const recordSummary = document.querySelector('#recordSummary');
 const bossRecordList = document.querySelector('#bossRecordList');
+const liveParticipationSummary = document.querySelector('#liveParticipationSummary');
+const liveParticipationList = document.querySelector('#liveParticipationList');
 const enableBossNotifyButton = document.querySelector('#enableBossNotifyButton');
 const selectedMemberLabel = document.querySelector('#selectedMemberLabel');
 const openProfileButton = document.querySelector('#openProfileButton');
@@ -37,9 +39,15 @@ const closeJoinModalButton = document.querySelector('#closeJoinModalButton');
 const joinModalTitle = document.querySelector('#joinModalTitle');
 const joinModalDesc = document.querySelector('#joinModalDesc');
 const joinPasswordInput = document.querySelector('#joinPasswordInput');
+const participantModal = document.querySelector('#participantModal');
+const closeParticipantModalButton = document.querySelector('#closeParticipantModalButton');
+const participantModalTitle = document.querySelector('#participantModalTitle');
+const participantModalDesc = document.querySelector('#participantModalDesc');
+const participantList = document.querySelector('#participantList');
 const timelineItemTemplate = document.querySelector('#timelineItemTemplate');
 const bossCardTemplate = document.querySelector('#bossCardTemplate');
 const recordItemTemplate = document.querySelector('#recordItemTemplate');
+const liveParticipationTemplate = document.querySelector('#liveParticipationTemplate');
 const toastHost = document.querySelector('#toastHost');
 
 const MEMBER_KEY = 'slashCheckMemberName';
@@ -54,6 +62,7 @@ let selectedFilter = 'all';
 let lastSyncAt = Date.now();
 let selectedCutBoss = null;
 let selectedJoinRecord = null;
+let selectedParticipantRecord = null;
 const notifiedSpawnKeys = new Set();
 
 function pad2(value) {
@@ -116,8 +125,30 @@ function formatRemain(targetMs, now = getNowMs()) {
     return `${totalMin}분`;
 }
 
+function formatDuration(ms) {
+    if (ms <= 0) return '마감';
+    const totalSec = Math.ceil(ms / 1000);
+    const min = Math.floor(totalSec / 60);
+    const sec = totalSec % 60;
+    if (min >= 60) return `${Math.floor(min / 60)}시간 ${min % 60}분`;
+    return `${min}:${pad2(sec)}`;
+}
+
 function commandFor(record) {
     return `.컷 ${record.bossName} ${record.timeValue}`;
+}
+
+function participationOpenMs(record) {
+    const ms = record?.participationOpenUntil ? new Date(record.participationOpenUntil).getTime() : 0;
+    return Number.isFinite(ms) ? ms : 0;
+}
+
+function isParticipationOpen(record, now = getNowMs()) {
+    return Boolean(record?.requiresParticipation && record?.hasParticipantPassword && participationOpenMs(record) > now);
+}
+
+function participantNames(record) {
+    return (record?.participants || []).map((item) => item.memberName).filter(Boolean);
 }
 
 function showToast(title, message = '', tone = 'success') {
@@ -278,8 +309,8 @@ function bossNextSpawnMs(boss) {
 
 function buildTimeline() {
     const now = getNowMs();
-    const start = startOfKstDay(now);
-    const end = start + DAY_MS + 2 * 60 * 60 * 1000;
+    const start = startOfKstDay(now) - DAY_MS;
+    const end = now + DAY_MS;
     const floor = now - SPAWNED_KEEP_MS;
     const items = [];
 
@@ -288,7 +319,7 @@ function buildTimeline() {
             const [hour, minute] = String(boss.시간 || '').split(':').map(Number);
             if (!Number.isFinite(hour) || !Number.isFinite(minute)) continue;
             const dayNames = ['일', '월', '화', '수', '목', '금', '토'];
-            for (let offset = 0; offset <= 1; offset += 1) {
+            for (let offset = 0; offset <= 3; offset += 1) {
                 const dayStart = start + offset * DAY_MS;
                 const dayName = dayNames[kstDate(dayStart).getUTCDay()];
                 if (!boss.요일?.includes(dayName)) continue;
@@ -307,6 +338,13 @@ function buildTimeline() {
     }
 
     return items.sort((a, b) => a.spawnMs - b.spawnMs || a.boss.이름.localeCompare(b.boss.이름, 'ko'));
+}
+
+function activeParticipationRecords() {
+    const now = getNowMs();
+    return (state.bossCutRecords || [])
+        .filter((record) => isParticipationOpen(record, now))
+        .sort((a, b) => participationOpenMs(a) - participationOpenMs(b));
 }
 
 function bossStateFromSpawn(spawnMs, now = getNowMs()) {
@@ -365,9 +403,29 @@ function renderOverview(timeline) {
     todayBossCount.textContent = timeline.length;
     soonBossCount.textContent = timeline.filter((item) => bossStateFromSpawn(item.spawnMs, now) === 'soon').length;
     spawnedBossCount.textContent = timeline.filter((item) => bossStateFromSpawn(item.spawnMs, now) === 'spawned').length;
-    participationBossCount.textContent = (state.bossCutRecords || []).filter((record) => {
-        return record.requiresParticipation && new Date(record.cutAt).getTime() > now - DAY_MS;
-    }).length;
+    participationBossCount.textContent = activeParticipationRecords().length;
+}
+
+function renderLiveParticipation() {
+    const now = getNowMs();
+    const records = activeParticipationRecords();
+    liveParticipationSummary.textContent = `열린 기록 ${records.length}건`;
+    liveParticipationList.replaceChildren();
+
+    if (records.length === 0) {
+        liveParticipationList.innerHTML = '<div class="empty small">현재 참여 입력 가능한 보스가 없습니다.</div>';
+        return;
+    }
+
+    for (const record of records.slice(0, 8)) {
+        const item = liveParticipationTemplate.content.firstElementChild.cloneNode(true);
+        const names = participantNames(record);
+        item.querySelector('.liveTitle').textContent = `${record.bossName} · ${displayTimeValue(record.timeValue)}`;
+        item.querySelector('.liveMeta').textContent = `${formatDuration(participationOpenMs(record) - now)} 남음 · 참여 ${names.length}명`;
+        item.querySelector('.liveDetailButton').addEventListener('click', () => openParticipantModal(record));
+        item.querySelector('.liveJoinButton').addEventListener('click', () => openJoinModal(record));
+        liveParticipationList.append(item);
+    }
 }
 
 function renderTimeline() {
@@ -395,6 +453,7 @@ function renderTimeline() {
         row.querySelector('.timelineBossName').textContent = item.boss.이름;
         row.querySelector('.timelineMeta').textContent = `${item.boss.애칭 || '-'} · ${item.boss.위치 || '-'}${latest?.requiresParticipation ? ' · 참여 확인' : ''}`;
         row.querySelector('.timelineRemain').textContent = formatRemain(item.spawnMs, now);
+        row.querySelector('.timelineCutButton').addEventListener('click', () => openCutModal(item.boss));
         bossTimeline.append(row);
     }
 }
@@ -462,6 +521,7 @@ function renderBosses() {
 }
 
 function renderRecords() {
+    const now = getNowMs();
     const records = (state.bossCutRecords || []).slice(0, 20);
     recordSummary.textContent = `${records.length}건`;
     bossRecordList.replaceChildren();
@@ -475,11 +535,14 @@ function renderRecords() {
         const item = recordItemTemplate.content.firstElementChild.cloneNode(true);
         item.querySelector('.recordTitle').textContent = `${record.bossName} · ${displayTimeValue(record.timeValue)}`;
         item.querySelector('.recordMeta').textContent = `${record.reporterName || '-'} · 다음 ${record.nextSpawnAt ? formatKstDateTime(record.nextSpawnAt) : '-'}`;
+        const open = isParticipationOpen(record, now);
         item.querySelector('.recordParticipants').textContent = record.requiresParticipation
-            ? `참여 ${record.participants?.length || 0}명${record.hasParticipantPassword ? '' : ' · 비번 없음'}`
+            ? `참여 ${record.participants?.length || 0}명${open ? ` · ${formatDuration(participationOpenMs(record) - now)}` : record.hasParticipantPassword ? ' · 마감' : ' · 비번 없음'}`
             : '참여 확인 없음';
+        item.querySelector('.recordDetailButton').addEventListener('click', () => openParticipantModal(record));
         const button = item.querySelector('.recordJoinButton');
-        button.disabled = !record.requiresParticipation;
+        button.textContent = open ? '입력' : record.requiresParticipation ? '마감' : '-';
+        button.disabled = !open;
         button.addEventListener('click', () => openJoinModal(record));
         bossRecordList.append(item);
     }
@@ -496,6 +559,7 @@ function updateCommands() {
 
 function render() {
     filterButtons.forEach((button) => button.classList.toggle('active', button.dataset.filter === selectedFilter));
+    renderLiveParticipation();
     renderTimeline();
     renderBosses();
     renderRecords();
@@ -507,8 +571,8 @@ function render() {
 function openCutModal(boss) {
     if (!requireMember()) return;
     selectedCutBoss = boss;
-    cutModalTitle.textContent = `${boss.이름} 컷`;
-    cutModalDesc.textContent = `${boss.애칭 || '-'} · ${boss.위치 || '-'} · ${boss.타입}`;
+    cutModalTitle.textContent = `${boss.이름} 컷 확인`;
+    cutModalDesc.textContent = `${boss.애칭 || '-'} · ${boss.위치 || '-'} · ${boss.타입} · 필요하면 참여 비번을 입력하세요.`;
     cutTimeInput.value = formatNowCommandTime();
     requiresParticipationInput.checked = bossNeedsParticipation(boss);
     participantPasswordInput.value = '';
@@ -525,21 +589,55 @@ function closeCutModal() {
 function openJoinModal(record) {
     if (!record || !record.requiresParticipation) return;
     if (!requireMember()) return;
+    if (!isParticipationOpen(record)) {
+        showToast('참여 입력 마감', '관리자 수동 추가만 가능합니다.', 'error');
+        return;
+    }
     selectedJoinRecord = record;
     joinModalTitle.textContent = `${record.bossName} 참여 확인`;
     joinModalDesc.textContent = record.hasParticipantPassword
         ? `${displayTimeValue(record.timeValue)} 컷 기록에 ${selectedMember} 님으로 참여 확인합니다.`
         : '이 기록은 참여 비번이 없어 관리자 수동 추가만 가능합니다.';
     joinPasswordInput.value = '';
-    joinPasswordInput.disabled = !record.hasParticipantPassword;
-    joinForm.querySelector('.bossModalPrimary').disabled = !record.hasParticipantPassword;
+    joinPasswordInput.disabled = false;
+    joinForm.querySelector('.bossModalPrimary').disabled = false;
     joinModal.classList.remove('hidden');
-    if (record.hasParticipantPassword) setTimeout(() => joinPasswordInput.focus(), 30);
+    setTimeout(() => joinPasswordInput.focus(), 30);
 }
 
 function closeJoinModal() {
     selectedJoinRecord = null;
     joinModal.classList.add('hidden');
+}
+
+function openParticipantModal(record) {
+    selectedParticipantRecord = record;
+    const names = participantNames(record);
+    participantModalTitle.textContent = `${record.bossName} 참여자`;
+    participantModalDesc.textContent = `${displayTimeValue(record.timeValue)} 컷 · ${record.reporterName || '-'} · 참여 ${names.length}명`;
+    participantList.replaceChildren();
+
+    if (names.length === 0) {
+        participantList.innerHTML = '<div class="empty small">아직 확인된 참여자가 없습니다.</div>';
+    } else {
+        for (const participant of record.participants || []) {
+            const row = document.createElement('div');
+            row.className = 'participantRow';
+            const name = document.createElement('strong');
+            name.textContent = participant.memberName;
+            const meta = document.createElement('span');
+            meta.textContent = `${participant.method === 'admin' ? '관리자 추가' : '비번 확인'} · ${formatKstDateTime(participant.confirmedAt)}`;
+            row.append(name, meta);
+            participantList.append(row);
+        }
+    }
+
+    participantModal.classList.remove('hidden');
+}
+
+function closeParticipantModal() {
+    selectedParticipantRecord = null;
+    participantModal.classList.add('hidden');
 }
 
 async function submitCut(event) {
@@ -668,6 +766,10 @@ joinForm.addEventListener('submit', submitJoin);
 closeJoinModalButton.addEventListener('click', closeJoinModal);
 joinModal.addEventListener('click', (event) => {
     if (event.target === joinModal) closeJoinModal();
+});
+closeParticipantModalButton.addEventListener('click', closeParticipantModal);
+participantModal.addEventListener('click', (event) => {
+    if (event.target === participantModal) closeParticipantModal();
 });
 
 setSelectedMember(selectedMember);

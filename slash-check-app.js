@@ -44,6 +44,7 @@ const RESERVATION_GRACE_MS = 10 * 60 * 1000;
 const CHECK_UNDO_GRACE_MS = 60 * 1000;
 const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
 const DAY_MS = 24 * 60 * 60 * 1000;
+const BOSS_PARTICIPATION_WINDOW_MS = 10 * 60 * 1000;
 const MAX_BOSS_CUT_RECORDS = 300;
 
 function send(res, status, body, type = 'text/plain; charset=utf-8') {
@@ -203,6 +204,7 @@ function normalizeBossCutRecord(value) {
         updatedAt: value.updatedAt || new Date(cutMs).toISOString(),
         requiresParticipation: Boolean(value.requiresParticipation),
         participantPasswordHash: cleanText(value.participantPasswordHash, 128),
+        participationOpenUntil: value.participationOpenUntil || null,
         participants: Array.isArray(value.participants)
             ? value.participants.map(normalizeBossParticipant).filter(Boolean)
             : []
@@ -232,6 +234,7 @@ function normalizeBossCuts(value) {
             updatedAt: cut?.updatedAt || new Date().toISOString(),
             requiresParticipation: Boolean(cut?.requiresParticipation),
             participantPasswordHash: cleanText(cut?.participantPasswordHash, 128),
+            participationOpenUntil: cut?.participationOpenUntil || null,
             participants: Array.isArray(cut?.participants)
                 ? cut.participants.map(normalizeBossParticipant).filter(Boolean)
                 : []
@@ -252,6 +255,7 @@ function publicBossCut(value) {
         updatedAt: value.updatedAt || null,
         requiresParticipation: Boolean(value.requiresParticipation),
         hasParticipantPassword: Boolean(value.participantPasswordHash),
+        participationOpenUntil: value.participationOpenUntil || null,
         participants: Array.isArray(value.participants) ? value.participants : []
     };
 }
@@ -279,6 +283,7 @@ function publicBossCutRecords() {
         updatedAt: record.updatedAt || null,
         requiresParticipation: Boolean(record.requiresParticipation),
         hasParticipantPassword: Boolean(record.participantPasswordHash),
+        participationOpenUntil: record.participationOpenUntil || null,
         participants: Array.isArray(record.participants) ? record.participants : []
     }));
 }
@@ -310,6 +315,7 @@ async function hydrateBossCutState() {
         if (!Array.isArray(cut.participants)) cut.participants = [];
         cut.requiresParticipation = Boolean(cut.requiresParticipation);
         cut.participantPasswordHash = cleanText(cut.participantPasswordHash, 128);
+        cut.participationOpenUntil = cut.participationOpenUntil || null;
 
         if (!cut.recordId || !records.some((record) => record.id === cut.recordId)) {
             const record = normalizeBossCutRecord({
@@ -325,6 +331,7 @@ async function hydrateBossCutState() {
                 updatedAt: cut.updatedAt,
                 requiresParticipation: cut.requiresParticipation,
                 participantPasswordHash: cut.participantPasswordHash,
+                participationOpenUntil: cut.participationOpenUntil,
                 participants: cut.participants
             });
 
@@ -578,6 +585,9 @@ async function handleApi(req, res, url) {
         const cutAt = isoFromCommandTime(timeValue);
         const nextSpawnAt = calcBossNextSpawnAt(boss, cutAt);
         const nowIso = new Date().toISOString();
+        const participationOpenUntil = requiresParticipation && participantPasswordHash
+            ? new Date(Date.now() + BOSS_PARTICIPATION_WINDOW_MS).toISOString()
+            : null;
         const record = {
             id: randomUUID(),
             bossName: boss.이름,
@@ -591,6 +601,7 @@ async function handleApi(req, res, url) {
             updatedAt: nowIso,
             requiresParticipation,
             participantPasswordHash,
+            participationOpenUntil,
             participants: []
         };
 
@@ -607,6 +618,7 @@ async function handleApi(req, res, url) {
             updatedAt: nowIso,
             requiresParticipation,
             participantPasswordHash,
+            participationOpenUntil,
             participants: []
         };
 
@@ -653,6 +665,12 @@ async function handleApi(req, res, url) {
 
         if (!record.participantPasswordHash) {
             sendJson(res, 400, { error: '참여 비번이 없어 관리자 추가만 가능합니다.' });
+            return true;
+        }
+
+        const openUntilMs = record.participationOpenUntil ? new Date(record.participationOpenUntil).getTime() : 0;
+        if (!Number.isFinite(openUntilMs) || openUntilMs <= Date.now()) {
+            sendJson(res, 409, { error: '참여 확인 시간이 지났습니다. 관리자 추가만 가능합니다.' });
             return true;
         }
 

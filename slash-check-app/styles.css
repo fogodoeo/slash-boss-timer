@@ -926,14 +926,16 @@ h1 {
 }
 
 .bossTimeline,
-.bossRecordList {
+.bossRecordList,
+.liveParticipationList,
+.participantList {
     display: grid;
     gap: 8px;
 }
 
 .timelineItem {
     display: grid;
-    grid-template-columns: 72px minmax(0, 1fr) 108px;
+    grid-template-columns: 72px minmax(0, 1fr) 108px 56px;
     align-items: center;
     gap: 10px;
     min-height: 54px;
@@ -942,6 +944,80 @@ h1 {
     border-radius: 8px;
     background: var(--soft);
     padding: 9px 12px;
+}
+
+.liveParticipationItem {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 34px 88px;
+    gap: 8px;
+    align-items: center;
+    min-height: 58px;
+    border: 1px solid rgba(20, 87, 217, 0.22);
+    border-left: 4px solid var(--blue);
+    border-radius: 8px;
+    background: var(--blue-soft);
+    padding: 10px 12px;
+}
+
+.liveParticipationItem > div {
+    display: grid;
+    gap: 4px;
+    min-width: 0;
+}
+
+.liveParticipationItem strong,
+.liveParticipationItem span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.liveParticipationItem strong {
+    color: var(--text);
+    font-weight: 950;
+}
+
+.liveParticipationItem span {
+    color: var(--blue-dark);
+    font-size: 12px;
+    font-weight: 850;
+}
+
+.timelineCutButton,
+.liveJoinButton,
+.liveDetailButton,
+.recordDetailButton {
+    height: 32px;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    background: #ffffff;
+    color: var(--text-soft);
+    font-size: 12px;
+    font-weight: 900;
+    white-space: nowrap;
+}
+
+.timelineCutButton {
+    border-color: var(--blue);
+    background: var(--blue);
+    color: #ffffff;
+}
+
+.timelineCutButton:hover,
+.liveJoinButton:hover,
+.recordDetailButton:hover,
+.liveDetailButton:hover {
+    border-color: var(--blue-dark);
+    background: var(--blue-dark);
+    color: #ffffff;
+}
+
+.liveDetailButton,
+.recordDetailButton {
+    padding: 0;
+    color: var(--muted);
+    font-size: 18px;
+    line-height: 1;
 }
 
 .timelineItem.soon {
@@ -1112,7 +1188,7 @@ h1 {
 
 .bossRecordItem {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) 58px;
+    grid-template-columns: minmax(0, 1fr) 94px;
     gap: 8px;
     align-items: center;
     min-height: 72px;
@@ -1120,6 +1196,12 @@ h1 {
     border-radius: 8px;
     background: var(--soft);
     padding: 10px;
+}
+
+.recordActions {
+    display: grid;
+    grid-template-columns: 32px 56px;
+    gap: 6px;
 }
 
 .bossRecordItem > div {
@@ -1161,6 +1243,27 @@ h1 {
     background: #e9edf4;
     color: #7b8494;
     cursor: not-allowed;
+}
+
+.participantRow {
+    display: grid;
+    gap: 4px;
+    min-height: 50px;
+    border: 1px solid var(--line-soft);
+    border-radius: 8px;
+    background: var(--soft);
+    padding: 10px 12px;
+}
+
+.participantRow strong {
+    color: var(--text);
+    font-weight: 950;
+}
+
+.participantRow span {
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 750;
 }
 
 .bossModalSheet {
@@ -2611,11 +2714,36 @@ h1 {
     }
 
     .timelineItem {
-        grid-template-columns: 52px minmax(0, 1fr) 74px;
+        grid-template-columns: 52px minmax(0, 1fr) 62px 44px;
         gap: 7px;
         min-height: 50px;
         padding: 8px;
         border-left-width: 3px;
+    }
+
+    .timelineCutButton {
+        height: 30px;
+        padding: 0 4px;
+        font-size: 11px;
+    }
+
+    .liveParticipationItem {
+        grid-template-columns: minmax(0, 1fr) 30px 76px;
+        min-height: 54px;
+        padding: 9px;
+        border-left-width: 3px;
+    }
+
+    .liveJoinButton,
+    .liveDetailButton,
+    .recordDetailButton {
+        height: 30px;
+        font-size: 11px;
+    }
+
+    .liveDetailButton,
+    .recordDetailButton {
+        font-size: 17px;
     }
 
     .timelineTime {
@@ -2702,8 +2830,14 @@ h1 {
     }
 
     .bossRecordItem {
+        grid-template-columns: minmax(0, 1fr) 88px;
         min-height: 62px;
         padding: 9px;
+    }
+
+    .recordActions {
+        grid-template-columns: 30px 52px;
+        gap: 5px;
     }
 
     .bossRow {
