@@ -56,6 +56,28 @@
         </section>
     </main>
 
+    <div id="logManageModal" class="modalOverlay hidden" role="dialog" aria-modal="true" aria-labelledby="logManageTitle">
+        <section class="logManageSheet">
+            <button id="closeLogManageButton" class="modalClose" type="button" aria-label="닫기">×</button>
+            <span class="modalEyebrow">기록 관리</span>
+            <h2 id="logManageTitle">완료 기록 관리</h2>
+            <p id="logManageDesc">기록을 확인한 뒤 필요한 작업만 처리하세요.</p>
+            <label class="logManageField">
+                <span>완료자 수정</span>
+                <select id="logMemberSelect"></select>
+            </label>
+            <button id="saveLogEditButton" class="logManagePrimary" type="button">완료자 수정 저장</button>
+            <div class="logDeleteBox">
+                <strong>기록 취소</strong>
+                <span>랭킹에서 이 완료 기록이 빠집니다. 아래 칸에 취소를 입력해야 실행됩니다.</span>
+                <input id="deleteConfirmInput" type="text" autocomplete="off" placeholder="취소">
+                <button id="deleteLogButton" type="button" disabled>기록 취소</button>
+            </div>
+        </section>
+    </div>
+
+    <div id="toastHost" class="toastHost" aria-live="polite"></div>
+
     <script src="./ranking.js"></script>
 </body>
 </html>

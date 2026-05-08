@@ -5,9 +5,20 @@ const logSummary = document.querySelector('#logSummary');
 const logPanelLabel = document.querySelector('#logPanelLabel');
 const memberFilterInput = document.querySelector('#memberFilterInput');
 const periodButtons = [...document.querySelectorAll('[data-period]')];
+const logManageModal = document.querySelector('#logManageModal');
+const closeLogManageButton = document.querySelector('#closeLogManageButton');
+const logManageTitle = document.querySelector('#logManageTitle');
+const logManageDesc = document.querySelector('#logManageDesc');
+const logMemberSelect = document.querySelector('#logMemberSelect');
+const saveLogEditButton = document.querySelector('#saveLogEditButton');
+const deleteConfirmInput = document.querySelector('#deleteConfirmInput');
+const deleteLogButton = document.querySelector('#deleteLogButton');
+const toastHost = document.querySelector('#toastHost');
 
+const MEMBER_KEY = 'slashCheckMemberName';
 let state = { rankings: [], logs: [], members: [] };
 let activePeriod = 'day';
+let selectedLog = null;
 
 function pad2(value) {
     return String(value).padStart(2, '0');
@@ -27,6 +38,130 @@ function actionLabel(log) {
     if (log.action === 'reset-state') return '상태 초기화';
     if (log.action === 'cancel-last-check') return `완료 기록 취소${log.targetMemberName ? ` · ${log.targetMemberName}` : ''}`;
     return '완료';
+}
+
+function showToast(title, message = '', tone = 'success') {
+    if (!toastHost) return;
+
+    const toast = document.createElement('div');
+    toast.className = `toast ${tone}`;
+
+    const titleEl = document.createElement('strong');
+    titleEl.textContent = title;
+    toast.append(titleEl);
+
+    if (message) {
+        const messageEl = document.createElement('span');
+        messageEl.textContent = message;
+        toast.append(messageEl);
+    }
+
+    toastHost.append(toast);
+    setTimeout(() => toast.classList.add('show'), 10);
+    setTimeout(() => {
+        toast.classList.remove('show');
+        setTimeout(() => toast.remove(), 180);
+    }, 3600);
+}
+
+async function api(path, options = {}) {
+    const res = await fetch(path, {
+        ...options,
+        headers: {
+            'Content-Type': 'application/json',
+            ...(options.headers || {})
+        }
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || '요청 처리에 실패했습니다.');
+    return data;
+}
+
+function actorName() {
+    const name = localStorage.getItem(MEMBER_KEY) || '';
+    return state.members.includes(name) ? name : '';
+}
+
+function requireActor() {
+    const name = actorName();
+    if (name) return name;
+    showToast('닉네임 선택 필요', '체크 화면에서 본인 닉네임을 먼저 선택하세요.', 'error');
+    return null;
+}
+
+function closeLogManageModal() {
+    selectedLog = null;
+    logManageModal.classList.add('hidden');
+}
+
+function renderMemberOptions(selectedMemberName) {
+    logMemberSelect.replaceChildren();
+
+    for (const member of state.members) {
+        const option = document.createElement('option');
+        option.value = member;
+        option.textContent = member;
+        option.selected = member === selectedMemberName;
+        logMemberSelect.append(option);
+    }
+}
+
+function openLogManageModal(log) {
+    selectedLog = log;
+    logManageTitle.textContent = `${log.zoneName} 완료 기록`;
+    logManageDesc.textContent = `${formatTime(log.checkedAt)} · 현재 완료자 ${log.memberName}`;
+    renderMemberOptions(log.memberName);
+    deleteConfirmInput.value = '';
+    deleteLogButton.disabled = true;
+    logManageModal.classList.remove('hidden');
+}
+
+async function saveLogEdit() {
+    if (!selectedLog) return;
+    const actor = requireActor();
+    if (!actor) return;
+    const zoneName = selectedLog.zoneName;
+    const nextMemberName = logMemberSelect.value;
+
+    try {
+        state = await api('/api/logs/update', {
+            method: 'POST',
+            body: JSON.stringify({
+                logId: selectedLog.id,
+                memberName: nextMemberName,
+                actorName: actor
+            })
+        });
+        closeLogManageModal();
+        render();
+        showToast('기록 수정 완료', `${zoneName} 완료자를 ${nextMemberName}(으)로 변경했습니다.`);
+    } catch (err) {
+        showToast('기록 수정 실패', err.message, 'error');
+        fetchState().catch(() => {});
+    }
+}
+
+async function deleteSelectedLog() {
+    if (!selectedLog || deleteConfirmInput.value.trim() !== '취소') return;
+    const actor = requireActor();
+    if (!actor) return;
+    const zoneName = selectedLog.zoneName;
+
+    try {
+        state = await api('/api/logs/delete', {
+            method: 'POST',
+            body: JSON.stringify({
+                logId: selectedLog.id,
+                actorName: actor
+            })
+        });
+        closeLogManageModal();
+        render();
+        showToast('기록 취소 완료', `${zoneName} 완료 기록을 랭킹에서 제외했습니다.`);
+    } catch (err) {
+        showToast('기록 취소 실패', err.message, 'error');
+        fetchState().catch(() => {});
+    }
 }
 
 function startOfToday() {
@@ -107,8 +242,7 @@ function buildRankings(logs) {
 }
 
 async function fetchState() {
-    const res = await fetch('/api/state', { cache: 'no-store' });
-    state = await res.json();
+    state = await api('/api/state', { cache: 'no-store' });
     render();
 }
 
@@ -205,8 +339,17 @@ function renderLogs() {
                 ? `${log.memberName} · ${actionLabel(log)}`
                 : `${log.zoneName} · ${actionLabel(log)}`;
 
+        const manageButton = document.createElement('button');
+        manageButton.className = 'logManageButton';
+        manageButton.type = 'button';
+        manageButton.textContent = '관리';
+        manageButton.addEventListener('click', (event) => {
+            event.stopPropagation();
+            openLogManageModal(log);
+        });
+
         main.append(title, meta);
-        row.append(time, main);
+        row.append(time, main, manageButton);
         row.tabIndex = 0;
         row.addEventListener('click', () => {
             memberFilterInput.value = log.memberName;
@@ -239,6 +382,15 @@ periodButtons.forEach((button) => {
 });
 
 memberFilterInput.addEventListener('input', render);
+closeLogManageButton.addEventListener('click', closeLogManageModal);
+saveLogEditButton.addEventListener('click', saveLogEdit);
+deleteLogButton.addEventListener('click', deleteSelectedLog);
+deleteConfirmInput.addEventListener('input', () => {
+    deleteLogButton.disabled = deleteConfirmInput.value.trim() !== '취소';
+});
+logManageModal.addEventListener('click', (event) => {
+    if (event.target === logManageModal) closeLogManageModal();
+});
 
 fetchState();
 setInterval(() => fetchState().catch(() => {}), 3000);

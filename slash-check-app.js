@@ -610,6 +610,90 @@ async function handleApi(req, res, url) {
         return true;
     }
 
+    if (url.pathname === '/api/logs/update' && req.method === 'POST') {
+        const body = await readJson(req);
+        const logId = String(body.logId || '');
+        const memberName = cleanText(body.memberName, 24);
+        const actorName = cleanText(body.actorName, 24);
+        const log = state.logs.find((item) => item.id === logId && isCheckLog(item));
+
+        if (!log) {
+            sendJson(res, 404, { error: '수정할 완료 기록을 찾을 수 없습니다.' });
+            return true;
+        }
+
+        if (!state.members.includes(actorName)) {
+            sendJson(res, 400, { error: '등록된 길드원만 기록을 수정할 수 있습니다.' });
+            return true;
+        }
+
+        if (!state.members.includes(memberName)) {
+            sendJson(res, 400, { error: '수정할 완료자를 확인하세요.' });
+            return true;
+        }
+
+        const oldMemberName = log.memberName;
+        log.memberName = memberName;
+        log.checkedBy = memberName;
+
+        const zone = state.zones.find((item) => item.id === log.zoneId);
+        if (zone && zone.lastAt === log.checkedAt && zone.lastBy === oldMemberName) {
+            zone.lastBy = memberName;
+        }
+
+        appendEventLog({
+            action: 'edit-log',
+            zone: zone || { id: log.zoneId, name: log.zoneName },
+            memberName: actorName,
+            detail: {
+                targetLogId: log.id,
+                oldMemberName,
+                newMemberName: memberName,
+                targetCheckedAt: log.checkedAt
+            }
+        });
+        await saveState();
+        sendJson(res, 200, { ...publicState(), action: 'edit-log' });
+        return true;
+    }
+
+    if (url.pathname === '/api/logs/delete' && req.method === 'POST') {
+        const body = await readJson(req);
+        const logId = String(body.logId || '');
+        const actorName = cleanText(body.actorName, 24);
+        const logIndex = state.logs.findIndex((item) => item.id === logId && isCheckLog(item));
+
+        if (!state.members.includes(actorName)) {
+            sendJson(res, 400, { error: '등록된 길드원만 기록을 취소할 수 있습니다.' });
+            return true;
+        }
+
+        if (logIndex === -1) {
+            sendJson(res, 404, { error: '취소할 완료 기록을 찾을 수 없습니다.' });
+            return true;
+        }
+
+        const [removedLog] = state.logs.splice(logIndex, 1);
+        const zone = state.zones.find((item) => item.id === removedLog.zoneId);
+        if (zone && zone.lastAt === removedLog.checkedAt && zone.lastBy === removedLog.memberName) {
+            restoreZoneAfterUndo(zone, removedLog);
+        }
+
+        appendEventLog({
+            action: 'delete-log',
+            zone: zone || { id: removedLog.zoneId, name: removedLog.zoneName },
+            memberName: actorName,
+            detail: {
+                targetLogId: removedLog.id,
+                targetMemberName: removedLog.memberName,
+                targetCheckedAt: removedLog.checkedAt
+            }
+        });
+        await saveState();
+        sendJson(res, 200, { ...publicState(), action: 'delete-log' });
+        return true;
+    }
+
     if (url.pathname === '/api/check' && req.method === 'POST') {
         const body = await readJson(req);
         const zone = state.zones.find((item) => item.id === body.zoneId);

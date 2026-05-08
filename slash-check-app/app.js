@@ -398,7 +398,7 @@ function renderZones() {
         const menuButton = card.querySelector('.zoneMenuButton');
         menuButton.setAttribute('aria-label', `${zone.name} 관리 메뉴`);
         menuButton.addEventListener('click', () => openZoneActionModal(zone));
-        card.querySelector('.statusText').textContent = locked ? '대기' : '가능';
+        card.querySelector('.statusText').textContent = locked ? '쿨타임' : '가능';
         card.querySelector('.lastText').textContent = zone.lastBy
             ? `최근 ${zone.lastBy} · ${formatTime(zone.lastAt)}`
             : '';
