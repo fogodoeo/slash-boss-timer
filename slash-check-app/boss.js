@@ -17,6 +17,7 @@ const memberSuggest = document.querySelector('#memberSuggest');
 const toastHost = document.querySelector('#toastHost');
 
 const MEMBER_KEY = 'slashCheckMemberName';
+const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
 let state = { members: [], bossCuts: {} };
 let bosses = [];
 let selectedMember = localStorage.getItem(MEMBER_KEY) || '';
@@ -41,8 +42,8 @@ function isValidCommandTime(value) {
 }
 
 function formatNowCommandTime() {
-    const now = new Date();
-    return `${pad2(now.getHours())}${pad2(now.getMinutes())}`;
+    const now = new Date(Date.now() + KST_OFFSET_MS);
+    return `${pad2(now.getUTCHours())}${pad2(now.getUTCMinutes())}`;
 }
 
 function displayTime(value) {

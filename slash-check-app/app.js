@@ -26,6 +26,7 @@ const toastHost = document.querySelector('#toastHost');
 
 const MEMBER_KEY = 'slashCheckMemberName';
 const CHECK_UNDO_GRACE_MS = 60 * 1000;
+const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
 let state = { now: new Date().toISOString(), members: [], zones: [], rankings: [], logs: [] };
 let selectedMember = localStorage.getItem(MEMBER_KEY) || '';
 let lastSyncAt = Date.now();
@@ -41,8 +42,10 @@ function pad2(value) {
 
 function formatTime(iso) {
     if (!iso) return '-';
-    const date = new Date(iso);
-    return `${pad2(date.getHours())}:${pad2(date.getMinutes())}`;
+    const ms = new Date(iso).getTime();
+    if (!Number.isFinite(ms)) return '-';
+    const date = new Date(ms + KST_OFFSET_MS);
+    return `${pad2(date.getUTCHours())}:${pad2(date.getUTCMinutes())}`;
 }
 
 function formatRemain(ms) {

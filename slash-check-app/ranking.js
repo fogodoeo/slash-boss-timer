@@ -17,7 +17,9 @@ const toastHost = document.querySelector('#toastHost');
 
 const MEMBER_KEY = 'slashCheckMemberName';
 const RECENT_LOG_LIMIT = 50;
-let state = { rankings: [], logs: [], members: [] };
+const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
+const DAY_MS = 24 * 60 * 60 * 1000;
+let state = { now: new Date().toISOString(), rankings: [], logs: [], members: [] };
 let activePeriod = 'day';
 let selectedLog = null;
 
@@ -25,10 +27,28 @@ function pad2(value) {
     return String(value).padStart(2, '0');
 }
 
+function kstDate(ms) {
+    return new Date(ms + KST_OFFSET_MS);
+}
+
+function kstParts(iso) {
+    const ms = new Date(iso).getTime();
+    if (!Number.isFinite(ms)) return null;
+
+    const date = kstDate(ms);
+    return {
+        month: date.getUTCMonth() + 1,
+        day: date.getUTCDate(),
+        hour: date.getUTCHours(),
+        minute: date.getUTCMinutes()
+    };
+}
+
 function formatTime(iso) {
     if (!iso) return '-';
-    const date = new Date(iso);
-    return `${pad2(date.getMonth() + 1)}.${pad2(date.getDate())} ${pad2(date.getHours())}:${pad2(date.getMinutes())}`;
+    const parts = kstParts(iso);
+    if (!parts) return '-';
+    return `${pad2(parts.month)}.${pad2(parts.day)} ${pad2(parts.hour)}:${pad2(parts.minute)}`;
 }
 
 function isCheckLog(log) {
@@ -165,24 +185,26 @@ async function deleteSelectedLog() {
     }
 }
 
-function startOfToday() {
-    const date = new Date();
-    date.setHours(0, 0, 0, 0);
-    return date.getTime();
+function currentServerMs() {
+    const ms = new Date(state.now).getTime();
+    return Number.isFinite(ms) ? ms : Date.now();
 }
 
-function startOfWeek() {
-    const date = new Date();
-    date.setHours(0, 0, 0, 0);
-    const day = date.getDay();
+function startOfKstDay(ms = currentServerMs()) {
+    const date = kstDate(ms);
+    return Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()) - KST_OFFSET_MS;
+}
+
+function startOfKstWeek(ms = currentServerMs()) {
+    const start = startOfKstDay(ms);
+    const day = kstDate(start).getUTCDay();
     const diff = day === 0 ? 6 : day - 1;
-    date.setDate(date.getDate() - diff);
-    return date.getTime();
+    return start - diff * DAY_MS;
 }
 
 function periodStartMs() {
-    if (activePeriod === 'day') return startOfToday();
-    if (activePeriod === 'week') return startOfWeek();
+    if (activePeriod === 'day') return startOfKstDay();
+    if (activePeriod === 'week') return startOfKstWeek();
     return 0;
 }
 
