@@ -134,7 +134,7 @@ async function requestNotifications({ quiet = false } = {}) {
     updateNotifyButton();
 
     if (permission === 'granted') {
-        if (!quiet) showToast('알림이 켜졌습니다', '우선권 구역이 가능해지면 알려드릴게요.');
+        if (!quiet) showToast('알림이 켜졌습니다', '예약한 구역이 가능해지면 알려드릴게요.');
         return true;
     }
 
@@ -143,7 +143,7 @@ async function requestNotifications({ quiet = false } = {}) {
 }
 
 function notifyReservationReady(zone) {
-    showToast(`${zone.name} 진행 가능`, '우선권 잡은 구역의 쿨타임이 끝났습니다.');
+    showToast(`${zone.name} 진행 가능`, '예약한 구역의 쿨타임이 끝났습니다.');
 
     if ('Notification' in window && Notification.permission === 'granted') {
         new Notification('썰자 진행 가능', {
@@ -266,11 +266,11 @@ async function toggleReservation(zone) {
         lastSyncAt = Date.now();
         render();
         showToast(
-            reserved ? '우선권을 취소했습니다' : '우선권을 잡았습니다',
+            reserved ? '예약을 취소했습니다' : '예약했습니다',
             reserved ? zone.name : wasLocked ? '쿨타임이 끝나면 알려드릴게요.' : '지금 바로 완료 처리할 수 있습니다.'
         );
     } catch (err) {
-        showToast('우선권 처리 실패', err.message, 'error');
+        showToast('예약 처리 실패', err.message, 'error');
         fetchState(true).catch(() => {});
     }
 }
@@ -291,7 +291,7 @@ async function resetZoneState() {
         lastSyncAt = Date.now();
         closeZoneActionModal();
         render();
-        showToast('상태 초기화 완료', `${zone.name} 잠김과 우선권을 비웠습니다.`);
+        showToast('상태 초기화 완료', `${zone.name} 잠김과 예약을 비웠습니다.`);
     } catch (err) {
         showToast('초기화 실패', err.message, 'error');
         fetchState(true).catch(() => {});
@@ -440,11 +440,11 @@ function renderZones() {
         if (shouldAlertReservationReady(zone, activeReservation, locked)) notifyReservationReady(zone);
 
         card.querySelector('.reservationText').textContent = reservations.length > 0
-            ? `우선 ${activeReservation.memberName} · ${reservationRemain}`
+            ? `예약 ${activeReservation.memberName} · ${reservationRemain}`
             : '';
 
         const reserveButton = card.querySelector('.reserveButton');
-        reserveButton.textContent = reservedByMe ? '우선권 취소' : reservedByOther ? '우선권 사용중' : '우선권 잡기';
+        reserveButton.textContent = reservedByMe ? '예약 취소' : reservedByOther ? '예약중' : '예약';
         reserveButton.classList.toggle('isReserved', reservedByMe);
         reserveButton.disabled = reservedByOther;
         reserveButton.addEventListener('click', () => toggleReservation(zone));
