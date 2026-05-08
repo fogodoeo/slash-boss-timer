@@ -12,6 +12,7 @@ const enableNotifyButton = document.querySelector('#enableNotifyButton');
 const toastHost = document.querySelector('#toastHost');
 
 const MEMBER_KEY = 'slashCheckMemberName';
+const CHECK_UNDO_GRACE_MS = 60 * 1000;
 let state = { now: new Date().toISOString(), members: [], zones: [], rankings: [], logs: [] };
 let selectedMember = localStorage.getItem(MEMBER_KEY) || '';
 let lastSyncAt = Date.now();
@@ -310,7 +311,11 @@ function renderZones() {
         const activeReservation = reservations[0];
         const reservedByMe = activeReservation?.memberName === selectedMember;
         const reservedByOther = Boolean(activeReservation && !reservedByMe);
-        const canUndoCheck = locked && zone.lastBy === selectedMember;
+        const checkedByMeAt = zone.lastAt ? new Date(zone.lastAt).getTime() : 0;
+        const canUndoCheck = locked
+            && zone.lastBy === selectedMember
+            && Number.isFinite(checkedByMeAt)
+            && now - checkedByMeAt <= CHECK_UNDO_GRACE_MS;
         const reservationRemain = activeReservation?.expiresAt
             ? formatRemain(new Date(activeReservation.expiresAt).getTime() - now)
             : null;

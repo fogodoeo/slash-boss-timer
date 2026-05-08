@@ -40,6 +40,7 @@ const defaultState = {
 
 let state = structuredClone(defaultState);
 const RESERVATION_GRACE_MS = 10 * 60 * 1000;
+const CHECK_UNDO_GRACE_MS = 60 * 1000;
 
 function send(res, status, body, type = 'text/plain; charset=utf-8') {
     res.writeHead(status, {
@@ -549,6 +550,12 @@ async function handleApi(req, res, url) {
 
             if (logIndex === -1) {
                 sendJson(res, 409, { error: '되돌릴 완료 기록을 찾을 수 없습니다.', state: publicState() });
+                return true;
+            }
+
+            const checkedAtMs = new Date(state.logs[logIndex].checkedAt).getTime();
+            if (!Number.isFinite(checkedAtMs) || now - checkedAtMs > CHECK_UNDO_GRACE_MS) {
+                sendJson(res, 409, { error: '되돌리기는 완료 후 1분 안에만 가능합니다.', state: publicState() });
                 return true;
             }
 
