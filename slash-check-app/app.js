@@ -19,10 +19,15 @@ const toastHost = document.querySelector('#toastHost');
 
 const MEMBER_KEY = 'slashCheckMemberName';
 const CHECK_UNDO_GRACE_MS = 60 * 1000;
+const REORDER_HOLD_MS = 520;
+const REORDER_MOVE_CANCEL_PX = 9;
 let state = { now: new Date().toISOString(), members: [], zones: [], rankings: [], logs: [] };
 let selectedMember = localStorage.getItem(MEMBER_KEY) || '';
 let lastSyncAt = Date.now();
 let selectedActionZone = null;
+let zonePress = null;
+let suppressZoneClickUntil = 0;
+let isSavingZoneOrder = false;
 const notifiedReadyReservations = new Set();
 
 function pad2(value) {
@@ -390,7 +395,138 @@ function renderMemberSuggest() {
     }
 }
 
+function zoneOrderFromDom() {
+    return [...zoneList.querySelectorAll('.zoneCard[data-zone-id]')]
+        .map((card) => card.dataset.zoneId)
+        .filter(Boolean);
+}
+
+function isSameOrder(left, right) {
+    return left.length === right.length && left.every((value, index) => value === right[index]);
+}
+
+function cancelZonePress() {
+    if (!zonePress) return;
+    clearTimeout(zonePress.timer);
+    if (zonePress.active) {
+        zonePress.card.classList.remove('isDragging');
+        zoneList.classList.remove('isReordering');
+    }
+    zonePress = null;
+}
+
+function beginZoneReorder() {
+    if (!zonePress || zonePress.active) return;
+
+    zonePress.active = true;
+    zonePress.originalOrder = state.zones.map((zone) => zone.id);
+    zonePress.card.classList.add('isDragging');
+    zoneList.classList.add('isReordering');
+    suppressZoneClickUntil = Date.now() + 900;
+
+    try {
+        zonePress.card.setPointerCapture(zonePress.pointerId);
+    } catch {
+        // Pointer capture may fail if the pointer ended during the long press.
+    }
+}
+
+function cardAtPoint(event) {
+    const target = document.elementFromPoint(event.clientX, event.clientY);
+    const card = target?.closest?.('.zoneCard[data-zone-id]');
+    return card && zoneList.contains(card) ? card : null;
+}
+
+function moveReorderCard(event) {
+    if (!zonePress?.active) return;
+
+    const draggedCard = zonePress.card;
+    const targetCard = cardAtPoint(event);
+    if (!targetCard || targetCard === draggedCard) return;
+
+    const rect = targetCard.getBoundingClientRect();
+    const centerY = rect.top + rect.height / 2;
+    const centerX = rect.left + rect.width / 2;
+    const sameRow = Math.abs(event.clientY - centerY) < rect.height * 0.45;
+    const insertAfter = event.clientY > centerY || (sameRow && event.clientX > centerX);
+
+    zoneList.insertBefore(draggedCard, insertAfter ? targetCard.nextSibling : targetCard);
+    zonePress.moved = true;
+}
+
+async function saveZoneOrder(zoneIds) {
+    isSavingZoneOrder = true;
+
+    try {
+        state = await api('/api/zones/reorder', {
+            method: 'POST',
+            body: JSON.stringify({ zoneIds })
+        });
+        lastSyncAt = Date.now();
+        isSavingZoneOrder = false;
+        render();
+        showToast('순서 저장됨', '구역 카드 순서를 저장했습니다.');
+    } catch (err) {
+        isSavingZoneOrder = false;
+        showToast('순서 저장 실패', err.message, 'error');
+        fetchState(true).catch(() => {});
+    }
+}
+
+function finishZonePress(event) {
+    if (!zonePress || event.pointerId !== zonePress.pointerId) return;
+
+    const finished = zonePress;
+    clearTimeout(finished.timer);
+    zonePress = null;
+
+    if (!finished.active) return;
+
+    suppressZoneClickUntil = Date.now() + 600;
+    finished.card.classList.remove('isDragging');
+    zoneList.classList.remove('isReordering');
+
+    const nextOrder = zoneOrderFromDom();
+    const previousOrder = finished.originalOrder || state.zones.map((zone) => zone.id);
+
+    if (finished.moved && nextOrder.length > 0 && !isSameOrder(nextOrder, previousOrder)) {
+        saveZoneOrder(nextOrder);
+    }
+}
+
+function handleZonePointerMove(event) {
+    if (!zonePress || event.pointerId !== zonePress.pointerId) return;
+
+    const distance = Math.hypot(event.clientX - zonePress.startX, event.clientY - zonePress.startY);
+    if (!zonePress.active) {
+        if (distance > REORDER_MOVE_CANCEL_PX) cancelZonePress();
+        return;
+    }
+
+    event.preventDefault();
+    moveReorderCard(event);
+}
+
+function startZonePress(event, card) {
+    if (isCardControl(event.target)) return;
+    if (event.pointerType === 'mouse' && event.button !== 0) return;
+
+    cancelZonePress();
+    zonePress = {
+        card,
+        pointerId: event.pointerId,
+        startX: event.clientX,
+        startY: event.clientY,
+        active: false,
+        moved: false,
+        originalOrder: null,
+        timer: setTimeout(beginZoneReorder, REORDER_HOLD_MS)
+    };
+}
+
 function renderZones() {
+    if (zonePress?.active || isSavingZoneOrder) return;
+
     const now = getNowMs();
     zoneList.replaceChildren();
 
@@ -405,6 +541,7 @@ function renderZones() {
         const remain = cooldownUntil - now;
         const locked = remain > 0;
 
+        card.dataset.zoneId = zone.id;
         card.classList.toggle('isLocked', locked);
         card.querySelector('.zoneName').textContent = zone.name;
         const menuButton = card.querySelector('.zoneMenuButton');
@@ -457,7 +594,15 @@ function renderZones() {
         button.disabled = (locked && !canUndoCheck) || reservedByOther;
         button.addEventListener('click', () => submitZoneCheck(zone));
 
+        card.addEventListener('pointerdown', (event) => startZonePress(event, card));
+        card.addEventListener('contextmenu', (event) => {
+            if (zonePress?.active || Date.now() < suppressZoneClickUntil) event.preventDefault();
+        });
         card.addEventListener('click', (event) => {
+            if (Date.now() < suppressZoneClickUntil) {
+                event.preventDefault();
+                return;
+            }
             if (isCardControl(event.target) || !canUseCardCheck) return;
             submitZoneCheck(zone);
         });
@@ -487,6 +632,9 @@ resetZoneStateButton.addEventListener('click', resetZoneState);
 cancelLastCheckButton.addEventListener('click', cancelLastCheck);
 memberSearchInput.addEventListener('input', renderMemberSuggest);
 profileForm.addEventListener('submit', (event) => event.preventDefault());
+window.addEventListener('pointermove', handleZonePointerMove, { passive: false });
+window.addEventListener('pointerup', finishZonePress);
+window.addEventListener('pointercancel', finishZonePress);
 profileModal.addEventListener('click', (event) => {
     if (event.target === profileModal) closeProfileModal();
 });

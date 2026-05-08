@@ -16,6 +16,7 @@ const deleteLogButton = document.querySelector('#deleteLogButton');
 const toastHost = document.querySelector('#toastHost');
 
 const MEMBER_KEY = 'slashCheckMemberName';
+const RECENT_LOG_LIMIT = 50;
 let state = { rankings: [], logs: [], members: [] };
 let activePeriod = 'day';
 let selectedLog = null;
@@ -189,6 +190,13 @@ function memberQuery() {
     return memberFilterInput.value.trim().toLowerCase();
 }
 
+function toggleMemberFilter(memberName) {
+    const nextName = String(memberName || '');
+    const current = memberFilterInput.value.trim();
+    memberFilterInput.value = current.toLowerCase() === nextName.toLowerCase() ? '' : nextName;
+    render();
+}
+
 function filteredLogs() {
     const start = periodStartMs();
     const query = memberQuery();
@@ -266,6 +274,7 @@ function renderRankings() {
     rankings.forEach((item, index) => {
         const row = document.createElement('div');
         row.className = 'rankRow detail';
+        row.classList.toggle('isSelected', memberQuery() === item.memberName.toLowerCase());
 
         const rankNo = document.createElement('span');
         rankNo.className = 'rankNo';
@@ -284,14 +293,12 @@ function renderRankings() {
         row.append(rankNo, member, count, detail);
         row.tabIndex = 0;
         row.addEventListener('click', () => {
-            memberFilterInput.value = item.memberName;
-            render();
+            toggleMemberFilter(item.memberName);
         });
         row.addEventListener('keydown', (event) => {
             if (event.key === 'Enter' || event.key === ' ') {
                 event.preventDefault();
-                memberFilterInput.value = item.memberName;
-                render();
+                toggleMemberFilter(item.memberName);
             }
         });
         rankingList.append(row);
@@ -304,22 +311,26 @@ function renderLogs() {
     const query = memberQuery();
     const matches = matchingMemberNames();
     const exactMember = matches.find((member) => member.toLowerCase() === query);
+    const displayLogs = query ? logs : logs.slice(0, RECENT_LOG_LIMIT);
 
     logPanelLabel.textContent = query ? '길드원 활동 내역' : '최근 기록';
     logSummary.textContent = query
         ? `${periodLabel()} ${logs.length}건${exactMember ? ` · ${exactMember}` : matches.length > 1 ? ` · ${matches.length}명` : ''}`
-        : `${logs.length}건`;
+        : logs.length > displayLogs.length
+            ? `최근 ${displayLogs.length}건 / 전체 ${logs.length}건`
+            : `${logs.length}건`;
 
-    if (logs.length === 0) {
+    if (displayLogs.length === 0) {
         logList.innerHTML = query
             ? '<div class="empty small">이 길드원의 체크 기록이 없습니다.</div>'
             : '<div class="empty small">조건에 맞는 체크 기록이 없습니다.</div>';
         return;
     }
 
-    logs.forEach((log) => {
+    displayLogs.forEach((log) => {
         const row = document.createElement('div');
         row.className = 'activityRow';
+        row.classList.toggle('isSelected', query === log.memberName.toLowerCase());
 
         const time = document.createElement('time');
         time.textContent = formatTime(log.checkedAt);
@@ -352,14 +363,12 @@ function renderLogs() {
         row.append(time, main, manageButton);
         row.tabIndex = 0;
         row.addEventListener('click', () => {
-            memberFilterInput.value = log.memberName;
-            render();
+            toggleMemberFilter(log.memberName);
         });
         row.addEventListener('keydown', (event) => {
             if (event.key === 'Enter' || event.key === ' ') {
                 event.preventDefault();
-                memberFilterInput.value = log.memberName;
-                render();
+                toggleMemberFilter(log.memberName);
             }
         });
         logList.append(row);

@@ -363,6 +363,23 @@ h1 {
     transform: translateY(1px);
 }
 
+.zoneList.isReordering {
+    user-select: none;
+}
+
+.zoneList.isReordering .zoneCard {
+    cursor: grabbing;
+}
+
+.zoneCard.isDragging {
+    z-index: 2;
+    border-color: var(--blue);
+    border-left-color: var(--blue);
+    background: #ffffff;
+    box-shadow: 0 10px 24px rgba(16, 24, 40, 0.16);
+    transform: scale(0.992);
+}
+
 .zoneMain {
     display: grid;
     min-width: 0;
@@ -828,6 +845,12 @@ h1 {
     background: #ffffff;
     outline: none;
     box-shadow: 0 0 0 3px rgba(20, 87, 217, 0.08);
+}
+
+.rankingList .rankRow.isSelected,
+.logList .activityRow.isSelected {
+    border-color: var(--blue);
+    background: var(--blue-soft);
 }
 
 .rankRow,

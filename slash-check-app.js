@@ -508,6 +508,32 @@ async function handleApi(req, res, url) {
         return true;
     }
 
+    if (url.pathname === '/api/zones/reorder' && req.method === 'POST') {
+        const body = await readJson(req);
+        const zoneIds = Array.isArray(body.zoneIds) ? body.zoneIds.map((id) => String(id)) : [];
+        const currentIds = state.zones.map((zone) => zone.id);
+        const nextIdSet = new Set(zoneIds);
+
+        if (zoneIds.length !== currentIds.length || nextIdSet.size !== currentIds.length) {
+            sendJson(res, 400, { error: '구역 순서 정보를 확인하세요.' });
+            return true;
+        }
+
+        for (const id of currentIds) {
+            if (!nextIdSet.has(id)) {
+                sendJson(res, 400, { error: '구역 순서 정보가 현재 목록과 맞지 않습니다.' });
+                return true;
+            }
+        }
+
+        const zonesById = new Map(state.zones.map((zone) => [zone.id, zone]));
+        state.zones = zoneIds.map((id) => zonesById.get(id));
+
+        await saveState();
+        sendJson(res, 200, publicState());
+        return true;
+    }
+
     if (url.pathname === '/api/zones' && (req.method === 'PUT' || req.method === 'PATCH')) {
         const body = await readJson(req);
         const zone = state.zones.find((item) => item.id === body.id);
