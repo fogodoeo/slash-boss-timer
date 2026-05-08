@@ -1717,10 +1717,10 @@ h1 {
     }
 
     .zoneCard {
-        grid-template-columns: minmax(0, 1fr) 96px;
-        gap: 6px 9px;
+        grid-template-columns: minmax(0, 1fr) 156px;
+        gap: 3px 8px;
         min-height: 0;
-        padding: 9px 10px 9px 12px;
+        padding: 7px 8px 7px 10px;
         border-left-width: 3px;
     }
 
@@ -1729,18 +1729,18 @@ h1 {
     }
 
     .zoneName {
-        font-size: 19px;
+        font-size: 18px;
         line-height: 1.15;
     }
 
     .zoneMenuButton {
-        width: 24px;
-        height: 24px;
-        font-size: 19px;
+        width: 22px;
+        height: 22px;
+        font-size: 18px;
     }
 
     .zoneStatus {
-        gap: 3px 7px;
+        gap: 2px 6px;
         align-self: start;
         display: flex;
         flex-wrap: wrap;
@@ -1752,47 +1752,47 @@ h1 {
     }
 
     .statusText {
-        font-size: 12px;
+        font-size: 11px;
     }
 
     .lastText,
     .reservationText {
         max-width: 100%;
-        font-size: 11px;
+        font-size: 10.5px;
     }
 
     .zoneActions {
         grid-column: 2;
         grid-row: 1 / span 2;
-        flex-direction: column;
+        flex-direction: row;
         align-items: flex-end;
         justify-content: center;
         gap: 5px;
-        align-self: stretch;
+        align-self: center;
     }
 
     .checkButton,
     .reserveButton {
-        height: 35px;
+        height: 32px;
         padding: 0 4px;
         font-size: 13px;
     }
 
     .checkButton {
-        order: -1;
-        width: 92px;
+        order: 0;
+        width: 88px;
     }
 
     .reserveButton {
         width: auto;
         min-width: 52px;
-        height: 29px;
-        padding: 0 8px;
+        height: 30px;
+        padding: 0 7px;
         font-size: 12px;
     }
 
     .reserveButton.isReserved {
-        min-width: 68px;
+        min-width: 63px;
     }
 
     .rankingLayout {
