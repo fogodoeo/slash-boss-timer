@@ -4599,3 +4599,297 @@ body {
         padding: 0 !important;
     }
 }
+
+/* UX refinement layer */
+.hidden,
+[hidden] {
+    display: none !important;
+}
+
+.filterClearButton {
+    align-self: end;
+    min-height: 38px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: #ffffff;
+    color: var(--text-soft);
+    padding: 0 12px;
+    font-size: 13px;
+    font-weight: 900;
+}
+
+.filterClearButton:hover {
+    background: var(--blue-soft);
+    border-color: #bcd0ff;
+    color: var(--blue);
+}
+
+.logManageButton {
+    width: 32px;
+    min-width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    font-size: 18px;
+    line-height: 1;
+}
+
+.zoneDragHandle {
+    width: 36px;
+    min-width: 36px;
+    border-radius: 8px;
+    font-size: 17px;
+    line-height: 1;
+}
+
+.bossParticipantAdd {
+    display: grid;
+    gap: 10px;
+    border: 1px solid #c7d7fe;
+    border-left: 4px solid var(--blue);
+    border-radius: 10px;
+    background: var(--blue-soft);
+    padding: 12px;
+}
+
+.bossParticipantAdd .bossRecordManageHead span {
+    color: #475569;
+}
+
+.bossModalSheet {
+    max-height: min(86vh, 760px);
+    overflow-y: auto;
+}
+
+.bossModalSheet select {
+    width: 100%;
+    height: 40px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: #ffffff;
+    color: var(--text);
+    padding: 0 10px;
+    outline: none;
+}
+
+.bossModalSheet select:focus {
+    border-color: #9db7ff;
+    box-shadow: 0 0 0 3px rgba(21, 94, 239, 0.12);
+}
+
+.bossModalSheet input:disabled,
+.bossModalSheet select:disabled {
+    background: #eef2f7;
+    color: var(--muted);
+}
+
+.bossLivePanel[hidden] + .bossTimelinePanel {
+    margin-top: 0;
+}
+
+@media (max-width: 760px) {
+    .filterClearButton {
+        width: 100%;
+        min-height: 36px;
+    }
+
+    .logManageButton {
+        width: 30px;
+        min-width: 30px;
+        height: 30px;
+        font-size: 17px;
+    }
+
+    .zoneDragHandle {
+        width: 32px;
+        min-width: 32px;
+        height: 32px;
+        padding: 0;
+    }
+
+    .bossParticipantAdd,
+    .bossRecordManage {
+        gap: 8px;
+        padding: 10px;
+    }
+
+    .bossModalSheet {
+        max-height: 88vh;
+    }
+}
+
+.bossAdminPanel {
+    grid-column: 1 / -1;
+}
+
+.adminSaveBar {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    width: 100% !important;
+    left: auto !important;
+    right: auto !important;
+    bottom: auto !important;
+    transform: none !important;
+}
+
+.adminSaveBar > div {
+    display: grid;
+    gap: 4px;
+}
+
+.adminSaveBar #changeSummary {
+    color: var(--text);
+}
+
+.adminSaveBar #changeHint {
+    color: var(--muted);
+}
+
+.bossAdminTools {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(220px, 320px);
+    gap: 10px;
+    align-items: end;
+    margin-bottom: 10px;
+}
+
+.bossForm {
+    display: grid;
+    grid-template-columns: minmax(140px, 1fr) minmax(100px, 0.7fr) 110px 104px;
+    gap: 8px;
+    align-items: center;
+}
+
+.bossAdminSearch {
+    display: grid;
+    gap: 6px;
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 850;
+}
+
+.bossForm input,
+.bossForm select,
+.bossAdminSearch input,
+.bossManageRow input,
+.bossManageRow select {
+    width: 100%;
+    height: 38px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: #ffffff;
+    color: var(--text);
+    padding: 0 10px;
+    outline: none;
+}
+
+.bossForm input:focus,
+.bossForm select:focus,
+.bossAdminSearch input:focus,
+.bossManageRow input:focus,
+.bossManageRow select:focus {
+    border-color: #9db7ff;
+    box-shadow: 0 0 0 3px rgba(21, 94, 239, 0.12);
+}
+
+.bossForm button {
+    height: 38px;
+    border: 1px solid var(--dark);
+    border-radius: 8px;
+    background: var(--dark);
+    color: #ffffff;
+    font-weight: 950;
+}
+
+.bossManageList {
+    display: grid;
+    gap: 8px;
+}
+
+.bossManageRow {
+    display: grid;
+    grid-template-columns: minmax(110px, 1fr) minmax(76px, 0.7fr) minmax(110px, 0.9fr) 74px 76px 76px 92px 62px 68px 62px;
+    gap: 7px;
+    align-items: center;
+    min-height: 54px;
+    border: 1px solid var(--line-soft);
+    border-radius: 10px;
+    background: #ffffff;
+    padding: 8px;
+}
+
+.bossManageRow.isFilteredOut {
+    display: none;
+}
+
+.bossManageRow.isChanged {
+    border-color: rgba(21, 94, 239, 0.34);
+    background: #f5f9ff;
+}
+
+.bossManageName[readonly] {
+    background: #f1f5f9;
+    color: var(--text-soft);
+}
+
+.bossManageCooldown:disabled,
+.bossManageTime:disabled,
+.bossManageDays:disabled {
+    background: #eef2f7;
+    color: #94a3b8;
+}
+
+.deleteBoss {
+    height: 34px;
+    border: 1px solid #f0b7b1;
+    border-radius: 8px;
+    background: #ffffff;
+    color: var(--red);
+    font-weight: 900;
+}
+
+.deleteBoss:hover {
+    background: var(--red-soft);
+}
+
+.bossManageRow.isChanged .manageStatus {
+    border-color: rgba(21, 94, 239, 0.28);
+    background: var(--blue-soft);
+    color: var(--blue);
+}
+
+@media (max-width: 980px) {
+    .bossAdminTools,
+    .bossForm {
+        grid-template-columns: 1fr;
+    }
+
+    .bossManageRow {
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    }
+
+    .bossManageRow .manageStatus,
+    .bossManageRow .deleteBoss {
+        width: 100%;
+    }
+}
+
+@media (max-width: 760px) {
+    .bossAdminTools {
+        gap: 8px;
+    }
+
+    .bossManageRow {
+        gap: 6px;
+        padding: 8px;
+    }
+
+    .bossManageRow input,
+    .bossManageRow select,
+    .bossForm input,
+    .bossForm select,
+    .bossAdminSearch input {
+        height: 36px;
+        font-size: 12px;
+    }
+}

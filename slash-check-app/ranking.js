@@ -4,6 +4,7 @@ const rankingSummary = document.querySelector('#rankingSummary');
 const logSummary = document.querySelector('#logSummary');
 const logPanelLabel = document.querySelector('#logPanelLabel');
 const memberFilterInput = document.querySelector('#memberFilterInput');
+const clearMemberFilterButton = document.querySelector('#clearMemberFilterButton');
 const periodButtons = [...document.querySelectorAll('[data-period]')];
 const logManageModal = document.querySelector('#logManageModal');
 const closeLogManageButton = document.querySelector('#closeLogManageButton');
@@ -375,7 +376,9 @@ function renderLogs() {
         const manageButton = document.createElement('button');
         manageButton.className = 'logManageButton';
         manageButton.type = 'button';
-        manageButton.textContent = '관리';
+        manageButton.textContent = '⋯';
+        manageButton.title = '기록 관리';
+        manageButton.setAttribute('aria-label', `${log.zoneName} 기록 관리`);
         manageButton.addEventListener('click', (event) => {
             event.stopPropagation();
             openLogManageModal(log);
@@ -401,6 +404,7 @@ function render() {
     periodButtons.forEach((button) => {
         button.classList.toggle('active', button.dataset.period === activePeriod);
     });
+    clearMemberFilterButton?.classList.toggle('hidden', !memberQuery());
     renderRankings();
     renderLogs();
 }
@@ -413,6 +417,11 @@ periodButtons.forEach((button) => {
 });
 
 memberFilterInput.addEventListener('input', render);
+clearMemberFilterButton?.addEventListener('click', () => {
+    memberFilterInput.value = '';
+    render();
+    memberFilterInput.focus();
+});
 closeLogManageButton.addEventListener('click', closeLogManageModal);
 saveLogEditButton.addEventListener('click', saveLogEdit);
 deleteLogButton.addEventListener('click', deleteSelectedLog);

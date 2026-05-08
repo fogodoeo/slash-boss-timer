@@ -10,7 +10,7 @@
     <main class="shell">
         <header class="topbar">
             <div>
-                <span class="eyebrow">설정</span>
+                <span class="eyebrow">설정 관리</span>
                 <h1>관리</h1>
                 <p class="pageDesc">길드원 목록, 썰자 구역, 구역별 쿨타임을 관리합니다.</p>
             </div>
@@ -28,7 +28,7 @@
             <div>
                 <span class="label">저장 대기</span>
                 <strong id="changeSummary">변경 없음</strong>
-                <p id="changeHint">구역명, 쿨타임, 길드원 목록을 수정한 뒤 일괄 저장하세요.</p>
+                <p id="changeHint">구역명, 쿨타임, 길드원 목록, 보스 일정을 수정한 뒤 일괄 저장하세요.</p>
             </div>
             <button id="bulkSaveButton" type="button" disabled>일괄 저장</button>
         </section>
@@ -75,6 +75,31 @@
                 </div>
                 <textarea id="memberBulkInput" placeholder="N건강&#10;N하늘&#10;N라온"></textarea>
                 <p class="memberSaveHint">이 목록도 상단의 일괄 저장 버튼으로 함께 저장됩니다.</p>
+            </section>
+
+            <section class="panel bossAdminPanel">
+                <div class="panelHead">
+                    <div>
+                        <span class="label">보스 일정 관리</span>
+                        <strong id="bossAdminSummary">0개</strong>
+                    </div>
+                </div>
+                <div class="bossAdminTools">
+                    <form id="bossForm" class="bossForm">
+                        <input id="bossNameInput" type="text" placeholder="보스명">
+                        <input id="bossAliasInput" type="text" placeholder="애칭">
+                        <select id="bossTypeInput">
+                            <option value="시간">시간보스</option>
+                            <option value="고정">고정보스</option>
+                        </select>
+                        <button type="submit">보스 추가</button>
+                    </form>
+                    <label class="bossAdminSearch">
+                        <span>검색</span>
+                        <input id="bossManageSearchInput" type="search" placeholder="보스명, 애칭, 위치">
+                    </label>
+                </div>
+                <div id="bossManageList" class="bossManageList"></div>
             </section>
         </section>
     </main>

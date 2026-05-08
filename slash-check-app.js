@@ -38,7 +38,8 @@ const defaultState = {
     bossCuts: {},
     bossCutRecords: [],
     bossCutLocks: {},
-    bossAuditLogs: []
+    bossAuditLogs: [],
+    bosses: []
 };
 
 let state = structuredClone(defaultState);
@@ -90,6 +91,93 @@ function normalizeCooldown(value) {
     const num = Number(value);
     if (!Number.isFinite(num)) return null;
     return Math.max(1, Math.min(1440, Math.round(num)));
+}
+
+function normalizeBossType(value) {
+    return String(value || '') === '고정' ? '고정' : '시간';
+}
+
+function normalizeBossCooldown(value) {
+    const num = Number(value);
+    if (!Number.isFinite(num)) return null;
+    return Math.max(0.01, Math.min(240, Math.round(num * 100000) / 100000));
+}
+
+function normalizeBossScheduleTime(value) {
+    const text = String(value || '').trim();
+    const match = text.match(/^(\d{1,2}):?(\d{2})$/);
+    if (!match) return null;
+    const hour = Number(match[1]);
+    const minute = Number(match[2]);
+    if (hour < 0 || hour > 23 || minute < 0 || minute > 59) return null;
+    return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+}
+
+function normalizeBossDays(value) {
+    const source = Array.isArray(value)
+        ? value
+        : String(value || '').split(/[\s,;/]+/);
+    const valid = ['월', '화', '수', '목', '금', '토', '일'];
+    const seen = new Set();
+    const days = [];
+
+    for (const item of source) {
+        const day = String(item || '').trim().slice(0, 1);
+        if (!valid.includes(day) || seen.has(day)) continue;
+        seen.add(day);
+        days.push(day);
+    }
+
+    return days;
+}
+
+function normalizeBossScore(value) {
+    const num = Number(value);
+    if (!Number.isFinite(num)) return 0;
+    return Math.max(0, Math.min(999, Math.round(num)));
+}
+
+function normalizeBoss(value) {
+    const name = cleanText(value?.이름 || value?.name, 40);
+    if (!name) return null;
+
+    const type = normalizeBossType(value?.타입 || value?.type);
+    const boss = {
+        이름: name,
+        애칭: cleanText(value?.애칭 || value?.alias, 40),
+        위치: cleanText(value?.위치 || value?.location, 40),
+        타입: type,
+        점수: normalizeBossScore(value?.점수 ?? value?.score)
+    };
+
+    if (type === '고정') {
+        const time = normalizeBossScheduleTime(value?.시간 || value?.time);
+        const days = normalizeBossDays(value?.요일 || value?.days);
+        if (!time || days.length === 0) return null;
+        boss.시간 = time;
+        boss.요일 = days;
+        return boss;
+    }
+
+    const cooldown = normalizeBossCooldown(value?.쿨타임 ?? value?.cooldownHours);
+    if (!cooldown) return null;
+    boss.쿨타임 = cooldown;
+    return boss;
+}
+
+function normalizeBosses(value) {
+    if (!Array.isArray(value)) return [];
+    const seen = new Set();
+    const bosses = [];
+
+    for (const item of value) {
+        const boss = normalizeBoss(item);
+        if (!boss || seen.has(boss.이름)) continue;
+        seen.add(boss.이름);
+        bosses.push(boss);
+    }
+
+    return bosses;
 }
 
 function normalizeBossCutTime(value) {
@@ -431,8 +519,12 @@ function isCheckLog(log) {
 }
 
 async function readBosses() {
+    if (Array.isArray(state.bosses) && state.bosses.length > 0) {
+        return state.bosses;
+    }
+
     const raw = await fs.readFile(path.join(ROOT, 'bosses.json'), 'utf8');
-    return JSON.parse(raw);
+    return normalizeBosses(JSON.parse(raw));
 }
 
 async function hydrateBossCutState() {
@@ -639,7 +731,8 @@ async function loadState() {
             bossCuts: normalizeBossCuts(parsed.bossCuts || legacyCuts),
             bossCutRecords: normalizeBossCutRecords(parsed.bossCutRecords),
             bossCutLocks: normalizeBossCutLocks(parsed.bossCutLocks),
-            bossAuditLogs: normalizeBossAuditLogs(parsed.bossAuditLogs)
+            bossAuditLogs: normalizeBossAuditLogs(parsed.bossAuditLogs),
+            bosses: normalizeBosses(parsed.bosses)
         };
         state.zones = state.zones.map((zone) => ({
             ...zone,
@@ -1139,6 +1232,68 @@ async function handleApi(req, res, url) {
         return true;
     }
 
+    if (url.pathname === '/api/boss-cuts/participants/admin' && req.method === 'POST') {
+        const body = await readJson(req);
+        const recordId = cleanText(body.recordId, 80);
+        const memberName = cleanText(body.memberName, 24);
+        const actorName = cleanText(body.actorName, 24);
+        const adminPassword = body.adminPassword;
+
+        if (!verifyAdminPassword(adminPassword)) {
+            sendJson(res, 403, { error: '관리자 비밀번호가 맞지 않습니다.' });
+            return true;
+        }
+
+        if (!state.members.includes(actorName)) {
+            sendJson(res, 400, { error: '작업자 닉네임을 먼저 선택하세요.' });
+            return true;
+        }
+
+        if (!state.members.includes(memberName)) {
+            sendJson(res, 400, { error: '등록된 길드원만 추가할 수 있습니다.' });
+            return true;
+        }
+
+        const record = (state.bossCutRecords || []).find((item) => item.id === recordId);
+        if (!record) {
+            sendJson(res, 404, { error: '컷 기록을 찾을 수 없습니다.' });
+            return true;
+        }
+
+        if (record.status === 'canceled') {
+            sendJson(res, 409, { error: '취소된 컷 기록에는 참여자를 추가할 수 없습니다.' });
+            return true;
+        }
+
+        record.participants = Array.isArray(record.participants) ? record.participants : [];
+        const alreadyExists = record.participants.some((item) => item.memberName === memberName);
+        if (!alreadyExists) {
+            record.participants.push({
+                memberName,
+                confirmedAt: new Date().toISOString(),
+                method: 'admin'
+            });
+            appendBossAuditLog('participant-add', {
+                bossName: record.bossName,
+                recordId: record.id,
+                actorName,
+                detail: {
+                    participantName: memberName,
+                    method: 'admin',
+                    timeValue: record.timeValue,
+                    cutAt: record.cutAt
+                }
+            });
+        }
+
+        const cut = state.bossCuts?.[record.bossName];
+        if (cut && cut.recordId === record.id) cut.participants = record.participants;
+
+        await saveState();
+        sendJson(res, 200, { cuts: publicBossCuts(), records: publicBossCutRecords() });
+        return true;
+    }
+
     if (url.pathname === '/api/members' && req.method === 'POST') {
         const body = await readJson(req);
         const members = parseMembers(body.members ?? body.raw);
@@ -1182,11 +1337,18 @@ async function handleApi(req, res, url) {
         const hasMembers = Object.prototype.hasOwnProperty.call(body, 'members')
             || Object.prototype.hasOwnProperty.call(body, 'raw');
         const nextMembers = hasMembers ? parseMembers(body.members ?? body.raw) : null;
+        const hasBosses = Object.prototype.hasOwnProperty.call(body, 'bosses');
+        const nextBosses = hasBosses ? normalizeBosses(body.bosses) : null;
         const zoneOrderIds = Array.isArray(body.zoneOrderIds) ? body.zoneOrderIds.map((id) => String(id)) : null;
         const preparedZones = [];
 
         if (nextMembers && nextMembers.length === 0) {
             sendJson(res, 400, { error: '길드원 목록이 비어 있습니다.' });
+            return true;
+        }
+
+        if (hasBosses && nextBosses.length === 0) {
+            sendJson(res, 400, { error: '보스 목록을 확인하세요.' });
             return true;
         }
 
@@ -1244,6 +1406,10 @@ async function handleApi(req, res, url) {
         }
 
         if (nextMembers) state.members = nextMembers;
+        if (hasBosses) {
+            state.bosses = nextBosses;
+            await hydrateBossCutState();
+        }
 
         await saveState();
         sendJson(res, 200, publicState());
