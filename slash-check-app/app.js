@@ -308,6 +308,33 @@ async function cancelLastCheck() {
     }
 }
 
+function isCardControl(target) {
+    return Boolean(target.closest('button, a, input, textarea, select, label'));
+}
+
+async function submitZoneCheck(zone) {
+    const memberName = requireMember();
+    if (!memberName) return;
+
+    try {
+        const data = await api('/api/check', {
+            method: 'POST',
+            body: JSON.stringify({ zoneId: zone.id, memberName })
+        });
+        state = data;
+        lastSyncAt = Date.now();
+        render();
+        if (data.action === 'undo') {
+            showToast('완료 취소됨', `${zone.name} 이전 상태로 복구`);
+        } else {
+            showToast('완료 저장됨', `${zone.name} 쿨타임 ${zone.cooldownMin}분 시작`);
+        }
+    } catch (err) {
+        showToast('완료 처리 실패', err.message, 'error');
+        fetchState(true).catch(() => {});
+    }
+}
+
 function getMemberMatches(typed) {
     const query = cleanName(typed).toLowerCase();
     if (!query) return [];
@@ -387,9 +414,17 @@ function renderZones() {
             && zone.lastBy === selectedMember
             && Number.isFinite(checkedByMeAt)
             && now - checkedByMeAt <= CHECK_UNDO_GRACE_MS;
+        const canUseCardCheck = !reservedByOther && (!locked || canUndoCheck);
         const reservationRemain = activeReservation?.expiresAt
             ? formatRemain(new Date(activeReservation.expiresAt).getTime() - now)
             : null;
+
+        card.classList.toggle('isTappable', canUseCardCheck);
+        if (canUseCardCheck) {
+            card.tabIndex = 0;
+            card.setAttribute('role', 'button');
+            card.setAttribute('aria-label', canUndoCheck ? `${zone.name} 완료 취소` : `${zone.name} 완료 처리`);
+        }
 
         if (shouldAlertReservationReady(zone, activeReservation, locked)) notifyReservationReady(zone);
 
@@ -409,26 +444,17 @@ function renderZones() {
         button.classList.toggle('isUndo', canUndoCheck);
         button.setAttribute('aria-label', canUndoCheck ? `${zone.name} 완료 취소` : locked ? `${zone.name} ${formatCountdown(remain)} 남음` : `${zone.name} 완료 처리`);
         button.disabled = (locked && !canUndoCheck) || reservedByOther;
-        button.addEventListener('click', async () => {
-            const memberName = requireMember();
-            if (!memberName) return;
+        button.addEventListener('click', () => submitZoneCheck(zone));
 
-            try {
-                const data = await api('/api/check', {
-                    method: 'POST',
-                    body: JSON.stringify({ zoneId: zone.id, memberName })
-                });
-                state = data;
-                lastSyncAt = Date.now();
-                render();
-                if (data.action === 'undo') {
-                    showToast('완료 취소됨', `${zone.name} 이전 상태로 복구`);
-                } else {
-                    showToast('완료 저장됨', `${zone.name} 쿨타임 ${zone.cooldownMin}분 시작`);
-                }
-            } catch (err) {
-                showToast('완료 처리 실패', err.message, 'error');
-                fetchState(true).catch(() => {});
+        card.addEventListener('click', (event) => {
+            if (isCardControl(event.target) || !canUseCardCheck) return;
+            submitZoneCheck(zone);
+        });
+        card.addEventListener('keydown', (event) => {
+            if (!canUseCardCheck || isCardControl(event.target)) return;
+            if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                submitZoneCheck(zone);
             }
         });
 

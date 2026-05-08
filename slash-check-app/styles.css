@@ -343,6 +343,14 @@ h1 {
     background: #fbfcfe;
 }
 
+.zoneCard.isTappable {
+    cursor: pointer;
+}
+
+.zoneCard.isTappable:active {
+    transform: translateY(1px);
+}
+
 .zoneMain {
     display: grid;
     gap: 5px;
@@ -1732,9 +1740,22 @@ h1 {
         padding: 20px 16px calc(18px + env(safe-area-inset-bottom));
     }
 
+    .zoneActionSheet {
+        padding: 14px 14px calc(12px + env(safe-area-inset-bottom));
+    }
+
+    .zoneActionSheet .modalEyebrow {
+        display: none;
+    }
+
     .profileModal h2,
     .zoneActionSheet h2 {
         font-size: 20px;
+    }
+
+    .zoneActionSheet h2 {
+        margin-bottom: 4px;
+        font-size: 18px;
     }
 
     .profileModal p,
@@ -1742,6 +1763,27 @@ h1 {
         margin-bottom: 14px;
         font-size: 13px;
         overflow-wrap: anywhere;
+    }
+
+    .zoneActionSheet p {
+        margin-bottom: 10px;
+        font-size: 12px;
+    }
+
+    .zoneActionList {
+        gap: 6px;
+    }
+
+    .zoneActionList button {
+        padding: 9px 10px;
+    }
+
+    .zoneActionList strong {
+        font-size: 13px;
+    }
+
+    .zoneActionList span {
+        font-size: 11px;
     }
 
     .profileModal input {
