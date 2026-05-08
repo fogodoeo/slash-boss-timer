@@ -389,6 +389,22 @@ h1 {
     white-space: nowrap;
 }
 
+.rouletteCardActions {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    min-width: 0;
+}
+
+.rouletteCardSpacer {
+    flex: 0 0 auto;
+    width: 56px;
+    height: 30px;
+    pointer-events: none;
+    visibility: hidden;
+}
+
 .rouletteCardButton {
     width: 104px;
     height: 34px;
@@ -1991,11 +2007,24 @@ h1 {
     }
 
     .rouletteCardButton {
-        justify-self: end;
         width: 88px;
         height: 32px;
         padding: 0 4px;
         font-size: 13px;
+    }
+
+    .rouletteCardActions {
+        grid-column: 2;
+        flex-direction: row;
+        align-items: flex-end;
+        justify-content: center;
+        gap: 5px;
+        align-self: center;
+    }
+
+    .rouletteCardSpacer {
+        width: 52px;
+        height: 30px;
     }
 
     .zoneCard:not(.hasMeta) {
