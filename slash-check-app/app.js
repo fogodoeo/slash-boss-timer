@@ -18,7 +18,6 @@ const cancelLastCheckButton = document.querySelector('#cancelLastCheckButton');
 const openRouletteButton = document.querySelector('#openRouletteButton');
 const rouletteModal = document.querySelector('#rouletteModal');
 const closeRouletteButton = document.querySelector('#closeRouletteButton');
-const rouletteSummary = document.querySelector('#rouletteSummary');
 const rouletteTrack = document.querySelector('#rouletteTrack');
 const rouletteResult = document.querySelector('#rouletteResult');
 const rouletteSpinButton = document.querySelector('#rouletteSpinButton');
@@ -420,14 +419,6 @@ function getRouletteCandidates() {
     });
 }
 
-function updateRouletteSummary() {
-    if (!rouletteSummary || !openRouletteButton) return;
-
-    const count = getRouletteCandidates().length;
-    rouletteSummary.textContent = count > 0 ? `가능 구역 ${count}개` : '가능 구역 없음';
-    openRouletteButton.disabled = count === 0;
-}
-
 function renderRouletteTrack(candidates = rouletteCandidates, centerIndex = 0) {
     if (!rouletteTrack) return;
     rouletteTrack.replaceChildren();
@@ -540,7 +531,6 @@ async function reserveRouletteResult() {
 function renderZones() {
     const now = getNowMs();
     zoneList.replaceChildren();
-    updateRouletteSummary();
 
     if (state.zones.length === 0) {
         zoneList.innerHTML = '<div class="empty">아직 등록된 썰자 구역이 없습니다. 관리 페이지에서 구역을 추가하세요.</div>';

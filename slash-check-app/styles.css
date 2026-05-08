@@ -328,31 +328,11 @@ h1 {
 }
 
 .rouletteBar {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    margin: -4px 0 12px;
-    padding: 10px 12px;
-    border: 1px solid var(--line);
-    border-radius: 8px;
-    background: var(--panel);
-    box-shadow: var(--shadow);
-}
-
-.rouletteBar div {
     display: grid;
-    gap: 3px;
-    min-width: 0;
+    place-items: center;
+    margin: -2px 0 10px;
 }
 
-.rouletteBar strong {
-    color: var(--text);
-    font-size: 15px;
-    font-weight: 950;
-}
-
-.rouletteBar button,
 .rouletteActions button {
     height: 34px;
     border: 1px solid var(--blue);
@@ -365,13 +345,29 @@ h1 {
     white-space: nowrap;
 }
 
-.rouletteBar button:hover:not(:disabled),
+.rouletteBar button {
+    min-width: 86px;
+    height: 34px;
+    border: 1px solid var(--dark);
+    border-radius: 6px;
+    background: var(--dark);
+    color: #ffffff;
+    padding: 0 16px;
+    font-size: 13px;
+    font-weight: 950;
+    white-space: nowrap;
+}
+
+.rouletteBar button:hover {
+    background: #101828;
+    border-color: #101828;
+}
+
 .rouletteActions button:hover:not(:disabled) {
     border-color: var(--blue-dark);
     background: var(--blue-dark);
 }
 
-.rouletteBar button:disabled,
 .rouletteActions button:disabled {
     border-color: var(--line);
     background: #e9edf4;
@@ -1938,16 +1934,13 @@ h1 {
     }
 
     .rouletteBar {
-        display: grid;
-        grid-template-columns: minmax(0, 1fr) 82px;
-        gap: 8px;
         margin: -2px 0 8px;
-        padding: 9px 10px;
     }
 
     .rouletteBar button {
-        width: 100%;
-        padding: 0 8px;
+        min-width: 78px;
+        height: 32px;
+        padding: 0 14px;
     }
 
     .zoneCard {
