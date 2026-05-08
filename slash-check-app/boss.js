@@ -29,6 +29,7 @@ const cutForm = document.querySelector('#cutForm');
 const closeCutModalButton = document.querySelector('#closeCutModalButton');
 const cutModalTitle = document.querySelector('#cutModalTitle');
 const cutModalDesc = document.querySelector('#cutModalDesc');
+const cutDateInput = document.querySelector('#cutDateInput');
 const cutTimeInput = document.querySelector('#cutTimeInput');
 const requiresParticipationInput = document.querySelector('#requiresParticipationInput');
 const participantPasswordField = document.querySelector('#participantPasswordField');
@@ -98,8 +99,41 @@ function startOfKstDay(ms = getNowMs()) {
 }
 
 function formatNowCommandTime() {
-    const now = kstDate(Date.now());
-    return `${pad2(now.getUTCHours())}${pad2(now.getUTCMinutes())}`;
+    return timeInputValueFromMs(Date.now());
+}
+
+function dateInputValueFromMs(ms) {
+    const date = kstDate(ms);
+    return `${date.getUTCFullYear()}-${pad2(date.getUTCMonth() + 1)}-${pad2(date.getUTCDate())}`;
+}
+
+function timeInputValueFromMs(ms) {
+    const date = kstDate(ms);
+    return `${pad2(date.getUTCHours())}${pad2(date.getUTCMinutes())}`;
+}
+
+function isoFromDateTimeInputs(dateValue, timeValue) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dateValue || '')) return null;
+    const normalizedTime = normalizeTimeInput(timeValue);
+    if (!isValidCommandTime(normalizedTime)) return null;
+
+    const [year, month, day] = dateValue.split('-').map(Number);
+    const hour = Number(normalizedTime.slice(0, 2));
+    const minute = Number(normalizedTime.slice(2, 4));
+    const ms = Date.UTC(year, month - 1, day, hour, minute, 0) - KST_OFFSET_MS;
+    const checkDate = kstDate(ms);
+
+    if (
+        checkDate.getUTCFullYear() !== year
+        || checkDate.getUTCMonth() + 1 !== month
+        || checkDate.getUTCDate() !== day
+        || checkDate.getUTCHours() !== hour
+        || checkDate.getUTCMinutes() !== minute
+    ) {
+        return null;
+    }
+
+    return new Date(ms).toISOString();
 }
 
 function displayTimeValue(value) {
@@ -453,7 +487,7 @@ function renderTimeline() {
         row.querySelector('.timelineBossName').textContent = item.boss.이름;
         row.querySelector('.timelineMeta').textContent = `${item.boss.애칭 || '-'} · ${item.boss.위치 || '-'}${latest?.requiresParticipation ? ' · 참여 확인' : ''}`;
         row.querySelector('.timelineRemain').textContent = formatRemain(item.spawnMs, now);
-        row.querySelector('.timelineCutButton').addEventListener('click', () => openCutModal(item.boss));
+        row.querySelector('.timelineCutButton').addEventListener('click', () => openCutModal(item.boss, item.spawnMs));
         bossTimeline.append(row);
     }
 }
@@ -509,7 +543,7 @@ function renderBosses() {
             : bossNeedsParticipation(boss) ? '참여 확인 기본 대상' : '';
 
         const cutButton = card.querySelector('.bossCutButton');
-        cutButton.addEventListener('click', () => openCutModal(boss));
+        cutButton.addEventListener('click', () => openCutModal(boss, Number.isFinite(nextMs) ? nextMs : getNowMs()));
 
         const joinButton = card.querySelector('.bossJoinButton');
         joinButton.disabled = !record?.requiresParticipation;
@@ -568,12 +602,14 @@ function render() {
     updateNotifyButton();
 }
 
-function openCutModal(boss) {
+function openCutModal(boss, defaultMs = null) {
     if (!requireMember()) return;
+    const cutMs = Number.isFinite(defaultMs) ? defaultMs : getNowMs();
     selectedCutBoss = boss;
     cutModalTitle.textContent = `${boss.이름} 컷 확인`;
-    cutModalDesc.textContent = `${boss.애칭 || '-'} · ${boss.위치 || '-'} · ${boss.타입} · 필요하면 참여 비번을 입력하세요.`;
-    cutTimeInput.value = formatNowCommandTime();
+    cutModalDesc.textContent = `${boss.애칭 || '-'} · ${boss.위치 || '-'} · ${boss.타입} · 한국시간 기준으로 기록됩니다.`;
+    cutDateInput.value = dateInputValueFromMs(cutMs);
+    cutTimeInput.value = timeInputValueFromMs(cutMs);
     requiresParticipationInput.checked = bossNeedsParticipation(boss);
     participantPasswordInput.value = '';
     participantPasswordField.classList.toggle('hiddenField', !requiresParticipationInput.checked);
@@ -647,7 +683,17 @@ async function submitCut(event) {
 
     const bossName = selectedCutBoss.이름;
     const normalized = normalizeTimeInput(cutTimeInput.value);
-    const timeValue = isValidCommandTime(normalized) ? normalized : formatNowCommandTime();
+    if (!cutDateInput.value || !isValidCommandTime(normalized)) {
+        showToast('컷 시간 확인', '날짜와 시간을 다시 확인하세요.', 'error');
+        return;
+    }
+
+    const timeValue = normalized;
+    const cutAt = isoFromDateTimeInputs(cutDateInput.value, timeValue);
+    if (!cutAt) {
+        showToast('컷 시간 확인', '날짜와 시간을 다시 확인하세요.', 'error');
+        return;
+    }
 
     try {
         const data = await api('/api/boss-cuts', {
@@ -655,6 +701,7 @@ async function submitCut(event) {
             body: JSON.stringify({
                 bossName,
                 timeValue,
+                cutAt,
                 reporterName: memberName,
                 requiresParticipation: requiresParticipationInput.checked,
                 participantPassword: participantPasswordInput.value

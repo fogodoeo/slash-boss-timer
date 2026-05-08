@@ -122,6 +122,13 @@ function formatCommandTimeFromIso(iso) {
     return `${String(date.getUTCHours()).padStart(2, '0')}${String(date.getUTCMinutes()).padStart(2, '0')}`;
 }
 
+function isoFromBossCutInput(cutAt, timeValue) {
+    const cutMs = new Date(cutAt || '').getTime();
+    if (Number.isFinite(cutMs)) return new Date(cutMs).toISOString();
+    if (timeValue) return isoFromCommandTime(timeValue);
+    return null;
+}
+
 function applyDawnDelay(ms) {
     const date = kstDate(ms);
     const hour = date.getUTCHours();
@@ -560,12 +567,14 @@ async function handleApi(req, res, url) {
     if (url.pathname === '/api/boss-cuts' && req.method === 'POST') {
         const body = await readJson(req);
         const bossName = cleanText(body.bossName, 40);
-        const timeValue = normalizeBossCutTime(body.timeValue);
+        let timeValue = normalizeBossCutTime(body.timeValue || formatCommandTimeFromIso(body.cutAt));
+        const cutAt = isoFromBossCutInput(body.cutAt, timeValue);
+        if (!timeValue && cutAt) timeValue = formatCommandTimeFromIso(cutAt);
         const reporterName = cleanText(body.reporterName, 24);
         const requiresParticipation = Boolean(body.requiresParticipation);
         const participantPasswordHash = hashParticipantPassword(body.participantPassword);
 
-        if (!bossName || !timeValue) {
+        if (!bossName || !timeValue || !cutAt) {
             sendJson(res, 400, { error: '보스명과 컷 시간을 확인하세요.' });
             return true;
         }
@@ -582,7 +591,6 @@ async function handleApi(req, res, url) {
             return true;
         }
 
-        const cutAt = isoFromCommandTime(timeValue);
         const nextSpawnAt = calcBossNextSpawnAt(boss, cutAt);
         const nowIso = new Date().toISOString();
         const participationOpenUntil = requiresParticipation && participantPasswordHash
