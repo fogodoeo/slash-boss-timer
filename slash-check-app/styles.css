@@ -4687,6 +4687,42 @@ body {
     margin-top: 0;
 }
 
+.bossAlertBanner {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 12px;
+    border: 1px solid #fecaca;
+    border-left: 4px solid var(--red);
+    border-radius: 10px;
+    background: linear-gradient(90deg, var(--red-soft), #ffffff 52%);
+    padding: 11px 14px;
+    box-shadow: 0 8px 18px rgba(217, 45, 32, 0.08);
+}
+
+.bossAlertBanner.hidden {
+    display: none;
+}
+
+.bossAlertBanner > div {
+    display: grid;
+    gap: 3px;
+    min-width: 0;
+}
+
+.bossAlertBanner strong {
+    color: var(--text);
+    font-size: 16px;
+    font-weight: 950;
+}
+
+.bossAlertBanner > span {
+    color: var(--red);
+    font-size: 13px;
+    font-weight: 900;
+    white-space: nowrap;
+}
+
 .sectionTabs {
     display: flex;
     align-items: center;
@@ -4867,6 +4903,17 @@ body {
 }
 
 @media (max-width: 760px) {
+    .bossAlertBanner {
+        grid-template-columns: 1fr;
+        gap: 5px;
+        padding: 10px 11px;
+    }
+
+    .bossAlertBanner > span {
+        font-size: 12px;
+        white-space: normal;
+    }
+
     .sectionTabs {
         width: 100%;
         overflow-x: auto;

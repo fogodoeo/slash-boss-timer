@@ -4,6 +4,9 @@ const spawnedBossCount = document.querySelector('#spawnedBossCount');
 const participationBossCount = document.querySelector('#participationBossCount');
 const timelineSummary = document.querySelector('#timelineSummary');
 const bossTimeline = document.querySelector('#bossTimeline');
+const bossAlertBanner = document.querySelector('#bossAlertBanner');
+const bossAlertTitle = document.querySelector('#bossAlertTitle');
+const bossAlertMeta = document.querySelector('#bossAlertMeta');
 const bossSummary = document.querySelector('#bossSummary');
 const bossList = document.querySelector('#bossList');
 const bossSearchInput = document.querySelector('#bossSearchInput');
@@ -63,6 +66,8 @@ const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
 const DAY_MS = 24 * 60 * 60 * 1000;
 const SPAWNED_KEEP_MS = 60 * 60 * 1000;
 const SOON_MS = 10 * 60 * 1000;
+const BOSS_ALERT_MS = 5 * 60 * 1000;
+const ORIGINAL_TITLE = document.title;
 let state = { now: new Date().toISOString(), members: [], bossCuts: {}, bossCutRecords: [], bossCutLocks: {} };
 let bosses = [];
 let selectedMember = localStorage.getItem(MEMBER_KEY) || '';
@@ -73,6 +78,9 @@ let selectedCutLock = null;
 let selectedJoinRecord = null;
 let selectedParticipantRecord = null;
 let isSubmittingCut = false;
+let titleAlertTimer = null;
+let titleAlertKey = '';
+let titleAlertFlip = false;
 const notifiedSpawnKeys = new Set();
 
 function pad2(value) {
@@ -459,17 +467,69 @@ function bossStateFromSpawn(spawnMs, now = getNowMs()) {
     return 'upcoming';
 }
 
+function alertItems(items, now = getNowMs()) {
+    return items
+        .filter((item) => {
+            const diff = item.spawnMs - now;
+            return diff >= 0 && diff <= BOSS_ALERT_MS;
+        })
+        .sort((a, b) => a.spawnMs - b.spawnMs);
+}
+
+function stopTitleAlert() {
+    if (titleAlertTimer) clearInterval(titleAlertTimer);
+    titleAlertTimer = null;
+    titleAlertKey = '';
+    titleAlertFlip = false;
+    document.title = ORIGINAL_TITLE;
+}
+
+function startTitleAlert(item) {
+    const key = `${item.boss.이름}:${item.spawnMs}`;
+    const makeAlertTitle = () => `[젠 ${formatRemain(item.spawnMs, getNowMs())}] ${item.boss.이름}`;
+
+    if (titleAlertKey !== key) {
+        stopTitleAlert();
+        titleAlertKey = key;
+    }
+
+    document.title = makeAlertTitle();
+    if (titleAlertTimer) return;
+
+    titleAlertTimer = setInterval(() => {
+        titleAlertFlip = !titleAlertFlip;
+        document.title = titleAlertFlip ? makeAlertTitle() : ORIGINAL_TITLE;
+    }, 1000);
+}
+
+function updateBossAlertBanner(items, now = getNowMs()) {
+    const alerts = alertItems(items, now);
+    const item = alerts[0];
+
+    if (!item) {
+        bossAlertBanner?.classList.add('hidden');
+        stopTitleAlert();
+        return;
+    }
+
+    bossAlertBanner?.classList.remove('hidden');
+    if (bossAlertTitle) bossAlertTitle.textContent = `${item.boss.이름} ${formatRemain(item.spawnMs, now)}`;
+    if (bossAlertMeta) {
+        const extra = alerts.length > 1 ? ` · 외 ${alerts.length - 1}개` : '';
+        bossAlertMeta.textContent = `${formatKstDateTime(new Date(item.spawnMs).toISOString(), { date: false })} 젠 예정 · ${item.boss.위치 || '위치 미등록'}${extra}`;
+    }
+    startTitleAlert(item);
+}
+
 function maybeNotifyTimeline(items) {
     if (!('Notification' in window) || Notification.permission !== 'granted') return;
     const now = getNowMs();
-    for (const item of items) {
-        const diff = item.spawnMs - now;
-        if (diff < 0 || diff > SOON_MS) continue;
+    for (const item of alertItems(items, now)) {
         const key = `${item.boss.이름}:${item.spawnMs}`;
         if (notifiedSpawnKeys.has(key)) continue;
         notifiedSpawnKeys.add(key);
-        new Notification(`${item.boss.이름} ${formatRemain(item.spawnMs, now)}`, {
-            body: `${formatKstDateTime(new Date(item.spawnMs).toISOString(), { date: false })} 젠 예정`,
+        new Notification(`${item.boss.이름} 5분 전`, {
+            body: `${formatKstDateTime(new Date(item.spawnMs).toISOString(), { date: false })} 젠 예정 · ${formatRemain(item.spawnMs, now)}`,
             tag: `boss-${key}`
         });
     }
@@ -540,6 +600,7 @@ function renderTimeline() {
     const timeline = buildTimeline();
     const now = getNowMs();
     renderOverview(timeline);
+    updateBossAlertBanner(timeline, now);
     maybeNotifyTimeline(timeline);
     bossTimeline.replaceChildren();
 
