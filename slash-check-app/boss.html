@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>보스 컷판</title>
+    <title>보스 타이머</title>
     <link rel="stylesheet" href="./styles.css">
 </head>
 <body class="bossPage">
@@ -11,8 +11,8 @@
         <header class="topbar">
             <div>
                 <span class="eyebrow">보스 타이머</span>
-                <h1>시간 보스 컷</h1>
-                <p class="pageDesc">시간 보스만 모아 컷 시간을 입력하고, 디스코드 컷 명령어를 한 번에 복사합니다.</p>
+                <h1>보스 현황</h1>
+                <p class="pageDesc">오늘 젠되는 보스와 컷 기록, 참여 확인을 한 화면에서 관리합니다.</p>
             </div>
             <nav class="navTabs" aria-label="페이지 이동">
                 <a href="./">체크</a>
@@ -28,60 +28,173 @@
             </div>
         </header>
 
+        <section class="bossOverview">
+            <article>
+                <span>오늘 일정</span>
+                <strong id="todayBossCount">0</strong>
+                <small>내일 새벽 2시까지</small>
+            </article>
+            <article>
+                <span>곧 젠</span>
+                <strong id="soonBossCount">0</strong>
+                <small>10분 이내</small>
+            </article>
+            <article>
+                <span>젠됨</span>
+                <strong id="spawnedBossCount">0</strong>
+                <small>최근 60분</small>
+            </article>
+            <article>
+                <span>참여 확인</span>
+                <strong id="participationBossCount">0</strong>
+                <small>진행 중 기록</small>
+            </article>
+        </section>
+
         <section class="bossLayout">
-            <section class="panel bossMainPanel">
-                <div class="bossToolbar">
-                    <div>
-                        <span class="label">보스 숏컷</span>
-                        <strong id="bossSummary">0개</strong>
+            <section class="bossMainColumn">
+                <section class="panel bossTimelinePanel">
+                    <div class="panelHead">
+                        <div>
+                            <span class="label">오늘 보스 일정</span>
+                            <strong id="timelineSummary">불러오는 중</strong>
+                        </div>
+                        <button id="enableBossNotifyButton" class="copyCommandButton subtle" type="button">알림 켜기</button>
                     </div>
-                    <label class="bossSearch">
-                        <span>검색</span>
-                        <input id="bossSearchInput" type="search" placeholder="보스명, 애칭, 위치">
-                    </label>
-                </div>
-                <div id="bossShortcutList" class="bossShortcutList" aria-label="보스 숏컷"></div>
-                <div id="bossList" class="bossList" aria-label="시간 보스 목록"></div>
+                    <div id="bossTimeline" class="bossTimeline"></div>
+                </section>
+
+                <section class="panel bossMainPanel">
+                    <div class="bossToolbar">
+                        <div>
+                            <span class="label">보스 목록</span>
+                            <strong id="bossSummary">0개</strong>
+                        </div>
+                        <label class="bossSearch">
+                            <span>검색</span>
+                            <input id="bossSearchInput" type="search" placeholder="보스명, 애칭, 위치">
+                        </label>
+                    </div>
+                    <div class="bossFilters" aria-label="보스 필터">
+                        <button class="active" type="button" data-filter="all">전체</button>
+                        <button type="button" data-filter="time">시간</button>
+                        <button type="button" data-filter="fixed">고정</button>
+                        <button type="button" data-filter="participation">참여</button>
+                    </div>
+                    <div id="bossList" class="bossList" aria-label="보스 목록"></div>
+                </section>
             </section>
 
-            <section class="panel commandPanel">
-                <div class="panelHead">
-                    <div>
-                        <span class="label">복붙용 명령어</span>
-                        <strong id="commandCount">선택된 보스 0개</strong>
+            <aside class="bossSideColumn">
+                <section class="panel commandPanel">
+                    <div class="panelHead">
+                        <div>
+                            <span class="label">복붙용 명령어</span>
+                            <strong id="commandCount">최근 컷 0개</strong>
+                        </div>
+                        <button id="copyCommandButton" class="copyCommandButton" type="button" disabled>복사</button>
                     </div>
-                    <button id="copyCommandButton" class="copyCommandButton" type="button" disabled>복사</button>
-                </div>
-                <textarea id="commandOutput" readonly placeholder=".컷 베나투스 1820&#10;.컷 레이디달리아 1821"></textarea>
-            </section>
+                    <textarea id="commandOutput" readonly placeholder=".컷 베나투스 1820&#10;.컷 레이디달리아 1821"></textarea>
+                </section>
+
+                <section class="panel">
+                    <div class="panelHead">
+                        <div>
+                            <span class="label">최근 컷 기록</span>
+                            <strong id="recordSummary">0건</strong>
+                        </div>
+                    </div>
+                    <div id="bossRecordList" class="bossRecordList"></div>
+                </section>
+            </aside>
         </section>
     </main>
 
-    <template id="bossRowTemplate">
-        <article class="bossRow">
-            <div class="bossTitle">
-                <strong class="bossName"></strong>
-                <span class="bossAlias"></span>
+    <template id="timelineItemTemplate">
+        <article class="timelineItem">
+            <time class="timelineTime"></time>
+            <div class="timelineMain">
+                <strong class="timelineBossName"></strong>
+                <span class="timelineMeta"></span>
             </div>
-            <div class="bossStatus">
-                <strong class="bossCutText"></strong>
-                <span class="bossMeta"></span>
-                <span class="bossReporter"></span>
-            </div>
-            <label class="bossTimeField">
-                <span>컷 시간</span>
-                <input class="bossTimeInput" type="text" inputmode="numeric" maxlength="5" placeholder="1820">
-            </label>
-            <button class="bossCutButton" type="button">컷</button>
+            <span class="timelineRemain"></span>
         </article>
     </template>
+
+    <template id="bossCardTemplate">
+        <article class="bossCard">
+            <div class="bossCardMain">
+                <div class="bossCardTitle">
+                    <strong class="bossName"></strong>
+                    <span class="bossTypeBadge"></span>
+                </div>
+                <span class="bossAlias"></span>
+                <span class="bossMeta"></span>
+            </div>
+            <div class="bossCardStatus">
+                <strong class="bossCutText"></strong>
+                <span class="bossReporter"></span>
+            </div>
+            <div class="bossCardActions">
+                <button class="bossJoinButton" type="button">참여</button>
+                <button class="bossCutButton" type="button">컷</button>
+            </div>
+        </article>
+    </template>
+
+    <template id="recordItemTemplate">
+        <article class="bossRecordItem">
+            <div>
+                <strong class="recordTitle"></strong>
+                <span class="recordMeta"></span>
+                <span class="recordParticipants"></span>
+            </div>
+            <button class="recordJoinButton" type="button">참여</button>
+        </article>
+    </template>
+
+    <div id="cutModal" class="modalOverlay hidden" role="dialog" aria-modal="true" aria-labelledby="cutModalTitle">
+        <form id="cutForm" class="bossModalSheet">
+            <button id="closeCutModalButton" class="modalClose" type="button" aria-label="닫기">×</button>
+            <span class="modalEyebrow">컷 처리</span>
+            <h2 id="cutModalTitle">보스 컷</h2>
+            <p id="cutModalDesc">컷 시간을 확인하고 저장하세요.</p>
+            <label>
+                <span>컷 시간</span>
+                <input id="cutTimeInput" type="text" inputmode="numeric" maxlength="5" placeholder="1820">
+            </label>
+            <label class="bossCheckLine">
+                <input id="requiresParticipationInput" type="checkbox">
+                <span>참여 확인 필요</span>
+            </label>
+            <label id="participantPasswordField">
+                <span>참여 비번</span>
+                <input id="participantPasswordInput" type="password" autocomplete="off" placeholder="필요할 때만 입력">
+            </label>
+            <button class="bossModalPrimary" type="submit">컷 저장</button>
+        </form>
+    </div>
+
+    <div id="joinModal" class="modalOverlay hidden" role="dialog" aria-modal="true" aria-labelledby="joinModalTitle">
+        <form id="joinForm" class="bossModalSheet">
+            <button id="closeJoinModalButton" class="modalClose" type="button" aria-label="닫기">×</button>
+            <span class="modalEyebrow">참여 확인</span>
+            <h2 id="joinModalTitle">참여 확인</h2>
+            <p id="joinModalDesc">참여 비번을 입력하면 해당 컷 기록에 이름이 올라갑니다.</p>
+            <label>
+                <span>참여 비번</span>
+                <input id="joinPasswordInput" type="password" autocomplete="off" placeholder="비번 입력">
+            </label>
+            <button class="bossModalPrimary" type="submit">참여 확인</button>
+        </form>
+    </div>
 
     <div id="profileModal" class="modalOverlay hidden" role="dialog" aria-modal="true" aria-labelledby="profileTitle">
         <form id="profileForm" class="profileModal">
             <button id="closeProfileButton" class="modalClose" type="button" aria-label="닫기">×</button>
             <span class="modalEyebrow">사용자 설정</span>
             <h2 id="profileTitle">길드원을 선택하세요</h2>
-            <p>컷 입력자 이름으로 표시됩니다. 닉네임 일부를 입력하고 목록에서 선택하세요.</p>
+            <p>컷 처리와 참여 확인에 사용할 닉네임입니다.</p>
             <input id="memberSearchInput" type="text" autocomplete="off" placeholder="예: N건강">
             <div id="memberSuggest" class="memberSuggest"></div>
             <button id="skipProfileButton" class="modalSkip" type="button">나중에 선택</button>

@@ -1,11 +1,19 @@
+const todayBossCount = document.querySelector('#todayBossCount');
+const soonBossCount = document.querySelector('#soonBossCount');
+const spawnedBossCount = document.querySelector('#spawnedBossCount');
+const participationBossCount = document.querySelector('#participationBossCount');
+const timelineSummary = document.querySelector('#timelineSummary');
+const bossTimeline = document.querySelector('#bossTimeline');
 const bossSummary = document.querySelector('#bossSummary');
-const bossShortcutList = document.querySelector('#bossShortcutList');
 const bossList = document.querySelector('#bossList');
-const bossRowTemplate = document.querySelector('#bossRowTemplate');
 const bossSearchInput = document.querySelector('#bossSearchInput');
+const filterButtons = [...document.querySelectorAll('[data-filter]')];
 const commandCount = document.querySelector('#commandCount');
 const commandOutput = document.querySelector('#commandOutput');
 const copyCommandButton = document.querySelector('#copyCommandButton');
+const recordSummary = document.querySelector('#recordSummary');
+const bossRecordList = document.querySelector('#bossRecordList');
+const enableBossNotifyButton = document.querySelector('#enableBossNotifyButton');
 const selectedMemberLabel = document.querySelector('#selectedMemberLabel');
 const openProfileButton = document.querySelector('#openProfileButton');
 const closeProfileButton = document.querySelector('#closeProfileButton');
@@ -14,13 +22,39 @@ const profileModal = document.querySelector('#profileModal');
 const profileForm = document.querySelector('#profileForm');
 const memberSearchInput = document.querySelector('#memberSearchInput');
 const memberSuggest = document.querySelector('#memberSuggest');
+const cutModal = document.querySelector('#cutModal');
+const cutForm = document.querySelector('#cutForm');
+const closeCutModalButton = document.querySelector('#closeCutModalButton');
+const cutModalTitle = document.querySelector('#cutModalTitle');
+const cutModalDesc = document.querySelector('#cutModalDesc');
+const cutTimeInput = document.querySelector('#cutTimeInput');
+const requiresParticipationInput = document.querySelector('#requiresParticipationInput');
+const participantPasswordField = document.querySelector('#participantPasswordField');
+const participantPasswordInput = document.querySelector('#participantPasswordInput');
+const joinModal = document.querySelector('#joinModal');
+const joinForm = document.querySelector('#joinForm');
+const closeJoinModalButton = document.querySelector('#closeJoinModalButton');
+const joinModalTitle = document.querySelector('#joinModalTitle');
+const joinModalDesc = document.querySelector('#joinModalDesc');
+const joinPasswordInput = document.querySelector('#joinPasswordInput');
+const timelineItemTemplate = document.querySelector('#timelineItemTemplate');
+const bossCardTemplate = document.querySelector('#bossCardTemplate');
+const recordItemTemplate = document.querySelector('#recordItemTemplate');
 const toastHost = document.querySelector('#toastHost');
 
 const MEMBER_KEY = 'slashCheckMemberName';
 const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
-let state = { members: [], bossCuts: {} };
+const DAY_MS = 24 * 60 * 60 * 1000;
+const SPAWNED_KEEP_MS = 60 * 60 * 1000;
+const SOON_MS = 10 * 60 * 1000;
+let state = { now: new Date().toISOString(), members: [], bossCuts: {}, bossCutRecords: [] };
 let bosses = [];
 let selectedMember = localStorage.getItem(MEMBER_KEY) || '';
+let selectedFilter = 'all';
+let lastSyncAt = Date.now();
+let selectedCutBoss = null;
+let selectedJoinRecord = null;
+const notifiedSpawnKeys = new Set();
 
 function pad2(value) {
     return String(value).padStart(2, '0');
@@ -41,14 +75,49 @@ function isValidCommandTime(value) {
     return hour >= 0 && hour <= 23 && minute >= 0 && minute <= 59;
 }
 
+function kstDate(ms) {
+    return new Date(ms + KST_OFFSET_MS);
+}
+
+function getNowMs() {
+    return new Date(state.now).getTime() + (Date.now() - lastSyncAt);
+}
+
+function startOfKstDay(ms = getNowMs()) {
+    const date = kstDate(ms);
+    return Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()) - KST_OFFSET_MS;
+}
+
 function formatNowCommandTime() {
-    const now = new Date(Date.now() + KST_OFFSET_MS);
+    const now = kstDate(Date.now());
     return `${pad2(now.getUTCHours())}${pad2(now.getUTCMinutes())}`;
 }
 
-function displayTime(value) {
+function displayTimeValue(value) {
     if (!isValidCommandTime(value)) return '--:--';
     return `${value.slice(0, 2)}:${value.slice(2, 4)}`;
+}
+
+function formatKstDateTime(iso, { date = true } = {}) {
+    if (!iso) return '-';
+    const ms = new Date(iso).getTime();
+    if (!Number.isFinite(ms)) return '-';
+    const d = kstDate(ms);
+    const time = `${pad2(d.getUTCHours())}:${pad2(d.getUTCMinutes())}`;
+    if (!date) return time;
+    return `${pad2(d.getUTCMonth() + 1)}.${pad2(d.getUTCDate())} ${time}`;
+}
+
+function formatRemain(targetMs, now = getNowMs()) {
+    const diff = targetMs - now;
+    if (diff <= 0) return '젠됨';
+    const totalMin = Math.ceil(diff / 60000);
+    if (totalMin >= 60) return `${Math.floor(totalMin / 60)}시간 ${totalMin % 60}분`;
+    return `${totalMin}분`;
+}
+
+function commandFor(record) {
+    return `.컷 ${record.bossName} ${record.timeValue}`;
 }
 
 function showToast(title, message = '', tone = 'success') {
@@ -75,18 +144,17 @@ function showToast(title, message = '', tone = 'success') {
     }, 3600);
 }
 
-function describeCooldown(boss) {
-    const hours = Math.floor(boss.쿨타임);
-    const minutes = Math.round((boss.쿨타임 - hours) * 60);
-    return minutes > 0 ? `${hours}시간 ${minutes}분` : `${hours}시간`;
-}
-
-function commandFor(boss, cut) {
-    return `.컷 ${boss.이름} ${cut.timeValue}`;
-}
-
-function isEditingBossTime() {
-    return document.activeElement?.classList?.contains('bossTimeInput');
+async function api(path, options = {}) {
+    const res = await fetch(path, {
+        ...options,
+        headers: {
+            'Content-Type': 'application/json',
+            ...(options.headers || {})
+        }
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || '요청 처리에 실패했습니다.');
+    return data;
 }
 
 function setSelectedMember(name) {
@@ -104,14 +172,7 @@ function chooseMember(member) {
     const previousMember = selectedMember;
     setSelectedMember(member);
     closeProfileModal();
-
-    if (previousMember && previousMember !== member) {
-        showToast('닉네임 변경됨', `${previousMember} → ${member}`);
-        render();
-        return;
-    }
-
-    showToast(previousMember === member ? '닉네임 확인됨' : '닉네임 설정됨', `현재 닉네임: ${member}`);
+    showToast(previousMember && previousMember !== member ? '닉네임 변경됨' : '닉네임 설정됨', `현재 닉네임: ${member}`);
     render();
 }
 
@@ -158,7 +219,7 @@ function renderMemberSuggest() {
     }
 
     if (matches.length === 0) {
-        memberSuggest.innerHTML = '<div class="suggestHint">추천할 길드원이 없습니다. 관리 페이지의 목록을 확인하세요.</div>';
+        memberSuggest.innerHTML = '<div class="suggestHint">추천할 길드원이 없습니다.</div>';
         return;
     }
 
@@ -167,193 +228,373 @@ function renderMemberSuggest() {
         button.type = 'button';
         button.className = 'suggestItem';
         button.textContent = member;
-        button.addEventListener('click', () => {
-            chooseMember(member);
-        });
+        button.addEventListener('click', () => chooseMember(member));
         memberSuggest.append(button);
     }
 }
 
-function normalizeCuts(cuts) {
-    const next = {};
-    for (const [bossName, cut] of Object.entries(cuts || {})) {
-        if (!isValidCommandTime(cut?.timeValue)) continue;
-        next[bossName] = {
-            timeValue: cut.timeValue,
-            reporterName: cleanName(cut.reporterName),
-            updatedAt: cut.updatedAt
-        };
+function bossNeedsParticipation(boss) {
+    return Number(boss.점수 || 0) > 0;
+}
+
+function latestRecordForBoss(boss) {
+    return (state.bossCutRecords || []).find((record) => record.bossName === boss.이름)
+        || (state.bossCuts?.[boss.이름] ? {
+            id: state.bossCuts[boss.이름].recordId,
+            bossName: boss.이름,
+            bossAlias: boss.애칭 || '',
+            bossType: boss.타입 || '',
+            location: boss.위치 || '',
+            ...state.bossCuts[boss.이름]
+        } : null);
+}
+
+function nextFixedSpawnMs(boss, fromMs = getNowMs()) {
+    if (!Array.isArray(boss.요일) || !boss.시간) return null;
+    const [hour, minute] = String(boss.시간).split(':').map(Number);
+    if (!Number.isFinite(hour) || !Number.isFinite(minute)) return null;
+
+    const dayNames = ['일', '월', '화', '수', '목', '금', '토'];
+    const start = startOfKstDay(fromMs);
+    for (let offset = 0; offset <= 14; offset += 1) {
+        const dayStart = start + offset * DAY_MS;
+        const dayName = dayNames[kstDate(dayStart).getUTCDay()];
+        if (!boss.요일.includes(dayName)) continue;
+        const candidate = dayStart + hour * 60 * 60 * 1000 + minute * 60 * 1000;
+        if (candidate > fromMs - SPAWNED_KEEP_MS) return candidate;
     }
-    state.bossCuts = next;
+    return null;
 }
 
-async function api(path, options = {}) {
-    const res = await fetch(path, {
-        ...options,
-        headers: {
-            'Content-Type': 'application/json',
-            ...(options.headers || {})
-        }
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || '요청 처리에 실패했습니다.');
-    return data;
+function bossNextSpawnMs(boss) {
+    const latest = latestRecordForBoss(boss);
+    if (latest?.nextSpawnAt) {
+        const ms = new Date(latest.nextSpawnAt).getTime();
+        if (Number.isFinite(ms)) return ms;
+    }
+    if (boss.타입 === '고정') return nextFixedSpawnMs(boss);
+    return null;
 }
 
-async function fetchState(shouldRender = true) {
-    const data = await api('/api/state');
-    state.members = data.members || [];
-    normalizeCuts(data.bossCuts || {});
-    if (!state.members.includes(selectedMember)) setSelectedMember('');
-    if (shouldRender) {
-        if (isEditingBossTime()) {
-            renderShortcuts();
-            updateCommands();
-            renderMemberSuggest();
-        } else {
-            render();
+function buildTimeline() {
+    const now = getNowMs();
+    const start = startOfKstDay(now);
+    const end = start + DAY_MS + 2 * 60 * 60 * 1000;
+    const floor = now - SPAWNED_KEEP_MS;
+    const items = [];
+
+    for (const boss of bosses) {
+        if (boss.타입 === '고정') {
+            const [hour, minute] = String(boss.시간 || '').split(':').map(Number);
+            if (!Number.isFinite(hour) || !Number.isFinite(minute)) continue;
+            const dayNames = ['일', '월', '화', '수', '목', '금', '토'];
+            for (let offset = 0; offset <= 1; offset += 1) {
+                const dayStart = start + offset * DAY_MS;
+                const dayName = dayNames[kstDate(dayStart).getUTCDay()];
+                if (!boss.요일?.includes(dayName)) continue;
+                const spawnMs = dayStart + hour * 60 * 60 * 1000 + minute * 60 * 1000;
+                if (spawnMs >= floor && spawnMs <= end) items.push({ boss, spawnMs, source: 'fixed' });
+            }
+            continue;
         }
+
+        const latest = latestRecordForBoss(boss);
+        if (!latest?.nextSpawnAt) continue;
+        const spawnMs = new Date(latest.nextSpawnAt).getTime();
+        if (Number.isFinite(spawnMs) && spawnMs >= floor && spawnMs <= end) {
+            items.push({ boss, spawnMs, source: 'cut', record: latest });
+        }
+    }
+
+    return items.sort((a, b) => a.spawnMs - b.spawnMs || a.boss.이름.localeCompare(b.boss.이름, 'ko'));
+}
+
+function bossStateFromSpawn(spawnMs, now = getNowMs()) {
+    if (!spawnMs) return 'unknown';
+    if (spawnMs <= now) return 'spawned';
+    if (spawnMs - now <= SOON_MS) return 'soon';
+    return 'upcoming';
+}
+
+function maybeNotifyTimeline(items) {
+    if (!('Notification' in window) || Notification.permission !== 'granted') return;
+    const now = getNowMs();
+    for (const item of items) {
+        const diff = item.spawnMs - now;
+        if (diff < 0 || diff > SOON_MS) continue;
+        const key = `${item.boss.이름}:${item.spawnMs}`;
+        if (notifiedSpawnKeys.has(key)) continue;
+        notifiedSpawnKeys.add(key);
+        new Notification(`${item.boss.이름} ${formatRemain(item.spawnMs, now)}`, {
+            body: `${formatKstDateTime(new Date(item.spawnMs).toISOString(), { date: false })} 젠 예정`,
+            tag: `boss-${key}`
+        });
     }
 }
 
-async function loadBosses() {
-    const allBosses = await api('/api/bosses');
-    bosses = allBosses.filter((boss) => boss.타입 === '시간');
-    bossSummary.textContent = `시간 보스 ${bosses.length}개`;
-    await fetchState(false);
-    render();
+function updateNotifyButton() {
+    if (!enableBossNotifyButton) return;
+    if (!('Notification' in window)) {
+        enableBossNotifyButton.textContent = '알림 미지원';
+        enableBossNotifyButton.disabled = true;
+        return;
+    }
+    if (Notification.permission === 'granted') {
+        enableBossNotifyButton.textContent = '알림 켜짐';
+        enableBossNotifyButton.disabled = true;
+        return;
+    }
+    if (Notification.permission === 'denied') {
+        enableBossNotifyButton.textContent = '알림 차단';
+        enableBossNotifyButton.disabled = true;
+        return;
+    }
+    enableBossNotifyButton.textContent = '알림 켜기';
+    enableBossNotifyButton.disabled = false;
 }
 
-function bossMatchesSearch(boss) {
+async function requestNotifications() {
+    if (!('Notification' in window)) return;
+    const permission = await Notification.requestPermission();
+    updateNotifyButton();
+    showToast(permission === 'granted' ? '알림 켜짐' : '알림 미설정', permission === 'granted' ? '곧 젠 보스를 알려드릴게요.' : '브라우저 알림은 꺼진 상태입니다.', permission === 'granted' ? 'success' : 'error');
+}
+
+function renderOverview(timeline) {
+    const now = getNowMs();
+    todayBossCount.textContent = timeline.length;
+    soonBossCount.textContent = timeline.filter((item) => bossStateFromSpawn(item.spawnMs, now) === 'soon').length;
+    spawnedBossCount.textContent = timeline.filter((item) => bossStateFromSpawn(item.spawnMs, now) === 'spawned').length;
+    participationBossCount.textContent = (state.bossCutRecords || []).filter((record) => {
+        return record.requiresParticipation && new Date(record.cutAt).getTime() > now - DAY_MS;
+    }).length;
+}
+
+function renderTimeline() {
+    const timeline = buildTimeline();
+    const now = getNowMs();
+    renderOverview(timeline);
+    maybeNotifyTimeline(timeline);
+    bossTimeline.replaceChildren();
+
+    timelineSummary.textContent = timeline.length > 0
+        ? `${timeline[0].boss.이름} ${formatRemain(timeline[0].spawnMs, now)}`
+        : '예정 없음';
+
+    if (timeline.length === 0) {
+        bossTimeline.innerHTML = '<div class="empty small">오늘 표시할 보스 일정이 없습니다.</div>';
+        return;
+    }
+
+    for (const item of timeline.slice(0, 40)) {
+        const row = timelineItemTemplate.content.firstElementChild.cloneNode(true);
+        const stateName = bossStateFromSpawn(item.spawnMs, now);
+        const latest = item.record || latestRecordForBoss(item.boss);
+        row.classList.add(stateName);
+        row.querySelector('.timelineTime').textContent = formatKstDateTime(new Date(item.spawnMs).toISOString(), { date: false });
+        row.querySelector('.timelineBossName').textContent = item.boss.이름;
+        row.querySelector('.timelineMeta').textContent = `${item.boss.애칭 || '-'} · ${item.boss.위치 || '-'}${latest?.requiresParticipation ? ' · 참여 확인' : ''}`;
+        row.querySelector('.timelineRemain').textContent = formatRemain(item.spawnMs, now);
+        bossTimeline.append(row);
+    }
+}
+
+function bossMatches(boss) {
     const query = bossSearchInput.value.trim().toLowerCase();
+    const latest = latestRecordForBoss(boss);
+    const typeOk = selectedFilter === 'all'
+        || (selectedFilter === 'time' && boss.타입 === '시간')
+        || (selectedFilter === 'fixed' && boss.타입 === '고정')
+        || (selectedFilter === 'participation' && (bossNeedsParticipation(boss) || latest?.requiresParticipation));
+    if (!typeOk) return false;
     if (!query) return true;
     return `${boss.이름} ${boss.애칭} ${boss.위치}`.toLowerCase().includes(query);
 }
 
-function updateCommands() {
-    const commands = bosses
-        .filter((boss) => state.bossCuts[boss.이름])
-        .map((boss) => commandFor(boss, state.bossCuts[boss.이름]));
-
-    commandOutput.value = commands.join('\n');
-    commandCount.textContent = `선택된 보스 ${commands.length}개`;
-    copyCommandButton.disabled = commands.length === 0;
-}
-
-function renderShortcuts() {
-    bossShortcutList.replaceChildren();
-
-    for (const boss of bosses) {
-        const isCut = Boolean(state.bossCuts[boss.이름]);
-        const button = document.createElement('button');
-        button.type = 'button';
-        button.className = 'bossShortcutButton';
-        button.classList.toggle('isCut', isCut);
-        button.textContent = boss.애칭 || boss.이름;
-        button.setAttribute('aria-pressed', String(isCut));
-        button.addEventListener('click', () => {
-            if (state.bossCuts[boss.이름]) clearBossCut(boss);
-            else saveBossCut(boss, formatNowCommandTime());
-        });
-        bossShortcutList.append(button);
-    }
-}
-
 function renderBosses() {
-    const visibleBosses = bosses.filter(bossMatchesSearch);
+    const now = getNowMs();
+    const visible = bosses.filter(bossMatches).sort((a, b) => {
+        const aNext = bossNextSpawnMs(a) || Number.MAX_SAFE_INTEGER;
+        const bNext = bossNextSpawnMs(b) || Number.MAX_SAFE_INTEGER;
+        return aNext - bNext || a.이름.localeCompare(b.이름, 'ko');
+    });
+
+    bossSummary.textContent = `${visible.length}개 / 전체 ${bosses.length}개`;
     bossList.replaceChildren();
 
-    if (visibleBosses.length === 0) {
-        bossList.innerHTML = '<div class="empty small">검색 결과가 없습니다.</div>';
+    if (visible.length === 0) {
+        bossList.innerHTML = '<div class="empty small">조건에 맞는 보스가 없습니다.</div>';
         return;
     }
 
-    for (const boss of visibleBosses) {
-        const cut = state.bossCuts[boss.이름];
-        const row = bossRowTemplate.content.firstElementChild.cloneNode(true);
-        const input = row.querySelector('.bossTimeInput');
-        const cutButton = row.querySelector('.bossCutButton');
+    for (const boss of visible) {
+        const record = latestRecordForBoss(boss);
+        const nextMs = bossNextSpawnMs(boss);
+        const spawnState = bossStateFromSpawn(nextMs, now);
+        const card = bossCardTemplate.content.firstElementChild.cloneNode(true);
+        card.classList.add(spawnState);
 
-        row.classList.toggle('isCut', Boolean(cut));
-        row.querySelector('.bossName').textContent = boss.이름;
-        row.querySelector('.bossAlias').textContent = `${boss.애칭} · ${boss.위치 || '-'}`;
-        row.querySelector('.bossCutText').textContent = cut ? `컷 ${displayTime(cut.timeValue)}` : describeCooldown(boss);
-        row.querySelector('.bossMeta').textContent = cut ? commandFor(boss, cut) : '컷 버튼을 누르면 현재 시간이 입력됩니다.';
-        row.querySelector('.bossReporter').textContent = cut?.reporterName ? `기록자 ${cut.reporterName}` : '';
+        card.querySelector('.bossName').textContent = boss.이름;
+        card.querySelector('.bossTypeBadge').textContent = boss.타입;
+        card.querySelector('.bossAlias').textContent = `${boss.애칭 || '-'} · ${boss.위치 || '-'}`;
+        card.querySelector('.bossCutText').textContent = nextMs
+            ? `${formatKstDateTime(new Date(nextMs).toISOString(), { date: false })} · ${formatRemain(nextMs, now)}`
+            : boss.타입 === '시간' ? '컷 대기' : '일정 없음';
+        card.querySelector('.bossMeta').textContent = record?.cutAt
+            ? `최근 컷 ${formatKstDateTime(record.cutAt)}`
+            : boss.타입 === '시간'
+                ? `쿨 ${Math.floor(Number(boss.쿨타임 || 0))}시간`
+                : `${(boss.요일 || []).join(', ')} ${boss.시간 || ''}`;
+        card.querySelector('.bossReporter').textContent = record?.reporterName
+            ? `컷 ${record.reporterName}${record.requiresParticipation ? ` · 참여 ${record.participants?.length || 0}명` : ''}`
+            : bossNeedsParticipation(boss) ? '참여 확인 기본 대상' : '';
 
-        input.value = cut?.timeValue || '';
-        input.addEventListener('input', () => {
-            input.value = normalizeTimeInput(input.value);
-        });
-        input.addEventListener('keydown', (event) => {
-            if (event.key === 'Enter') {
-                saveBossCut(boss, input.value);
-                input.blur();
-            }
-        });
-        input.addEventListener('change', () => {
-            if (state.bossCuts[boss.이름] && isValidCommandTime(input.value)) {
-                saveBossCut(boss, input.value);
-            }
-        });
+        const cutButton = card.querySelector('.bossCutButton');
+        cutButton.addEventListener('click', () => openCutModal(boss));
 
-        cutButton.textContent = cut ? '취소' : '컷';
-        cutButton.classList.toggle('cancel', Boolean(cut));
-        cutButton.addEventListener('click', () => {
-            if (state.bossCuts[boss.이름]) clearBossCut(boss);
-            else saveBossCut(boss, input.value);
-        });
+        const joinButton = card.querySelector('.bossJoinButton');
+        joinButton.disabled = !record?.requiresParticipation;
+        joinButton.textContent = record?.requiresParticipation ? '참여' : '-';
+        joinButton.addEventListener('click', () => openJoinModal(record));
 
-        bossList.append(row);
+        bossList.append(card);
     }
 }
 
-function render() {
-    renderShortcuts();
-    renderBosses();
-    renderMemberSuggest();
-    updateCommands();
+function renderRecords() {
+    const records = (state.bossCutRecords || []).slice(0, 20);
+    recordSummary.textContent = `${records.length}건`;
+    bossRecordList.replaceChildren();
+
+    if (records.length === 0) {
+        bossRecordList.innerHTML = '<div class="empty small">아직 보스 컷 기록이 없습니다.</div>';
+        return;
+    }
+
+    for (const record of records) {
+        const item = recordItemTemplate.content.firstElementChild.cloneNode(true);
+        item.querySelector('.recordTitle').textContent = `${record.bossName} · ${displayTimeValue(record.timeValue)}`;
+        item.querySelector('.recordMeta').textContent = `${record.reporterName || '-'} · 다음 ${record.nextSpawnAt ? formatKstDateTime(record.nextSpawnAt) : '-'}`;
+        item.querySelector('.recordParticipants').textContent = record.requiresParticipation
+            ? `참여 ${record.participants?.length || 0}명${record.hasParticipantPassword ? '' : ' · 비번 없음'}`
+            : '참여 확인 없음';
+        const button = item.querySelector('.recordJoinButton');
+        button.disabled = !record.requiresParticipation;
+        button.addEventListener('click', () => openJoinModal(record));
+        bossRecordList.append(item);
+    }
 }
 
-async function saveBossCut(boss, rawValue) {
+function updateCommands() {
+    const commands = (state.bossCutRecords || [])
+        .slice(0, 20)
+        .map(commandFor);
+    commandOutput.value = commands.join('\n');
+    commandCount.textContent = `최근 컷 ${commands.length}개`;
+    copyCommandButton.disabled = commands.length === 0;
+}
+
+function render() {
+    filterButtons.forEach((button) => button.classList.toggle('active', button.dataset.filter === selectedFilter));
+    renderTimeline();
+    renderBosses();
+    renderRecords();
+    renderMemberSuggest();
+    updateCommands();
+    updateNotifyButton();
+}
+
+function openCutModal(boss) {
+    if (!requireMember()) return;
+    selectedCutBoss = boss;
+    cutModalTitle.textContent = `${boss.이름} 컷`;
+    cutModalDesc.textContent = `${boss.애칭 || '-'} · ${boss.위치 || '-'} · ${boss.타입}`;
+    cutTimeInput.value = formatNowCommandTime();
+    requiresParticipationInput.checked = bossNeedsParticipation(boss);
+    participantPasswordInput.value = '';
+    participantPasswordField.classList.toggle('hiddenField', !requiresParticipationInput.checked);
+    cutModal.classList.remove('hidden');
+    setTimeout(() => cutTimeInput.focus(), 30);
+}
+
+function closeCutModal() {
+    selectedCutBoss = null;
+    cutModal.classList.add('hidden');
+}
+
+function openJoinModal(record) {
+    if (!record || !record.requiresParticipation) return;
+    if (!requireMember()) return;
+    selectedJoinRecord = record;
+    joinModalTitle.textContent = `${record.bossName} 참여 확인`;
+    joinModalDesc.textContent = record.hasParticipantPassword
+        ? `${displayTimeValue(record.timeValue)} 컷 기록에 ${selectedMember} 님으로 참여 확인합니다.`
+        : '이 기록은 참여 비번이 없어 관리자 수동 추가만 가능합니다.';
+    joinPasswordInput.value = '';
+    joinPasswordInput.disabled = !record.hasParticipantPassword;
+    joinForm.querySelector('.bossModalPrimary').disabled = !record.hasParticipantPassword;
+    joinModal.classList.remove('hidden');
+    if (record.hasParticipantPassword) setTimeout(() => joinPasswordInput.focus(), 30);
+}
+
+function closeJoinModal() {
+    selectedJoinRecord = null;
+    joinModal.classList.add('hidden');
+}
+
+async function submitCut(event) {
+    event.preventDefault();
     const memberName = requireMember();
-    if (!memberName) return;
+    if (!memberName || !selectedCutBoss) return;
 
-    const normalized = normalizeTimeInput(rawValue);
+    const bossName = selectedCutBoss.이름;
+    const normalized = normalizeTimeInput(cutTimeInput.value);
     const timeValue = isValidCommandTime(normalized) ? normalized : formatNowCommandTime();
-
-    state.bossCuts[boss.이름] = {
-        timeValue,
-        reporterName: memberName,
-        updatedAt: new Date().toISOString()
-    };
-    render();
 
     try {
         const data = await api('/api/boss-cuts', {
             method: 'POST',
-            body: JSON.stringify({ bossName: boss.이름, timeValue, reporterName: memberName })
+            body: JSON.stringify({
+                bossName,
+                timeValue,
+                reporterName: memberName,
+                requiresParticipation: requiresParticipationInput.checked,
+                participantPassword: participantPasswordInput.value
+            })
         });
-        normalizeCuts(data.cuts);
+        state.bossCuts = data.cuts || {};
+        state.bossCutRecords = data.records || [];
+        closeCutModal();
         render();
-        showToast('컷 저장됨', commandFor(boss, state.bossCuts[boss.이름]));
+        showToast('컷 저장됨', `.컷 ${bossName} ${timeValue}`);
     } catch (err) {
         showToast('컷 저장 실패', err.message, 'error');
         fetchState(true).catch(() => {});
     }
 }
 
-async function clearBossCut(boss) {
-    delete state.bossCuts[boss.이름];
-    render();
+async function submitJoin(event) {
+    event.preventDefault();
+    const memberName = requireMember();
+    if (!memberName || !selectedJoinRecord) return;
 
+    const bossName = selectedJoinRecord.bossName;
     try {
-        const data = await api(`/api/boss-cuts?bossName=${encodeURIComponent(boss.이름)}`, { method: 'DELETE' });
-        normalizeCuts(data.cuts);
+        const data = await api('/api/boss-cuts/participants', {
+            method: 'POST',
+            body: JSON.stringify({
+                recordId: selectedJoinRecord.id,
+                memberName,
+                password: joinPasswordInput.value
+            })
+        });
+        state.bossCuts = data.cuts || {};
+        state.bossCutRecords = data.records || [];
+        closeJoinModal();
         render();
-        showToast('컷 취소됨', boss.이름);
+        showToast('참여 확인됨', bossName);
     } catch (err) {
-        showToast('컷 취소 실패', err.message, 'error');
+        showToast('참여 확인 실패', err.message, 'error');
         fetchState(true).catch(() => {});
     }
 }
@@ -376,8 +617,34 @@ async function copyCommands() {
     }
 }
 
+async function fetchState(shouldRender = true) {
+    const data = await api('/api/state');
+    state = {
+        now: data.now || new Date().toISOString(),
+        members: data.members || [],
+        bossCuts: data.bossCuts || {},
+        bossCutRecords: data.bossCutRecords || []
+    };
+    lastSyncAt = Date.now();
+    if (!state.members.includes(selectedMember)) setSelectedMember('');
+    if (shouldRender) render();
+}
+
+async function loadBosses() {
+    bosses = await api('/api/bosses');
+    await fetchState(false);
+    render();
+}
+
+filterButtons.forEach((button) => {
+    button.addEventListener('click', () => {
+        selectedFilter = button.dataset.filter;
+        render();
+    });
+});
 bossSearchInput.addEventListener('input', renderBosses);
 copyCommandButton.addEventListener('click', copyCommands);
+enableBossNotifyButton?.addEventListener('click', requestNotifications);
 openProfileButton.addEventListener('click', openProfileModal);
 closeProfileButton.addEventListener('click', closeProfileModal);
 skipProfileButton.addEventListener('click', closeProfileModal);
@@ -386,12 +653,30 @@ profileForm.addEventListener('submit', (event) => event.preventDefault());
 profileModal.addEventListener('click', (event) => {
     if (event.target === profileModal) closeProfileModal();
 });
+cutForm.addEventListener('submit', submitCut);
+closeCutModalButton.addEventListener('click', closeCutModal);
+cutModal.addEventListener('click', (event) => {
+    if (event.target === cutModal) closeCutModal();
+});
+cutTimeInput.addEventListener('input', () => {
+    cutTimeInput.value = normalizeTimeInput(cutTimeInput.value);
+});
+requiresParticipationInput.addEventListener('change', () => {
+    participantPasswordField.classList.toggle('hiddenField', !requiresParticipationInput.checked);
+});
+joinForm.addEventListener('submit', submitJoin);
+closeJoinModalButton.addEventListener('click', closeJoinModal);
+joinModal.addEventListener('click', (event) => {
+    if (event.target === joinModal) closeJoinModal();
+});
 
 setSelectedMember(selectedMember);
+updateNotifyButton();
 loadBosses().then(() => {
     if (!state.members.includes(selectedMember)) openProfileModal();
 }).catch((err) => {
     bossList.innerHTML = `<div class="empty">${err.message}</div>`;
 });
 
-setInterval(() => fetchState(true).catch(() => {}), 1500);
+setInterval(() => render(), 1000);
+setInterval(() => fetchState(true).catch(() => {}), 5000);
