@@ -299,11 +299,11 @@ function renderZones() {
 
         card.classList.toggle('isLocked', locked);
         card.querySelector('.zoneName').textContent = zone.name;
-        card.querySelector('.zoneMeta').textContent = `쿨타임 ${zone.cooldownMin}분`;
-        card.querySelector('.statusText').textContent = locked ? '쿨타임 진행 중' : '진행 가능';
+        card.querySelector('.zoneMeta').textContent = `${zone.cooldownMin}분`;
+        card.querySelector('.statusText').textContent = locked ? '대기' : '가능';
         card.querySelector('.lastText').textContent = zone.lastBy
             ? `최근 ${zone.lastBy} · ${formatTime(zone.lastAt)}`
-            : '최근 기록 없음';
+            : '';
         const reservations = (zone.reservations || []).filter((reservation) => {
             return !reservation.expiresAt || new Date(reservation.expiresAt).getTime() > now;
         });
@@ -317,8 +317,8 @@ function renderZones() {
         if (shouldAlertReservationReady(zone, activeReservation, locked)) notifyReservationReady(zone);
 
         card.querySelector('.reservationText').textContent = reservations.length > 0
-            ? `우선권 ${activeReservation.memberName} · ${reservationRemain} 남음`
-            : '우선권 비어 있음';
+            ? `우선 ${activeReservation.memberName} · ${reservationRemain}`
+            : '';
 
         const reserveButton = card.querySelector('.reserveButton');
         reserveButton.textContent = reservedByMe ? '우선권 취소' : reservedByOther ? '우선권 사용중' : '우선권 잡기';
@@ -329,7 +329,7 @@ function renderZones() {
         const button = card.querySelector('.checkButton');
         button.textContent = locked ? formatCountdown(remain) : reservedByOther ? '예약자 전용' : '완료 처리';
         button.classList.toggle('isCooldown', locked);
-        button.setAttribute('aria-label', locked ? `${zone.name} 쿨타임 ${formatCountdown(remain)} 남음` : `${zone.name} 완료 처리`);
+        button.setAttribute('aria-label', locked ? `${zone.name} ${formatCountdown(remain)} 남음` : `${zone.name} 완료 처리`);
         button.disabled = locked || reservedByOther;
         button.addEventListener('click', async () => {
             const memberName = requireMember();
