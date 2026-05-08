@@ -363,23 +363,6 @@ h1 {
     transform: translateY(1px);
 }
 
-.zoneList.isReordering {
-    user-select: none;
-}
-
-.zoneList.isReordering .zoneCard {
-    cursor: grabbing;
-}
-
-.zoneCard.isDragging {
-    z-index: 2;
-    border-color: var(--blue);
-    border-left-color: var(--blue);
-    background: #ffffff;
-    box-shadow: 0 10px 24px rgba(16, 24, 40, 0.16);
-    transform: scale(0.992);
-}
-
 .zoneMain {
     display: grid;
     min-width: 0;
@@ -1094,7 +1077,7 @@ h1 {
 
 .zoneManageRow {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) 132px 74px 70px;
+    grid-template-columns: 54px minmax(0, 1fr) 132px 74px 70px;
     gap: 8px;
     align-items: center;
     min-height: 54px;
@@ -1107,6 +1090,45 @@ h1 {
 .zoneManageRow.isChanged {
     border-color: rgba(20, 87, 217, 0.34);
     background: #f5f9ff;
+}
+
+.zoneManageList.isReordering {
+    user-select: none;
+}
+
+.zoneManageList.isReordering .zoneManageRow {
+    cursor: grabbing;
+}
+
+.zoneManageRow.isDragging {
+    z-index: 2;
+    border-color: var(--blue);
+    background: #ffffff;
+    box-shadow: 0 10px 24px rgba(16, 24, 40, 0.16);
+    transform: scale(0.995);
+}
+
+.zoneDragHandle {
+    height: 34px;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    background: #ffffff;
+    color: var(--text-soft);
+    padding: 0 8px;
+    font-size: 12px;
+    font-weight: 900;
+    cursor: grab;
+    touch-action: none;
+}
+
+.zoneDragHandle:hover {
+    border-color: var(--blue);
+    background: var(--blue-soft);
+    color: var(--blue-dark);
+}
+
+.zoneDragHandle:active {
+    cursor: grabbing;
 }
 
 .manageStatus {
@@ -1713,6 +1735,27 @@ h1 {
     .rankingFilters,
     .zoneManageRow {
         grid-template-columns: 1fr;
+    }
+
+    .zoneManageRow {
+        grid-template-columns: 54px minmax(0, 1fr);
+    }
+
+    .zoneDragHandle {
+        grid-row: 1 / span 4;
+        height: 100%;
+        min-height: 124px;
+    }
+
+    .zoneManageRow .manageName,
+    .zoneManageRow .manageCooldown,
+    .zoneManageRow .manageStatus,
+    .zoneManageRow .deleteZone {
+        grid-column: 2;
+    }
+
+    .zoneManageRow .manageStatus {
+        width: 100%;
     }
 
     .adminSaveBar,

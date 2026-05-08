@@ -13,6 +13,9 @@ const toastHost = document.querySelector('#toastHost');
 
 let state = { members: [], zones: [] };
 let baseline = { members: [], zones: [] };
+const REORDER_HOLD_MS = 420;
+const REORDER_MOVE_CANCEL_PX = 8;
+let zoneReorderPress = null;
 
 function cleanText(value, max = 40) {
     return String(value || '').trim().replace(/\s+/g, ' ').slice(0, max);
@@ -120,11 +123,120 @@ function makeChange(title, detail) {
     return { title, detail };
 }
 
+function zoneOrderFromDom() {
+    return [...zoneManageList.querySelectorAll('.zoneManageRow[data-zone-id]')]
+        .map((row) => row.dataset.zoneId)
+        .filter(Boolean);
+}
+
+function isSameOrder(left, right) {
+    return left.length === right.length && left.every((value, index) => value === right[index]);
+}
+
+function cancelZoneReorderPress() {
+    if (!zoneReorderPress) return;
+    clearTimeout(zoneReorderPress.timer);
+    if (zoneReorderPress.active) {
+        zoneReorderPress.row.classList.remove('isDragging');
+        zoneManageList.classList.remove('isReordering');
+    }
+    zoneReorderPress = null;
+}
+
+function beginZoneReorder() {
+    if (!zoneReorderPress || zoneReorderPress.active) return;
+
+    zoneReorderPress.active = true;
+    zoneReorderPress.originalOrder = zoneOrderFromDom();
+    zoneReorderPress.row.classList.add('isDragging');
+    zoneManageList.classList.add('isReordering');
+
+    try {
+        zoneReorderPress.handle.setPointerCapture(zoneReorderPress.pointerId);
+    } catch {
+        // Pointer capture may fail if the pointer ended during the long press.
+    }
+}
+
+function zoneRowAtPoint(event) {
+    const target = document.elementFromPoint(event.clientX, event.clientY);
+    const row = target?.closest?.('.zoneManageRow[data-zone-id]');
+    return row && zoneManageList.contains(row) ? row : null;
+}
+
+function moveZoneRow(event) {
+    if (!zoneReorderPress?.active) return;
+
+    const draggedRow = zoneReorderPress.row;
+    const targetRow = zoneRowAtPoint(event);
+    if (!targetRow || targetRow === draggedRow) return;
+
+    const rect = targetRow.getBoundingClientRect();
+    const insertAfter = event.clientY > rect.top + rect.height / 2;
+    zoneManageList.insertBefore(draggedRow, insertAfter ? targetRow.nextSibling : targetRow);
+    zoneReorderPress.moved = true;
+}
+
+function finishZoneReorderPress(event) {
+    if (!zoneReorderPress || event.pointerId !== zoneReorderPress.pointerId) return;
+
+    const finished = zoneReorderPress;
+    clearTimeout(finished.timer);
+    zoneReorderPress = null;
+
+    if (!finished.active) return;
+
+    finished.row.classList.remove('isDragging');
+    zoneManageList.classList.remove('isReordering');
+
+    const nextOrder = zoneOrderFromDom();
+    if (finished.moved && !isSameOrder(nextOrder, finished.originalOrder || [])) {
+        renderChangeState();
+    }
+}
+
+function handleZoneReorderMove(event) {
+    if (!zoneReorderPress || event.pointerId !== zoneReorderPress.pointerId) return;
+
+    const distance = Math.hypot(event.clientX - zoneReorderPress.startX, event.clientY - zoneReorderPress.startY);
+    if (!zoneReorderPress.active) {
+        if (distance > REORDER_MOVE_CANCEL_PX) cancelZoneReorderPress();
+        return;
+    }
+
+    event.preventDefault();
+    moveZoneRow(event);
+}
+
+function startZoneReorderPress(event, row, handle) {
+    if (event.pointerType === 'mouse' && event.button !== 0) return;
+
+    cancelZoneReorderPress();
+    zoneReorderPress = {
+        row,
+        handle,
+        pointerId: event.pointerId,
+        startX: event.clientX,
+        startY: event.clientY,
+        active: false,
+        moved: false,
+        originalOrder: null,
+        timer: setTimeout(beginZoneReorder, REORDER_HOLD_MS)
+    };
+}
+
 function getAdminDraft() {
     const rows = [...zoneManageList.querySelectorAll('.zoneManageRow')];
+    const rowOrderIds = rows.map((row) => row.dataset.zoneId).filter(Boolean);
+    const baselineOrderIds = (baseline.zones || []).map((zone) => zone.id);
+    const zoneOrderChanged = rowOrderIds.length > 0 && !isSameOrder(rowOrderIds, baselineOrderIds);
     const zoneUpdates = [];
     const changes = [];
     const errors = [];
+
+    if (zoneOrderChanged) {
+        changes.push(makeChange('구역 순서 변경', '체크 화면에 표시되는 구역 순서가 변경됩니다.'));
+    }
 
     for (const row of rows) {
         const original = baseline.zones.find((zone) => zone.id === row.dataset.zoneId);
@@ -178,6 +290,8 @@ function getAdminDraft() {
         errors,
         members,
         membersChanged,
+        zoneOrderChanged,
+        zoneOrderIds: zoneOrderChanged ? rowOrderIds : null,
         zoneUpdates
     };
 }
@@ -254,6 +368,13 @@ function renderZones() {
         row.className = 'zoneManageRow';
         row.dataset.zoneId = zone.id;
 
+        const dragHandle = document.createElement('button');
+        dragHandle.className = 'zoneDragHandle';
+        dragHandle.type = 'button';
+        dragHandle.textContent = '순서';
+        dragHandle.title = '길게 눌러 순서 변경';
+        dragHandle.setAttribute('aria-label', `${zone.name} 순서 변경`);
+
         const nameInput = document.createElement('input');
         nameInput.className = 'manageName';
         nameInput.type = 'text';
@@ -275,7 +396,10 @@ function renderZones() {
         deleteButton.type = 'button';
         deleteButton.textContent = '삭제';
 
-        row.append(nameInput, cooldownInput, status, deleteButton);
+        row.append(dragHandle, nameInput, cooldownInput, status, deleteButton);
+
+        dragHandle.addEventListener('pointerdown', (event) => startZoneReorderPress(event, row, dragHandle));
+        dragHandle.addEventListener('contextmenu', (event) => event.preventDefault());
 
         deleteButton.addEventListener('click', async () => {
             if (!confirm(`${zone.name} 구역을 삭제할까요?`)) return;
@@ -348,6 +472,7 @@ bulkSaveButton.addEventListener('click', async () => {
                 zones: draft.zoneUpdates
             };
             if (draft.membersChanged) body.members = draft.members;
+            if (draft.zoneOrderChanged) body.zoneOrderIds = draft.zoneOrderIds;
 
             const data = await api('/api/admin/bulk', {
                 method: 'POST',
@@ -367,5 +492,8 @@ bulkSaveButton.addEventListener('click', async () => {
 
 zoneManageList.addEventListener('input', renderChangeState);
 memberBulkInput.addEventListener('input', renderChangeState);
+window.addEventListener('pointermove', handleZoneReorderMove, { passive: false });
+window.addEventListener('pointerup', finishZoneReorderPress);
+window.addEventListener('pointercancel', finishZoneReorderPress);
 
 fetchState().catch((err) => showToast('불러오기 실패', err.message, 'error'));

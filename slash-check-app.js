@@ -408,11 +408,29 @@ async function handleApi(req, res, url) {
         const hasMembers = Object.prototype.hasOwnProperty.call(body, 'members')
             || Object.prototype.hasOwnProperty.call(body, 'raw');
         const nextMembers = hasMembers ? parseMembers(body.members ?? body.raw) : null;
+        const zoneOrderIds = Array.isArray(body.zoneOrderIds) ? body.zoneOrderIds.map((id) => String(id)) : null;
         const preparedZones = [];
 
         if (nextMembers && nextMembers.length === 0) {
             sendJson(res, 400, { error: '길드원 목록이 비어 있습니다.' });
             return true;
+        }
+
+        if (zoneOrderIds) {
+            const currentIds = state.zones.map((zone) => zone.id);
+            const nextIdSet = new Set(zoneOrderIds);
+
+            if (zoneOrderIds.length !== currentIds.length || nextIdSet.size !== currentIds.length) {
+                sendJson(res, 400, { error: '구역 순서 정보를 확인하세요.' });
+                return true;
+            }
+
+            for (const id of currentIds) {
+                if (!nextIdSet.has(id)) {
+                    sendJson(res, 400, { error: '구역 순서 정보가 현재 목록과 맞지 않습니다.' });
+                    return true;
+                }
+            }
         }
 
         for (const item of zoneUpdates) {
@@ -444,6 +462,11 @@ async function handleApi(req, res, url) {
                     if (log.zoneId === item.zone.id) log.zoneName = item.name;
                 }
             }
+        }
+
+        if (zoneOrderIds) {
+            const zonesById = new Map(state.zones.map((zone) => [zone.id, zone]));
+            state.zones = zoneOrderIds.map((id) => zonesById.get(id));
         }
 
         if (nextMembers) state.members = nextMembers;
@@ -503,32 +526,6 @@ async function handleApi(req, res, url) {
         }
 
         zone.reservations = (zone.reservations || []).filter((reservation) => reservation.memberName !== memberName);
-        await saveState();
-        sendJson(res, 200, publicState());
-        return true;
-    }
-
-    if (url.pathname === '/api/zones/reorder' && req.method === 'POST') {
-        const body = await readJson(req);
-        const zoneIds = Array.isArray(body.zoneIds) ? body.zoneIds.map((id) => String(id)) : [];
-        const currentIds = state.zones.map((zone) => zone.id);
-        const nextIdSet = new Set(zoneIds);
-
-        if (zoneIds.length !== currentIds.length || nextIdSet.size !== currentIds.length) {
-            sendJson(res, 400, { error: '구역 순서 정보를 확인하세요.' });
-            return true;
-        }
-
-        for (const id of currentIds) {
-            if (!nextIdSet.has(id)) {
-                sendJson(res, 400, { error: '구역 순서 정보가 현재 목록과 맞지 않습니다.' });
-                return true;
-            }
-        }
-
-        const zonesById = new Map(state.zones.map((zone) => [zone.id, zone]));
-        state.zones = zoneIds.map((id) => zonesById.get(id));
-
         await saveState();
         sendJson(res, 200, publicState());
         return true;
