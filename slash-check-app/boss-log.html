@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="ko">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>보스 로그</title>
+    <link rel="stylesheet" href="./styles.css">
+</head>
+<body class="bossPage">
+    <main class="shell">
+        <header class="topbar">
+            <div>
+                <span class="eyebrow">보스 운영</span>
+                <h1>로그</h1>
+                <p class="pageDesc">보스 컷 등록, 시간 수정, 취소, 참여 확인 이력을 확인합니다.</p>
+            </div>
+            <nav class="navTabs" aria-label="페이지 이동">
+                <a href="./">체크</a>
+                <a href="./ranking.html">랭킹</a>
+                <a href="./analytics.html">분석</a>
+                <a href="./boss.html">보스</a>
+                <a class="active" href="./boss-log.html">로그</a>
+                <a href="./admin.html">관리</a>
+            </nav>
+        </header>
+
+        <section class="bossLogToolbar panel">
+            <div>
+                <span class="label">보스 로그</span>
+                <strong id="bossLogSummary">기록 불러오는 중</strong>
+            </div>
+            <label class="bossSearch">
+                <span>검색</span>
+                <input id="bossLogSearchInput" type="search" placeholder="보스명, 작업자, 내용">
+            </label>
+        </section>
+
+        <section class="bossLogStats">
+            <article class="metricCard">
+                <span>전체</span>
+                <strong id="logMetricTotal">0</strong>
+                <small>최근 로그</small>
+            </article>
+            <article class="metricCard">
+                <span>컷 등록</span>
+                <strong id="logMetricCreate">0</strong>
+                <small>저장됨</small>
+            </article>
+            <article class="metricCard">
+                <span>수정</span>
+                <strong id="logMetricUpdate">0</strong>
+                <small>시간 변경</small>
+            </article>
+            <article class="metricCard">
+                <span>취소</span>
+                <strong id="logMetricCancel">0</strong>
+                <small>취소됨</small>
+            </article>
+        </section>
+
+        <section class="panel">
+            <div class="panelHead">
+                <div>
+                    <span class="label">이력</span>
+                    <strong id="bossLogListSummary">0건</strong>
+                </div>
+            </div>
+            <div id="bossLogList" class="bossLogList"></div>
+        </section>
+    </main>
+
+    <div id="toastHost" class="toastHost" aria-live="polite"></div>
+    <script src="./boss-log.js"></script>
+</body>
+</html>

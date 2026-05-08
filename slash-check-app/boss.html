@@ -19,6 +19,7 @@
                 <a href="./ranking.html">랭킹</a>
                 <a href="./analytics.html">분석</a>
                 <a class="active" href="./boss.html">보스</a>
+                <a href="./boss-log.html">로그</a>
                 <a href="./admin.html">관리</a>
             </nav>
             <div class="profilePill">
@@ -230,9 +231,13 @@
                         <input id="participantCutTimeInput" type="text" inputmode="numeric" maxlength="5" placeholder="1820">
                     </label>
                 </div>
+                <label>
+                    <span>관리자 비밀번호</span>
+                    <input id="participantAdminPasswordInput" type="password" autocomplete="off" placeholder="수정/취소 시 입력">
+                </label>
                 <div class="bossRecordManageActions">
                     <button id="saveParticipantRecordButton" class="bossModalPrimary" type="button">시간 수정</button>
-                    <button id="deleteParticipantRecordButton" class="bossDangerButton" type="button">컷 되돌리기</button>
+                    <button id="deleteParticipantRecordButton" class="bossDangerButton" type="button">컷 취소</button>
                 </div>
             </div>
             <div id="participantList" class="participantList"></div>

@@ -202,7 +202,7 @@ h1 {
     display: flex;
     align-items: center;
     gap: 4px;
-    min-width: 380px;
+    min-width: 430px;
     padding: 4px;
     border: 1px solid var(--line);
     border-radius: 8px;
@@ -827,6 +827,14 @@ h1 {
     background: var(--blue-dark);
 }
 
+.bossCutButton:disabled,
+.timelineCutButton:disabled {
+    border-color: var(--line);
+    background: #e9edf4;
+    color: #7b8494;
+    cursor: not-allowed;
+}
+
 .bossCutButton.cancel {
     border-color: var(--line);
     background: #ffffff;
@@ -872,6 +880,108 @@ h1 {
     grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 10px;
     margin-bottom: 12px;
+}
+
+.bossLogToolbar {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(220px, 360px);
+    gap: 12px;
+    align-items: end;
+    margin-bottom: 12px;
+}
+
+.bossLogToolbar strong {
+    color: var(--text);
+    font-size: 18px;
+    font-weight: 950;
+}
+
+.bossLogStats {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 10px;
+    margin-bottom: 12px;
+}
+
+.bossLogList {
+    display: grid;
+    gap: 8px;
+}
+
+.bossLogItem {
+    display: grid;
+    grid-template-columns: 82px minmax(0, 1fr) 128px;
+    gap: 10px;
+    align-items: center;
+    min-height: 64px;
+    border: 1px solid var(--line-soft);
+    border-left: 4px solid var(--line);
+    border-radius: 8px;
+    background: var(--soft);
+    padding: 10px;
+}
+
+.bossLogItem.create {
+    border-left-color: var(--green);
+    background: var(--green-soft);
+}
+
+.bossLogItem.update {
+    border-left-color: var(--blue);
+    background: var(--blue-soft);
+}
+
+.bossLogItem.cancel {
+    border-left-color: var(--red);
+    background: var(--red-soft);
+}
+
+.bossLogItem.participant {
+    border-left-color: var(--dark);
+    background: #ffffff;
+}
+
+.bossLogBadge {
+    display: grid;
+    place-items: center;
+    min-height: 30px;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    background: #ffffff;
+    color: var(--text-soft);
+    font-size: 12px;
+    font-weight: 950;
+    white-space: nowrap;
+}
+
+.bossLogItem > div,
+.bossLogMeta {
+    display: grid;
+    gap: 4px;
+    min-width: 0;
+}
+
+.bossLogItem strong,
+.bossLogItem span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.bossLogItem strong {
+    color: var(--text);
+    font-weight: 950;
+}
+
+.bossLogItem span,
+.bossLogMeta span {
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 750;
+}
+
+.bossLogMeta {
+    justify-items: end;
 }
 
 .bossOverview article {
@@ -1220,6 +1330,16 @@ h1 {
 .bossRecordItem strong {
     color: var(--text);
     font-weight: 950;
+}
+
+.bossRecordItem.canceled {
+    border-color: #e3e7ef;
+    background: #f1f4f8;
+    opacity: 0.9;
+}
+
+.bossRecordItem.canceled strong {
+    color: #667085;
 }
 
 .bossRecordItem span {
@@ -2552,6 +2672,7 @@ h1 {
 
     .navTabs {
         width: 100%;
+        min-width: 0;
     }
 
     .navTabs a {
@@ -2602,6 +2723,31 @@ h1 {
         grid-template-columns: repeat(2, minmax(0, 1fr));
         gap: 8px;
         margin-bottom: 8px;
+    }
+
+    .bossLogToolbar {
+        grid-template-columns: 1fr;
+        gap: 8px;
+        margin-bottom: 8px;
+    }
+
+    .bossLogStats {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px;
+        margin-bottom: 8px;
+    }
+
+    .bossLogItem {
+        grid-template-columns: 64px minmax(0, 1fr);
+        gap: 8px;
+        min-height: 58px;
+        padding: 9px;
+    }
+
+    .bossLogMeta {
+        grid-column: 2;
+        justify-items: start;
+        grid-template-columns: auto minmax(0, 1fr);
     }
 
     .metricCard {

@@ -36,7 +36,9 @@ const defaultState = {
     ],
     logs: [],
     bossCuts: {},
-    bossCutRecords: []
+    bossCutRecords: [],
+    bossCutLocks: {},
+    bossAuditLogs: []
 };
 
 let state = structuredClone(defaultState);
@@ -45,7 +47,10 @@ const CHECK_UNDO_GRACE_MS = 60 * 1000;
 const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
 const DAY_MS = 24 * 60 * 60 * 1000;
 const BOSS_PARTICIPATION_WINDOW_MS = 10 * 60 * 1000;
+const BOSS_CUT_LOCK_MS = 90 * 1000;
 const MAX_BOSS_CUT_RECORDS = 300;
+const MAX_BOSS_AUDIT_LOGS = 500;
+const ADMIN_PASSWORD = process.env.SLASH_CHECK_ADMIN_PASSWORD || process.env.ADMIN_PASSWORD || '1234';
 
 function send(res, status, body, type = 'text/plain; charset=utf-8') {
     res.writeHead(status, {
@@ -189,6 +194,10 @@ function normalizeBossParticipant(value) {
     };
 }
 
+function normalizeBossRecordStatus(value) {
+    return cleanText(value, 16) === 'canceled' ? 'canceled' : 'active';
+}
+
 function normalizeBossCutRecord(value) {
     if (!value || typeof value !== 'object') return null;
 
@@ -209,6 +218,10 @@ function normalizeBossCutRecord(value) {
         nextSpawnAt: value.nextSpawnAt || null,
         reporterName: cleanText(value.reporterName, 24),
         updatedAt: value.updatedAt || new Date(cutMs).toISOString(),
+        status: normalizeBossRecordStatus(value.status),
+        canceledAt: value.canceledAt || null,
+        canceledBy: cleanText(value.canceledBy, 24),
+        editedBy: cleanText(value.editedBy, 24),
         requiresParticipation: Boolean(value.requiresParticipation),
         participantPasswordHash: cleanText(value.participantPasswordHash, 128),
         participationOpenUntil: value.participationOpenUntil || null,
@@ -221,6 +234,55 @@ function normalizeBossCutRecord(value) {
 function normalizeBossCutRecords(value) {
     if (!Array.isArray(value)) return [];
     return value.map(normalizeBossCutRecord).filter(Boolean).slice(0, MAX_BOSS_CUT_RECORDS);
+}
+
+function normalizeBossCutLock(value) {
+    if (!value || typeof value !== 'object') return null;
+    const bossName = cleanText(value.bossName, 40);
+    const memberName = cleanText(value.memberName, 24);
+    const expiresMs = new Date(value.expiresAt).getTime();
+    if (!bossName || !memberName || !Number.isFinite(expiresMs)) return null;
+
+    return {
+        bossName,
+        memberName,
+        lockedAt: value.lockedAt || new Date().toISOString(),
+        expiresAt: new Date(expiresMs).toISOString(),
+        spawnAt: value.spawnAt || null
+    };
+}
+
+function normalizeBossCutLocks(value) {
+    const next = {};
+    if (!value || typeof value !== 'object' || Array.isArray(value)) return next;
+    for (const [bossName, lock] of Object.entries(value)) {
+        const normalized = normalizeBossCutLock({ ...lock, bossName: lock?.bossName || bossName });
+        if (normalized) next[normalized.bossName] = normalized;
+    }
+    return next;
+}
+
+function normalizeBossAuditLog(value) {
+    if (!value || typeof value !== 'object') return null;
+    const action = cleanText(value.action, 32);
+    const bossName = cleanText(value.bossName, 40);
+    const createdMs = new Date(value.createdAt).getTime();
+    if (!action || !bossName || !Number.isFinite(createdMs)) return null;
+
+    return {
+        id: cleanText(value.id, 80) || randomUUID(),
+        action,
+        bossName,
+        recordId: cleanText(value.recordId, 80),
+        actorName: cleanText(value.actorName, 24),
+        createdAt: new Date(createdMs).toISOString(),
+        detail: value.detail && typeof value.detail === 'object' && !Array.isArray(value.detail) ? value.detail : {}
+    };
+}
+
+function normalizeBossAuditLogs(value) {
+    if (!Array.isArray(value)) return [];
+    return value.map(normalizeBossAuditLog).filter(Boolean).slice(0, MAX_BOSS_AUDIT_LOGS);
 }
 
 function normalizeBossCuts(value) {
@@ -288,11 +350,34 @@ function publicBossCutRecords() {
         nextSpawnAt: record.nextSpawnAt || null,
         reporterName: record.reporterName || '',
         updatedAt: record.updatedAt || null,
+        status: record.status || 'active',
+        canceledAt: record.canceledAt || null,
+        canceledBy: record.canceledBy || '',
+        editedBy: record.editedBy || '',
         requiresParticipation: Boolean(record.requiresParticipation),
         hasParticipantPassword: Boolean(record.participantPasswordHash),
         participationOpenUntil: record.participationOpenUntil || null,
         participants: Array.isArray(record.participants) ? record.participants : []
     }));
+}
+
+function publicBossCutLocks() {
+    cleanupExpiredBossCutLocks();
+    const next = {};
+    for (const [bossName, lock] of Object.entries(state.bossCutLocks || {})) {
+        next[bossName] = {
+            bossName: lock.bossName,
+            memberName: lock.memberName,
+            lockedAt: lock.lockedAt,
+            expiresAt: lock.expiresAt,
+            spawnAt: lock.spawnAt || null
+        };
+    }
+    return next;
+}
+
+function publicBossAuditLogs() {
+    return (state.bossAuditLogs || []).slice(0, MAX_BOSS_AUDIT_LOGS);
 }
 
 function bossCutStateFromRecord(record) {
@@ -303,6 +388,7 @@ function bossCutStateFromRecord(record) {
         nextSpawnAt: record.nextSpawnAt || null,
         reporterName: record.reporterName || '',
         updatedAt: record.updatedAt || null,
+        status: record.status || 'active',
         requiresParticipation: Boolean(record.requiresParticipation),
         participantPasswordHash: record.participantPasswordHash || '',
         participationOpenUntil: record.participationOpenUntil || null,
@@ -312,12 +398,30 @@ function bossCutStateFromRecord(record) {
 
 function refreshCurrentBossCut(bossName) {
     state.bossCuts = state.bossCuts || {};
-    const latest = (state.bossCutRecords || []).find((record) => record.bossName === bossName);
+    const latest = (state.bossCutRecords || []).find((record) => record.bossName === bossName && record.status !== 'canceled');
     if (latest) {
         state.bossCuts[bossName] = bossCutStateFromRecord(latest);
     } else {
         delete state.bossCuts[bossName];
     }
+}
+
+function appendBossAuditLog(action, { bossName, recordId = '', actorName = '', detail = {} }) {
+    state.bossAuditLogs = state.bossAuditLogs || [];
+    state.bossAuditLogs.unshift({
+        id: randomUUID(),
+        action,
+        bossName: cleanText(bossName, 40),
+        recordId: cleanText(recordId, 80),
+        actorName: cleanText(actorName, 24),
+        createdAt: new Date().toISOString(),
+        detail
+    });
+    state.bossAuditLogs = state.bossAuditLogs.slice(0, MAX_BOSS_AUDIT_LOGS);
+}
+
+function verifyAdminPassword(value) {
+    return String(value || '') === ADMIN_PASSWORD;
 }
 
 function isCheckLog(log) {
@@ -377,8 +481,14 @@ async function hydrateBossCutState() {
     state.bossCutRecords = records
         .map(normalizeBossCutRecord)
         .filter(Boolean)
-        .sort((a, b) => new Date(b.cutAt) - new Date(a.cutAt))
+        .sort((a, b) => new Date(b.updatedAt || b.cutAt) - new Date(a.updatedAt || a.cutAt))
         .slice(0, MAX_BOSS_CUT_RECORDS);
+
+    const bossNames = new Set([
+        ...Object.keys(state.bossCuts || {}),
+        ...state.bossCutRecords.map((record) => record.bossName)
+    ]);
+    for (const bossName of bossNames) refreshCurrentBossCut(bossName);
 }
 
 function reservationExpiresAt(zone, now = Date.now()) {
@@ -409,6 +519,37 @@ function cleanupExpiredReservations(now = Date.now()) {
     }
 
     return changed;
+}
+
+function cleanupExpiredBossCutLocks(now = Date.now()) {
+    let changed = false;
+    state.bossCutLocks = state.bossCutLocks || {};
+
+    for (const [bossName, lock] of Object.entries(state.bossCutLocks)) {
+        const expiresMs = new Date(lock.expiresAt).getTime();
+        if (!Number.isFinite(expiresMs) || expiresMs <= now) {
+            delete state.bossCutLocks[bossName];
+            changed = true;
+        }
+    }
+
+    return changed;
+}
+
+function activeBossCutLock(bossName, now = Date.now()) {
+    cleanupExpiredBossCutLocks(now);
+    const lock = state.bossCutLocks?.[bossName];
+    if (!lock) return null;
+    const expiresMs = new Date(lock.expiresAt).getTime();
+    return Number.isFinite(expiresMs) && expiresMs > now ? lock : null;
+}
+
+function releaseBossCutLock(bossName, memberName = '') {
+    const lock = state.bossCutLocks?.[bossName];
+    if (!lock) return false;
+    if (memberName && lock.memberName !== memberName) return false;
+    delete state.bossCutLocks[bossName];
+    return true;
 }
 
 function snapshotZone(zone) {
@@ -494,7 +635,9 @@ async function loadState() {
             zones: Array.isArray(parsed.zones) ? parsed.zones : defaultState.zones,
             logs: Array.isArray(parsed.logs) ? parsed.logs : [],
             bossCuts: normalizeBossCuts(parsed.bossCuts || legacyCuts),
-            bossCutRecords: normalizeBossCutRecords(parsed.bossCutRecords)
+            bossCutRecords: normalizeBossCutRecords(parsed.bossCutRecords),
+            bossCutLocks: normalizeBossCutLocks(parsed.bossCutLocks),
+            bossAuditLogs: normalizeBossAuditLogs(parsed.bossAuditLogs)
         };
         state.zones = state.zones.map((zone) => ({
             ...zone,
@@ -506,6 +649,8 @@ async function loadState() {
         state = structuredClone(defaultState);
         state.bossCuts = await readLegacyBossCuts();
         state.bossCutRecords = [];
+        state.bossCutLocks = {};
+        state.bossAuditLogs = [];
         await hydrateBossCutState();
         await saveState();
     }
@@ -562,12 +707,13 @@ function publicState() {
         rankings: buildRankings(),
         logs: state.logs.slice(0, 500),
         bossCuts: publicBossCuts(),
-        bossCutRecords: publicBossCutRecords()
+        bossCutRecords: publicBossCutRecords(),
+        bossCutLocks: publicBossCutLocks()
     };
 }
 
 async function handleApi(req, res, url) {
-    if (cleanupExpiredReservations()) await saveState();
+    if (cleanupExpiredReservations() || cleanupExpiredBossCutLocks()) await saveState();
 
     if (url.pathname === '/health' && req.method === 'GET') {
         sendJson(res, 200, { ok: true, now: new Date().toISOString() });
@@ -586,6 +732,68 @@ async function handleApi(req, res, url) {
 
     if (url.pathname === '/api/boss-cuts' && req.method === 'GET') {
         sendJson(res, 200, { cuts: publicBossCuts(), records: publicBossCutRecords() });
+        return true;
+    }
+
+    if (url.pathname === '/api/boss-logs' && req.method === 'GET') {
+        sendJson(res, 200, { logs: publicBossAuditLogs(), now: new Date().toISOString() });
+        return true;
+    }
+
+    if (url.pathname === '/api/boss-cut-locks' && req.method === 'POST') {
+        const body = await readJson(req);
+        const bossName = cleanText(body.bossName, 40);
+        const memberName = cleanText(body.memberName, 24);
+        const spawnMs = body.spawnAt ? new Date(body.spawnAt).getTime() : NaN;
+        const spawnAt = Number.isFinite(spawnMs) ? new Date(spawnMs).toISOString() : null;
+
+        if (!bossName || !memberName) {
+            sendJson(res, 400, { error: '보스명과 길드원을 확인하세요.' });
+            return true;
+        }
+
+        if (!state.members.includes(memberName)) {
+            sendJson(res, 400, { error: '등록된 길드원만 컷을 입력할 수 있습니다.' });
+            return true;
+        }
+
+        const bosses = await readBosses();
+        const boss = bosses.find((item) => item.이름 === bossName || item.애칭 === bossName);
+        if (!boss) {
+            sendJson(res, 404, { error: '보스 정보를 찾을 수 없습니다.' });
+            return true;
+        }
+
+        const currentLock = activeBossCutLock(boss.이름);
+        if (currentLock && currentLock.memberName !== memberName) {
+            sendJson(res, 409, {
+                error: `${currentLock.memberName} 님이 컷 입력 중입니다.`,
+                locks: publicBossCutLocks()
+            });
+            return true;
+        }
+
+        const now = Date.now();
+        const lock = {
+            bossName: boss.이름,
+            memberName,
+            lockedAt: new Date(now).toISOString(),
+            expiresAt: new Date(now + BOSS_CUT_LOCK_MS).toISOString(),
+            spawnAt
+        };
+        state.bossCutLocks = state.bossCutLocks || {};
+        state.bossCutLocks[boss.이름] = lock;
+
+        await saveState();
+        sendJson(res, 200, { lock, locks: publicBossCutLocks() });
+        return true;
+    }
+
+    if (url.pathname === '/api/boss-cut-locks' && req.method === 'DELETE') {
+        const bossName = cleanText(url.searchParams.get('bossName'), 40);
+        const memberName = cleanText(url.searchParams.get('memberName'), 24);
+        if (releaseBossCutLock(bossName, memberName)) await saveState();
+        sendJson(res, 200, { locks: publicBossCutLocks() });
         return true;
     }
 
@@ -621,6 +829,12 @@ async function handleApi(req, res, url) {
             return true;
         }
 
+        const currentLock = activeBossCutLock(boss.이름);
+        if (currentLock && currentLock.memberName !== reporterName) {
+            sendJson(res, 409, { error: `${currentLock.memberName} 님이 컷 입력 중입니다.` });
+            return true;
+        }
+
         const nextSpawnAt = calcBossNextSpawnAt(boss, cutAt);
         const nowIso = new Date().toISOString();
         const participationOpenUntil = requiresParticipation && participantPasswordHash
@@ -637,6 +851,7 @@ async function handleApi(req, res, url) {
             nextSpawnAt,
             reporterName,
             updatedAt: nowIso,
+            status: 'active',
             requiresParticipation,
             participantPasswordHash,
             participationOpenUntil,
@@ -654,11 +869,26 @@ async function handleApi(req, res, url) {
             nextSpawnAt,
             reporterName,
             updatedAt: nowIso,
+            status: 'active',
             requiresParticipation,
             participantPasswordHash,
             participationOpenUntil,
             participants: []
         };
+
+        releaseBossCutLock(boss.이름, reporterName);
+        appendBossAuditLog('cut-create', {
+            bossName: boss.이름,
+            recordId: record.id,
+            actorName: reporterName,
+            detail: {
+                timeValue,
+                cutAt,
+                nextSpawnAt,
+                requiresParticipation,
+                hasParticipantPassword: Boolean(participantPasswordHash)
+            }
+        });
 
         await saveState();
         sendJson(res, 200, { cuts: publicBossCuts(), records: publicBossCutRecords() });
@@ -669,12 +899,18 @@ async function handleApi(req, res, url) {
         const body = await readJson(req);
         const recordId = cleanText(body.recordId, 80);
         const actorName = cleanText(body.actorName, 24);
+        const adminPassword = body.adminPassword;
         let timeValue = normalizeBossCutTime(body.timeValue || formatCommandTimeFromIso(body.cutAt));
         const cutAt = isoFromBossCutInput(body.cutAt, timeValue);
         if (!timeValue && cutAt) timeValue = formatCommandTimeFromIso(cutAt);
 
         if (!state.members.includes(actorName)) {
             sendJson(res, 400, { error: '등록된 길드원만 컷 기록을 수정할 수 있습니다.' });
+            return true;
+        }
+
+        if (!verifyAdminPassword(adminPassword)) {
+            sendJson(res, 403, { error: '관리자 비밀번호가 맞지 않습니다.' });
             return true;
         }
 
@@ -689,6 +925,11 @@ async function handleApi(req, res, url) {
             return true;
         }
 
+        if (record.status === 'canceled') {
+            sendJson(res, 409, { error: '취소된 컷 기록은 수정할 수 없습니다.' });
+            return true;
+        }
+
         const bosses = await readBosses();
         const boss = bosses.find((item) => item.이름 === record.bossName || item.애칭 === record.bossName);
         if (!boss) {
@@ -697,14 +938,34 @@ async function handleApi(req, res, url) {
         }
 
         const nowIso = new Date().toISOString();
+        const previous = {
+            timeValue: record.timeValue,
+            cutAt: record.cutAt,
+            nextSpawnAt: record.nextSpawnAt || null
+        };
         record.timeValue = timeValue;
         record.cutAt = cutAt;
         record.nextSpawnAt = calcBossNextSpawnAt(boss, cutAt);
         record.updatedAt = nowIso;
         record.editedBy = actorName;
+        state.bossCutRecords = [record, ...(state.bossCutRecords || []).filter((item) => item.id !== record.id)]
+            .slice(0, MAX_BOSS_CUT_RECORDS);
 
         const cut = state.bossCuts?.[record.bossName];
         if (cut && cut.recordId === record.id) state.bossCuts[record.bossName] = bossCutStateFromRecord(record);
+        appendBossAuditLog('cut-update', {
+            bossName: record.bossName,
+            recordId: record.id,
+            actorName,
+            detail: {
+                previous,
+                next: {
+                    timeValue: record.timeValue,
+                    cutAt: record.cutAt,
+                    nextSpawnAt: record.nextSpawnAt || null
+                }
+            }
+        });
 
         await saveState();
         sendJson(res, 200, { cuts: publicBossCuts(), records: publicBossCutRecords() });
@@ -712,22 +973,52 @@ async function handleApi(req, res, url) {
     }
 
     if (url.pathname === '/api/boss-cuts/record' && req.method === 'DELETE') {
-        const recordId = cleanText(url.searchParams.get('recordId'), 80);
-        const actorName = cleanText(url.searchParams.get('actorName'), 24);
+        const body = await readJson(req);
+        const recordId = cleanText(body.recordId || url.searchParams.get('recordId'), 80);
+        const actorName = cleanText(body.actorName || url.searchParams.get('actorName'), 24);
+        const adminPassword = body.adminPassword;
 
         if (!state.members.includes(actorName)) {
             sendJson(res, 400, { error: '등록된 길드원만 컷 기록을 되돌릴 수 있습니다.' });
             return true;
         }
 
-        const recordIndex = (state.bossCutRecords || []).findIndex((item) => item.id === recordId);
-        if (recordIndex === -1) {
+        if (!verifyAdminPassword(adminPassword)) {
+            sendJson(res, 403, { error: '관리자 비밀번호가 맞지 않습니다.' });
+            return true;
+        }
+
+        const record = (state.bossCutRecords || []).find((item) => item.id === recordId);
+        if (!record) {
             sendJson(res, 404, { error: '컷 기록을 찾을 수 없습니다.' });
             return true;
         }
 
-        const [removed] = state.bossCutRecords.splice(recordIndex, 1);
-        if (state.bossCuts?.[removed.bossName]?.recordId === removed.id) refreshCurrentBossCut(removed.bossName);
+        if (record.status === 'canceled') {
+            sendJson(res, 409, { error: '이미 취소된 컷 기록입니다.' });
+            return true;
+        }
+
+        const nowIso = new Date().toISOString();
+        record.status = 'canceled';
+        record.canceledAt = nowIso;
+        record.canceledBy = actorName;
+        record.updatedAt = nowIso;
+        record.participationOpenUntil = null;
+        state.bossCutRecords = [record, ...(state.bossCutRecords || []).filter((item) => item.id !== record.id)]
+            .slice(0, MAX_BOSS_CUT_RECORDS);
+        refreshCurrentBossCut(record.bossName);
+        appendBossAuditLog('cut-cancel', {
+            bossName: record.bossName,
+            recordId: record.id,
+            actorName,
+            detail: {
+                timeValue: record.timeValue,
+                cutAt: record.cutAt,
+                nextSpawnAt: record.nextSpawnAt || null,
+                participants: Array.isArray(record.participants) ? record.participants.length : 0
+            }
+        });
 
         await saveState();
         sendJson(res, 200, { cuts: publicBossCuts(), records: publicBossCutRecords() });
@@ -735,14 +1026,47 @@ async function handleApi(req, res, url) {
     }
 
     if (url.pathname === '/api/boss-cuts' && req.method === 'DELETE') {
-        const bossName = cleanText(url.searchParams.get('bossName'), 40);
+        const body = await readJson(req);
+        const bossName = cleanText(body.bossName || url.searchParams.get('bossName'), 40);
+        const actorName = cleanText(body.actorName || url.searchParams.get('actorName'), 24);
         if (!bossName) {
             sendJson(res, 400, { error: '보스명을 확인하세요.' });
             return true;
         }
 
-        state.bossCuts = state.bossCuts || {};
-        delete state.bossCuts[bossName];
+        if (!state.members.includes(actorName)) {
+            sendJson(res, 400, { error: '등록된 길드원만 컷 기록을 취소할 수 있습니다.' });
+            return true;
+        }
+
+        if (!verifyAdminPassword(body.adminPassword)) {
+            sendJson(res, 403, { error: '관리자 비밀번호가 맞지 않습니다.' });
+            return true;
+        }
+
+        const record = (state.bossCutRecords || []).find((item) => item.bossName === bossName && item.status !== 'canceled');
+        if (record) {
+            const nowIso = new Date().toISOString();
+            record.status = 'canceled';
+            record.canceledAt = nowIso;
+            record.canceledBy = actorName;
+            record.updatedAt = nowIso;
+            record.participationOpenUntil = null;
+            state.bossCutRecords = [record, ...(state.bossCutRecords || []).filter((item) => item.id !== record.id)]
+                .slice(0, MAX_BOSS_CUT_RECORDS);
+            appendBossAuditLog('cut-cancel', {
+                bossName: record.bossName,
+                recordId: record.id,
+                actorName,
+                detail: {
+                    timeValue: record.timeValue,
+                    cutAt: record.cutAt,
+                    nextSpawnAt: record.nextSpawnAt || null,
+                    participants: Array.isArray(record.participants) ? record.participants.length : 0
+                }
+            });
+        }
+        refreshCurrentBossCut(bossName);
         await saveState();
         sendJson(res, 200, { cuts: publicBossCuts(), records: publicBossCutRecords() });
         return true;
@@ -762,6 +1086,11 @@ async function handleApi(req, res, url) {
         const record = (state.bossCutRecords || []).find((item) => item.id === recordId);
         if (!record) {
             sendJson(res, 404, { error: '컷 기록을 찾을 수 없습니다.' });
+            return true;
+        }
+
+        if (record.status === 'canceled') {
+            sendJson(res, 409, { error: '취소된 컷 기록에는 참여 확인할 수 없습니다.' });
             return true;
         }
 
@@ -792,6 +1121,16 @@ async function handleApi(req, res, url) {
                 memberName,
                 confirmedAt: new Date().toISOString(),
                 method: 'password'
+            });
+            appendBossAuditLog('participant-add', {
+                bossName: record.bossName,
+                recordId: record.id,
+                actorName: memberName,
+                detail: {
+                    participantName: memberName,
+                    timeValue: record.timeValue,
+                    cutAt: record.cutAt
+                }
             });
         }
 

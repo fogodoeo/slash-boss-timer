@@ -44,6 +44,7 @@ const participantModalDesc = document.querySelector('#participantModalDesc');
 const participantList = document.querySelector('#participantList');
 const participantCutDateInput = document.querySelector('#participantCutDateInput');
 const participantCutTimeInput = document.querySelector('#participantCutTimeInput');
+const participantAdminPasswordInput = document.querySelector('#participantAdminPasswordInput');
 const saveParticipantRecordButton = document.querySelector('#saveParticipantRecordButton');
 const deleteParticipantRecordButton = document.querySelector('#deleteParticipantRecordButton');
 const timelineItemTemplate = document.querySelector('#timelineItemTemplate');
@@ -57,14 +58,16 @@ const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
 const DAY_MS = 24 * 60 * 60 * 1000;
 const SPAWNED_KEEP_MS = 60 * 60 * 1000;
 const SOON_MS = 10 * 60 * 1000;
-let state = { now: new Date().toISOString(), members: [], bossCuts: {}, bossCutRecords: [] };
+let state = { now: new Date().toISOString(), members: [], bossCuts: {}, bossCutRecords: [], bossCutLocks: {} };
 let bosses = [];
 let selectedMember = localStorage.getItem(MEMBER_KEY) || '';
 let selectedFilter = 'all';
 let lastSyncAt = Date.now();
 let selectedCutBoss = null;
+let selectedCutLock = null;
 let selectedJoinRecord = null;
 let selectedParticipantRecord = null;
+let isSubmittingCut = false;
 const notifiedSpawnKeys = new Set();
 
 function pad2(value) {
@@ -175,11 +178,27 @@ function participationOpenMs(record) {
 }
 
 function isParticipationOpen(record, now = getNowMs()) {
-    return Boolean(record?.requiresParticipation && record?.hasParticipantPassword && participationOpenMs(record) > now);
+    return Boolean(record?.status !== 'canceled' && record?.requiresParticipation && record?.hasParticipantPassword && participationOpenMs(record) > now);
 }
 
 function participantNames(record) {
     return (record?.participants || []).map((item) => item.memberName).filter(Boolean);
+}
+
+function activeCutRecords() {
+    return (state.bossCutRecords || []).filter((record) => record.status !== 'canceled');
+}
+
+function bossLock(bossName) {
+    const lock = state.bossCutLocks?.[bossName];
+    if (!lock) return null;
+    const expiresMs = new Date(lock.expiresAt).getTime();
+    return Number.isFinite(expiresMs) && expiresMs > getNowMs() ? lock : null;
+}
+
+function isLockedByOther(bossName) {
+    const lock = bossLock(bossName);
+    return Boolean(lock && lock.memberName !== selectedMember);
 }
 
 function showToast(title, message = '', tone = 'success') {
@@ -300,7 +319,7 @@ function bossNeedsParticipation(boss) {
 }
 
 function latestRecordForBoss(boss) {
-    return (state.bossCutRecords || []).find((record) => record.bossName === boss.이름)
+    return activeCutRecords().find((record) => record.bossName === boss.이름)
         || (state.bossCuts?.[boss.이름] ? {
             id: state.bossCuts[boss.이름].recordId,
             bossName: boss.이름,
@@ -373,7 +392,7 @@ function buildTimeline() {
 
 function activeParticipationRecords() {
     const now = getNowMs();
-    return (state.bossCutRecords || [])
+    return activeCutRecords()
         .filter((record) => isParticipationOpen(record, now))
         .sort((a, b) => participationOpenMs(a) - participationOpenMs(b));
 }
@@ -484,7 +503,14 @@ function renderTimeline() {
         row.querySelector('.timelineBossName').textContent = item.boss.이름;
         row.querySelector('.timelineMeta').textContent = `${item.boss.애칭 || '-'} · ${item.boss.위치 || '-'}${latest?.requiresParticipation ? ' · 참여 확인' : ''}`;
         row.querySelector('.timelineRemain').textContent = formatRemain(item.spawnMs, now);
-        row.querySelector('.timelineCutButton').addEventListener('click', () => openCutModal(item.boss, item.spawnMs));
+        const cutButton = row.querySelector('.timelineCutButton');
+        const lock = bossLock(item.boss.이름);
+        if (lock && lock.memberName !== selectedMember) {
+            cutButton.disabled = true;
+            cutButton.textContent = '입력중';
+            row.querySelector('.timelineMeta').textContent += ` · ${lock.memberName}`;
+        }
+        cutButton.addEventListener('click', () => openCutModal(item.boss, item.spawnMs));
         bossTimeline.append(row);
     }
 }
@@ -540,6 +566,12 @@ function renderBosses() {
             : '';
 
         const cutButton = card.querySelector('.bossCutButton');
+        const lock = bossLock(boss.이름);
+        if (lock && lock.memberName !== selectedMember) {
+            cutButton.disabled = true;
+            cutButton.textContent = '입력중';
+            card.querySelector('.bossReporter').textContent = `${lock.memberName} 컷 입력 중`;
+        }
         cutButton.addEventListener('click', () => openCutModal(boss, Number.isFinite(nextMs) ? nextMs : getNowMs()));
 
         const joinButton = card.querySelector('.bossJoinButton');
@@ -564,16 +596,24 @@ function renderRecords() {
 
     for (const record of records) {
         const item = recordItemTemplate.content.firstElementChild.cloneNode(true);
-        item.querySelector('.recordTitle').textContent = `${record.bossName} · ${displayTimeValue(record.timeValue)}`;
-        item.querySelector('.recordMeta').textContent = `${record.reporterName || '-'} · 다음 ${record.nextSpawnAt ? formatKstDateTime(record.nextSpawnAt) : '-'}`;
+        const canceled = record.status === 'canceled';
+        item.classList.toggle('canceled', canceled);
+        item.querySelector('.recordTitle').textContent = canceled
+            ? `${record.bossName} · ${displayTimeValue(record.timeValue)} · 취소됨`
+            : `${record.bossName} · ${displayTimeValue(record.timeValue)}`;
+        item.querySelector('.recordMeta').textContent = canceled
+            ? `${record.canceledBy || '-'} 취소 · ${formatKstDateTime(record.canceledAt || record.updatedAt)}`
+            : `${record.reporterName || '-'} · 다음 ${record.nextSpawnAt ? formatKstDateTime(record.nextSpawnAt) : '-'}`;
         const open = isParticipationOpen(record, now);
-        item.querySelector('.recordParticipants').textContent = record.requiresParticipation
+        item.querySelector('.recordParticipants').textContent = canceled
+            ? `원 입력 ${record.reporterName || '-'} · 참여 ${record.participants?.length || 0}명`
+            : record.requiresParticipation
             ? `참여 ${record.participants?.length || 0}명${open ? ` · ${formatDuration(participationOpenMs(record) - now)}` : record.hasParticipantPassword ? ' · 마감' : ' · 비번 없음'}`
             : '참여 확인 없음';
         item.querySelector('.recordDetailButton').addEventListener('click', () => openParticipantModal(record));
         const button = item.querySelector('.recordJoinButton');
-        button.textContent = open ? '입력' : record.requiresParticipation ? '마감' : '-';
-        button.disabled = !open;
+        button.textContent = canceled ? '취소' : open ? '입력' : record.requiresParticipation ? '마감' : '-';
+        button.disabled = canceled || !open;
         button.addEventListener('click', () => openJoinModal(record));
         bossRecordList.append(item);
     }
@@ -589,8 +629,47 @@ function render() {
     updateNotifyButton();
 }
 
-function openCutModal(boss, defaultMs = null) {
-    if (!requireMember()) return;
+async function acquireCutLock(boss, defaultMs) {
+    const memberName = requireMember();
+    if (!memberName) return null;
+    const spawnAt = Number.isFinite(defaultMs) ? new Date(defaultMs).toISOString() : null;
+    const data = await api('/api/boss-cut-locks', {
+        method: 'POST',
+        body: JSON.stringify({
+            bossName: boss.이름,
+            memberName,
+            spawnAt
+        })
+    });
+    state.bossCutLocks = data.locks || {};
+    return data.lock || null;
+}
+
+function releaseSelectedCutLock() {
+    if (!selectedCutLock) return;
+    const lock = selectedCutLock;
+    selectedCutLock = null;
+    api(`/api/boss-cut-locks?bossName=${encodeURIComponent(lock.bossName)}&memberName=${encodeURIComponent(lock.memberName)}`, {
+        method: 'DELETE'
+    }).then((data) => {
+        state.bossCutLocks = data.locks || {};
+        render();
+    }).catch(() => {});
+}
+
+async function openCutModal(boss, defaultMs = null) {
+    const memberName = requireMember();
+    if (!memberName) return;
+    try {
+        const lock = await acquireCutLock(boss, defaultMs);
+        if (!lock) return;
+        selectedCutLock = { bossName: lock.bossName, memberName: lock.memberName };
+    } catch (err) {
+        showToast('컷 입력 대기', err.message, 'error');
+        fetchState(true).catch(() => {});
+        return;
+    }
+
     const cutMs = Number.isFinite(defaultMs) ? defaultMs : getNowMs();
     selectedCutBoss = boss;
     cutModalTitle.textContent = `${boss.이름} 컷 확인`;
@@ -604,8 +683,9 @@ function openCutModal(boss, defaultMs = null) {
     setTimeout(() => cutTimeInput.focus(), 30);
 }
 
-function closeCutModal() {
+function closeCutModal({ releaseLock = true } = {}) {
     selectedCutBoss = null;
+    if (releaseLock && !isSubmittingCut) releaseSelectedCutLock();
     cutModal.classList.add('hidden');
 }
 
@@ -637,10 +717,20 @@ function openParticipantModal(record) {
     selectedParticipantRecord = record;
     const names = participantNames(record);
     const cutMs = new Date(record.cutAt).getTime();
-    participantModalTitle.textContent = `${record.bossName} 컷 상세`;
-    participantModalDesc.textContent = `${formatKstDateTime(record.cutAt)} 컷 · 입력 ${record.reporterName || '-'} · 참여 ${names.length}명`;
+    const canceled = record.status === 'canceled';
+    participantModalTitle.textContent = canceled ? `${record.bossName} 취소 기록` : `${record.bossName} 컷 상세`;
+    participantModalDesc.textContent = canceled
+        ? `${formatKstDateTime(record.cutAt)} 컷 · ${record.canceledBy || '-'} 취소 · 참여 ${names.length}명`
+        : `${formatKstDateTime(record.cutAt)} 컷 · 입력 ${record.reporterName || '-'} · 참여 ${names.length}명`;
     participantCutDateInput.value = Number.isFinite(cutMs) ? dateInputValueFromMs(cutMs) : dateInputValueFromMs(getNowMs());
     participantCutTimeInput.value = Number.isFinite(cutMs) ? timeInputValueFromMs(cutMs) : displayTimeValue(record.timeValue).replace(':', '');
+    participantCutDateInput.disabled = canceled;
+    participantCutTimeInput.disabled = canceled;
+    participantAdminPasswordInput.value = '';
+    participantAdminPasswordInput.disabled = canceled;
+    saveParticipantRecordButton.disabled = canceled;
+    deleteParticipantRecordButton.disabled = canceled;
+    deleteParticipantRecordButton.textContent = canceled ? '취소됨' : '컷 취소';
     participantList.replaceChildren();
 
     if (names.length === 0) {
@@ -689,6 +779,7 @@ async function submitCut(event) {
         return;
     }
 
+    isSubmittingCut = true;
     try {
         const data = await api('/api/boss-cuts', {
             method: 'POST',
@@ -703,12 +794,16 @@ async function submitCut(event) {
         });
         state.bossCuts = data.cuts || {};
         state.bossCutRecords = data.records || [];
-        closeCutModal();
+        if (state.bossCutLocks) delete state.bossCutLocks[bossName];
+        selectedCutLock = null;
+        closeCutModal({ releaseLock: false });
         render();
         showToast('컷 저장됨', `.컷 ${bossName} ${timeValue}`);
     } catch (err) {
         showToast('컷 저장 실패', err.message, 'error');
         fetchState(true).catch(() => {});
+    } finally {
+        isSubmittingCut = false;
     }
 }
 
@@ -753,6 +848,10 @@ async function updateParticipantRecordTime() {
         showToast('컷 시간 확인', '날짜와 시간을 다시 확인하세요.', 'error');
         return;
     }
+    if (!participantAdminPasswordInput.value.trim()) {
+        showToast('관리자 확인', '관리자 비밀번호를 입력하세요.', 'error');
+        return;
+    }
 
     try {
         const recordId = selectedParticipantRecord.id;
@@ -762,7 +861,8 @@ async function updateParticipantRecordTime() {
                 recordId,
                 timeValue: normalized,
                 cutAt,
-                actorName: memberName
+                actorName: memberName,
+                adminPassword: participantAdminPasswordInput.value
             })
         });
         state.bossCuts = data.cuts || {};
@@ -777,24 +877,34 @@ async function updateParticipantRecordTime() {
     }
 }
 
-async function deleteParticipantRecord() {
+async function cancelParticipantRecord() {
     const memberName = requireMember();
     if (!memberName || !selectedParticipantRecord) return;
 
     const record = selectedParticipantRecord;
-    if (!confirm(`${record.bossName} ${formatKstDateTime(record.cutAt)} 컷 기록을 되돌릴까요?\n참여자 기록도 함께 사라집니다.`)) return;
+    if (!participantAdminPasswordInput.value.trim()) {
+        showToast('관리자 확인', '관리자 비밀번호를 입력하세요.', 'error');
+        return;
+    }
+    if (!confirm(`${record.bossName} ${formatKstDateTime(record.cutAt)} 컷 기록을 취소 처리할까요?\n기록은 최근 컷에 취소됨으로 남습니다.`)) return;
 
     try {
-        const data = await api(`/api/boss-cuts/record?recordId=${encodeURIComponent(record.id)}&actorName=${encodeURIComponent(memberName)}`, {
-            method: 'DELETE'
+        const data = await api('/api/boss-cuts/record', {
+            method: 'DELETE',
+            body: JSON.stringify({
+                recordId: record.id,
+                actorName: memberName,
+                adminPassword: participantAdminPasswordInput.value
+            })
         });
         state.bossCuts = data.cuts || {};
         state.bossCutRecords = data.records || [];
-        closeParticipantModal();
+        const canceled = state.bossCutRecords.find((item) => item.id === record.id);
         render();
-        showToast('컷 기록 되돌림', record.bossName);
+        if (canceled) openParticipantModal(canceled);
+        showToast('컷 기록 취소됨', record.bossName);
     } catch (err) {
-        showToast('컷 되돌리기 실패', err.message, 'error');
+        showToast('컷 취소 실패', err.message, 'error');
         fetchState(true).catch(() => {});
     }
 }
@@ -805,7 +915,8 @@ async function fetchState(shouldRender = true) {
         now: data.now || new Date().toISOString(),
         members: data.members || [],
         bossCuts: data.bossCuts || {},
-        bossCutRecords: data.bossCutRecords || []
+        bossCutRecords: data.bossCutRecords || [],
+        bossCutLocks: data.bossCutLocks || {}
     };
     lastSyncAt = Date.now();
     if (!state.members.includes(selectedMember)) setSelectedMember('');
@@ -859,7 +970,7 @@ participantCutTimeInput.addEventListener('input', () => {
     participantCutTimeInput.value = normalizeTimeInput(participantCutTimeInput.value);
 });
 saveParticipantRecordButton.addEventListener('click', updateParticipantRecordTime);
-deleteParticipantRecordButton.addEventListener('click', deleteParticipantRecord);
+deleteParticipantRecordButton.addEventListener('click', cancelParticipantRecord);
 
 setSelectedMember(selectedMember);
 updateNotifyButton();
