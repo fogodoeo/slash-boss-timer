@@ -333,8 +333,8 @@ h1 {
     grid-template-columns: minmax(0, 1fr) 168px 112px;
     gap: 10px;
     align-items: center;
-    min-height: 92px;
-    padding: 12px 14px 12px 16px;
+    min-height: 76px;
+    padding: 10px 14px 10px 16px;
     border-left: 4px solid var(--green);
 }
 
@@ -353,7 +353,6 @@ h1 {
 
 .zoneMain {
     display: grid;
-    gap: 5px;
     min-width: 0;
 }
 
@@ -399,20 +398,6 @@ h1 {
 .zoneMenuButton:focus-visible {
     outline: 2px solid rgba(20, 87, 217, 0.24);
     outline-offset: 2px;
-}
-
-.zoneMeta {
-    justify-self: start;
-    display: inline-flex;
-    align-items: center;
-    min-height: 22px;
-    border: 1px solid var(--line-soft);
-    border-radius: 999px;
-    background: var(--soft);
-    color: var(--text-soft);
-    padding: 0 8px;
-    font-size: 12px;
-    font-weight: 900;
 }
 
 .zoneStatus {
@@ -1593,13 +1578,12 @@ h1 {
         grid-template-columns: minmax(0, 1fr) 96px;
         gap: 6px 9px;
         min-height: 0;
-        padding: 10px 10px 10px 12px;
+        padding: 9px 10px 9px 12px;
         border-left-width: 3px;
     }
 
     .zoneMain {
-        gap: 4px;
-        align-self: end;
+        align-self: center;
     }
 
     .zoneName {
@@ -1611,12 +1595,6 @@ h1 {
         width: 24px;
         height: 24px;
         font-size: 19px;
-    }
-
-    .zoneMeta {
-        min-height: 20px;
-        padding: 0 7px;
-        font-size: 11px;
     }
 
     .zoneStatus {

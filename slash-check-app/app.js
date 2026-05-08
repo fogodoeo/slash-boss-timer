@@ -395,7 +395,6 @@ function renderZones() {
 
         card.classList.toggle('isLocked', locked);
         card.querySelector('.zoneName').textContent = zone.name;
-        card.querySelector('.zoneMeta').textContent = `${zone.cooldownMin}분`;
         const menuButton = card.querySelector('.zoneMenuButton');
         menuButton.setAttribute('aria-label', `${zone.name} 관리 메뉴`);
         menuButton.addEventListener('click', () => openZoneActionModal(zone));
