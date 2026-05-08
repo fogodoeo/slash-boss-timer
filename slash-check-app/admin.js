@@ -5,10 +5,50 @@ const zoneManageList = document.querySelector('#zoneManageList');
 const zoneSummary = document.querySelector('#zoneSummary');
 const memberSummary = document.querySelector('#memberSummary');
 const memberBulkInput = document.querySelector('#memberBulkInput');
-const saveMembersButton = document.querySelector('#saveMembersButton');
+const bulkSaveButton = document.querySelector('#bulkSaveButton');
+const changeSummary = document.querySelector('#changeSummary');
+const changeHint = document.querySelector('#changeHint');
+const changeReport = document.querySelector('#changeReport');
 const toastHost = document.querySelector('#toastHost');
 
 let state = { members: [], zones: [] };
+let baseline = { members: [], zones: [] };
+
+function cleanText(value, max = 40) {
+    return String(value || '').trim().replace(/\s+/g, ' ').slice(0, max);
+}
+
+function parseMembers(value) {
+    const seen = new Set();
+    const members = [];
+    const raw = String(value || '').split(/[\r\n,;]+/);
+
+    for (const item of raw) {
+        const name = cleanText(item, 24);
+        if (!name || seen.has(name)) continue;
+        seen.add(name);
+        members.push(name);
+    }
+
+    return members;
+}
+
+function normalizeCooldown(value) {
+    const num = Number(value);
+    if (!Number.isFinite(num)) return null;
+    return Math.max(1, Math.min(1440, Math.round(num)));
+}
+
+function cloneBaseline(data) {
+    return {
+        members: [...(data.members || [])],
+        zones: (data.zones || []).map((zone) => ({
+            id: zone.id,
+            name: zone.name,
+            cooldownMin: zone.cooldownMin
+        }))
+    };
+}
 
 function showToast(title, message = '', tone = 'success') {
     if (!toastHost) return;
@@ -60,9 +100,144 @@ async function api(path, options = {}) {
     return data;
 }
 
-async function fetchState() {
-    state = await api('/api/state');
+function applyState(data) {
+    state = data;
+    baseline = cloneBaseline(data);
     render();
+}
+
+async function fetchState() {
+    applyState(await api('/api/state'));
+}
+
+function formatList(names) {
+    const visible = names.slice(0, 8).join(', ');
+    const rest = names.length > 8 ? ` 외 ${names.length - 8}명` : '';
+    return `${visible}${rest}`;
+}
+
+function makeChange(title, detail) {
+    return { title, detail };
+}
+
+function getAdminDraft() {
+    const rows = [...zoneManageList.querySelectorAll('.zoneManageRow')];
+    const zoneUpdates = [];
+    const changes = [];
+    const errors = [];
+
+    for (const row of rows) {
+        const original = baseline.zones.find((zone) => zone.id === row.dataset.zoneId);
+        if (!original) continue;
+
+        const name = cleanText(row.querySelector('.manageName').value, 40);
+        const cooldownMin = normalizeCooldown(row.querySelector('.manageCooldown').value);
+        const rowChanges = [];
+
+        if (!name) errors.push(`${original.name} 구역명이 비어 있습니다.`);
+        if (!cooldownMin) errors.push(`${original.name} 쿨타임을 확인하세요.`);
+
+        if (name && name !== original.name) {
+            rowChanges.push(makeChange('구역명 변경', `${original.name} → ${name}`));
+        }
+
+        if (cooldownMin && cooldownMin !== original.cooldownMin) {
+            rowChanges.push(makeChange('쿨타임 변경', `${name || original.name}: ${original.cooldownMin}분 → ${cooldownMin}분`));
+        }
+
+        row.classList.toggle('isChanged', rowChanges.length > 0);
+        const status = row.querySelector('.manageStatus');
+        if (status) status.textContent = rowChanges.length > 0 ? '수정됨' : '기존';
+
+        if (rowChanges.length > 0 && name && cooldownMin) {
+            zoneUpdates.push({ id: original.id, name, cooldownMin });
+            changes.push(...rowChanges);
+        }
+    }
+
+    const members = parseMembers(memberBulkInput.value);
+    const previousMembers = baseline.members || [];
+    const oldSet = new Set(previousMembers);
+    const newSet = new Set(members);
+    const addedMembers = members.filter((name) => !oldSet.has(name));
+    const removedMembers = previousMembers.filter((name) => !newSet.has(name));
+    const sameMembers = addedMembers.length === 0 && removedMembers.length === 0;
+    const orderChanged = sameMembers && members.join('\n') !== previousMembers.join('\n');
+    const membersChanged = addedMembers.length > 0 || removedMembers.length > 0 || orderChanged;
+
+    if (members.length === 0) {
+        errors.push('길드원 목록을 확인하세요.');
+    }
+
+    if (addedMembers.length > 0) changes.push(makeChange('길드원 추가', formatList(addedMembers)));
+    if (removedMembers.length > 0) changes.push(makeChange('길드원 제거', formatList(removedMembers)));
+    if (orderChanged) changes.push(makeChange('길드원 순서 변경', '추천 목록 표시 순서가 변경됩니다.'));
+
+    return {
+        changes,
+        errors,
+        members,
+        membersChanged,
+        zoneUpdates
+    };
+}
+
+function renderChangeReport(items) {
+    changeReport.replaceChildren();
+
+    if (!items.length) {
+        changeReport.classList.add('hidden');
+        return;
+    }
+
+    const head = document.createElement('div');
+    head.className = 'changeReportHead';
+
+    const label = document.createElement('span');
+    label.className = 'label';
+    label.textContent = '방금 저장됨';
+
+    const title = document.createElement('strong');
+    title.textContent = `${items.length}개 변경사항`;
+
+    head.append(label, title);
+
+    const list = document.createElement('ul');
+    for (const item of items) {
+        const row = document.createElement('li');
+        const itemTitle = document.createElement('strong');
+        const itemDetail = document.createElement('span');
+
+        itemTitle.textContent = item.title;
+        itemDetail.textContent = item.detail;
+        row.append(itemTitle, itemDetail);
+        list.append(row);
+    }
+
+    changeReport.append(head, list);
+    changeReport.classList.remove('hidden');
+}
+
+function renderChangeState() {
+    const draft = getAdminDraft();
+
+    if (draft.errors.length > 0) {
+        changeSummary.textContent = '입력값 확인 필요';
+        changeHint.textContent = draft.errors[0];
+        bulkSaveButton.disabled = true;
+        return;
+    }
+
+    if (draft.changes.length === 0) {
+        changeSummary.textContent = '변경 없음';
+        changeHint.textContent = '구역명, 쿨타임, 길드원 목록을 수정한 뒤 일괄 저장하세요.';
+        bulkSaveButton.disabled = true;
+        return;
+    }
+
+    changeSummary.textContent = `${draft.changes.length}개 변경 대기`;
+    changeHint.textContent = draft.changes.slice(0, 2).map((item) => `${item.title}: ${item.detail}`).join(' / ');
+    bulkSaveButton.disabled = false;
 }
 
 function renderZones() {
@@ -77,6 +252,7 @@ function renderZones() {
     state.zones.forEach((zone) => {
         const row = document.createElement('div');
         row.className = 'zoneManageRow';
+        row.dataset.zoneId = zone.id;
 
         const nameInput = document.createElement('input');
         nameInput.className = 'manageName';
@@ -90,45 +266,24 @@ function renderZones() {
         cooldownInput.max = '1440';
         cooldownInput.value = zone.cooldownMin;
 
-        const saveButton = document.createElement('button');
-        saveButton.className = 'saveZone';
-        saveButton.type = 'button';
-        saveButton.textContent = '변경 저장';
+        const status = document.createElement('span');
+        status.className = 'manageStatus';
+        status.textContent = '기존';
 
         const deleteButton = document.createElement('button');
         deleteButton.className = 'deleteZone';
         deleteButton.type = 'button';
         deleteButton.textContent = '삭제';
 
-        row.append(nameInput, cooldownInput, saveButton, deleteButton);
-
-        saveButton.addEventListener('click', async () => {
-            try {
-                await withPending(saveButton, '저장 중', async () => {
-                    const nextName = nameInput.value.trim();
-                    const nextCooldown = Number(cooldownInput.value);
-                    state = await api('/api/zones', {
-                        method: 'PUT',
-                        body: JSON.stringify({
-                            id: zone.id,
-                            name: nextName,
-                            cooldownMin: nextCooldown
-                        })
-                    });
-                    render();
-                    showToast('구역 변경 저장됨', `${nextName} / ${nextCooldown}분`);
-                });
-            } catch (err) {
-                showToast('저장 실패', err.message, 'error');
-            }
-        });
+        row.append(nameInput, cooldownInput, status, deleteButton);
 
         deleteButton.addEventListener('click', async () => {
             if (!confirm(`${zone.name} 구역을 삭제할까요?`)) return;
             try {
                 await withPending(deleteButton, '삭제 중', async () => {
-                    state = await api(`/api/zones?id=${encodeURIComponent(zone.id)}`, { method: 'DELETE' });
-                    render();
+                    const data = await api(`/api/zones?id=${encodeURIComponent(zone.id)}`, { method: 'DELETE' });
+                    applyState(data);
+                    renderChangeReport([makeChange('구역 삭제', zone.name)]);
                     showToast('구역 삭제됨', zone.name);
                 });
             } catch (err) {
@@ -148,6 +303,7 @@ function renderMembers() {
 function render() {
     renderZones();
     renderMembers();
+    renderChangeState();
 }
 
 zoneForm.addEventListener('submit', async (event) => {
@@ -159,12 +315,13 @@ zoneForm.addEventListener('submit', async (event) => {
     try {
         const submitButton = zoneForm.querySelector('button[type="submit"]');
         await withPending(submitButton, '추가 중', async () => {
-            state = await api('/api/zones', {
+            const data = await api('/api/zones', {
                 method: 'POST',
                 body: JSON.stringify({ name, cooldownMin })
             });
             zoneNameInput.value = '';
-            render();
+            applyState(data);
+            renderChangeReport([makeChange('구역 추가', `${name} / ${cooldownMin}분`)]);
             showToast('구역 추가됨', `${name} / ${cooldownMin}분`);
         });
     } catch (err) {
@@ -172,19 +329,43 @@ zoneForm.addEventListener('submit', async (event) => {
     }
 });
 
-saveMembersButton.addEventListener('click', async () => {
+bulkSaveButton.addEventListener('click', async () => {
+    const draft = getAdminDraft();
+
+    if (draft.errors.length > 0) {
+        showToast('일괄 저장 불가', draft.errors[0], 'error');
+        return;
+    }
+
+    if (draft.changes.length === 0) {
+        showToast('변경 없음', '저장할 내용이 없습니다.');
+        return;
+    }
+
     try {
-        await withPending(saveMembersButton, '저장 중', async () => {
-            state = await api('/api/members', {
+        await withPending(bulkSaveButton, '저장 중', async () => {
+            const body = {
+                zones: draft.zoneUpdates
+            };
+            if (draft.membersChanged) body.members = draft.members;
+
+            const data = await api('/api/admin/bulk', {
                 method: 'POST',
-                body: JSON.stringify({ raw: memberBulkInput.value })
+                body: JSON.stringify(body)
             });
-            render();
-            showToast('길드원 목록 저장됨', `${state.members.length}명 반영`);
+
+            applyState(data);
+            renderChangeReport(draft.changes);
+            showToast('일괄 저장 완료', `${draft.changes.length}개 변경사항 반영`);
         });
     } catch (err) {
-        showToast('저장 실패', err.message, 'error');
+        showToast('일괄 저장 실패', err.message, 'error');
+    } finally {
+        renderChangeState();
     }
 });
+
+zoneManageList.addEventListener('input', renderChangeState);
+memberBulkInput.addEventListener('input', renderChangeState);
 
 fetchState().catch((err) => showToast('불러오기 실패', err.message, 'error'));

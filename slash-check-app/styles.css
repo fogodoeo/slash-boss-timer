@@ -62,7 +62,9 @@ button {
 
 .topbar,
 .panel,
-.zoneCard {
+.zoneCard,
+.adminSaveBar,
+.changeReport {
     border: 1px solid var(--line);
     border-radius: 8px;
     background: var(--panel);
@@ -80,7 +82,9 @@ button {
 
 .topbar > *,
 .panel,
-.zoneCard {
+.zoneCard,
+.adminSaveBar,
+.changeReport {
     min-width: 0;
 }
 
@@ -143,6 +147,7 @@ h1 {
 .profilePill button,
 .zoneForm button,
 #saveMembersButton,
+.adminSaveBar button,
 .saveZone {
     height: 32px;
     border: 1px solid var(--blue);
@@ -158,6 +163,7 @@ h1 {
 .profilePill button:hover,
 .zoneForm button:hover,
 #saveMembersButton:hover,
+.adminSaveBar button:hover:not(:disabled),
 .saveZone:hover {
     background: var(--blue-dark);
     border-color: var(--blue-dark);
@@ -165,6 +171,7 @@ h1 {
 
 .zoneForm button:disabled,
 #saveMembersButton:disabled,
+.adminSaveBar button:disabled,
 .saveZone:disabled,
 .deleteZone:disabled {
     cursor: wait;
@@ -871,9 +878,109 @@ h1 {
     line-height: 1.5;
 }
 
+.adminSaveBar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 14px;
+    padding: 14px 16px;
+}
+
+.adminSaveBar div {
+    display: grid;
+    gap: 4px;
+    min-width: 0;
+}
+
+.adminSaveBar strong {
+    color: var(--text);
+    font-size: 18px;
+    font-weight: 950;
+}
+
+.adminSaveBar p {
+    margin: 0;
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 1.45;
+}
+
+.adminSaveBar button {
+    min-width: 120px;
+    height: 40px;
+}
+
+.adminSaveBar button:disabled {
+    border-color: var(--line);
+    background: #e9edf4;
+    color: var(--muted);
+    cursor: default;
+}
+
+.changeReport {
+    display: grid;
+    gap: 10px;
+    margin: -4px 0 14px;
+    padding: 14px 16px;
+    border-left: 4px solid var(--green);
+}
+
+.changeReport.hidden {
+    display: none;
+}
+
+.changeReportHead {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.changeReportHead strong {
+    color: var(--green);
+    font-size: 14px;
+    font-weight: 950;
+}
+
+.changeReport ul {
+    display: grid;
+    gap: 6px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.changeReport li {
+    display: grid;
+    grid-template-columns: 104px minmax(0, 1fr);
+    gap: 10px;
+    align-items: start;
+    padding: 8px 10px;
+    border: 1px solid var(--line-soft);
+    border-radius: 6px;
+    background: var(--soft);
+}
+
+.changeReport li strong {
+    color: var(--text);
+    font-size: 12px;
+    font-weight: 950;
+}
+
+.changeReport li span {
+    min-width: 0;
+    color: var(--text-soft);
+    font-size: 12px;
+    font-weight: 750;
+    line-height: 1.45;
+    overflow-wrap: anywhere;
+}
+
 .zoneManageRow {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) 132px 96px 70px;
+    grid-template-columns: minmax(0, 1fr) 132px 74px 70px;
     gap: 8px;
     align-items: center;
     min-height: 54px;
@@ -881,6 +988,31 @@ h1 {
     border-radius: 8px;
     background: var(--soft);
     padding: 8px;
+}
+
+.zoneManageRow.isChanged {
+    border-color: rgba(20, 87, 217, 0.34);
+    background: #f5f9ff;
+}
+
+.manageStatus {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 28px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background: #ffffff;
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 950;
+    white-space: nowrap;
+}
+
+.zoneManageRow.isChanged .manageStatus {
+    border-color: rgba(20, 87, 217, 0.28);
+    background: var(--blue-soft);
+    color: var(--blue-dark);
 }
 
 .deleteZone {
@@ -900,6 +1032,14 @@ h1 {
     width: 100%;
     height: 40px;
     margin-top: 10px;
+}
+
+.memberSaveHint {
+    margin: 10px 0 0;
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 750;
+    line-height: 1.45;
 }
 
 .empty {
@@ -1299,6 +1439,26 @@ h1 {
     .rankingFilters,
     .zoneManageRow {
         grid-template-columns: 1fr;
+    }
+
+    .adminSaveBar,
+    .changeReportHead,
+    .changeReport li {
+        grid-template-columns: 1fr;
+    }
+
+    .adminSaveBar {
+        display: grid;
+        gap: 12px;
+    }
+
+    .adminSaveBar button {
+        width: 100%;
+    }
+
+    .changeReportHead {
+        display: grid;
+        gap: 4px;
     }
 
     .zoneList {

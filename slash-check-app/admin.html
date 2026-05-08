@@ -16,11 +16,22 @@
             </div>
             <nav class="navTabs" aria-label="페이지 이동">
                 <a href="./">체크</a>
-                <a href="./boss.html">보스</a>
                 <a href="./ranking.html">랭킹</a>
+                <a href="./boss.html">보스</a>
                 <a class="active" href="./admin.html">관리</a>
             </nav>
         </header>
+
+        <section class="adminSaveBar">
+            <div>
+                <span class="label">저장 대기</span>
+                <strong id="changeSummary">변경 없음</strong>
+                <p id="changeHint">구역명, 쿨타임, 길드원 목록을 수정한 뒤 일괄 저장하세요.</p>
+            </div>
+            <button id="bulkSaveButton" type="button" disabled>일괄 저장</button>
+        </section>
+
+        <section id="changeReport" class="changeReport hidden" aria-live="polite"></section>
 
         <section class="adminLayout">
             <section class="panel">
@@ -61,7 +72,7 @@
                     </div>
                 </div>
                 <textarea id="memberBulkInput" placeholder="N건강&#10;N하늘&#10;N라온"></textarea>
-                <button id="saveMembersButton" type="button">길드원 목록 저장</button>
+                <p class="memberSaveHint">이 목록도 상단의 일괄 저장 버튼으로 함께 저장됩니다.</p>
             </section>
         </section>
     </main>

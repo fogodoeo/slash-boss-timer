@@ -343,6 +343,57 @@ async function handleApi(req, res, url) {
         return true;
     }
 
+    if (url.pathname === '/api/admin/bulk' && req.method === 'POST') {
+        const body = await readJson(req);
+        const zoneUpdates = Array.isArray(body.zones) ? body.zones : [];
+        const hasMembers = Object.prototype.hasOwnProperty.call(body, 'members')
+            || Object.prototype.hasOwnProperty.call(body, 'raw');
+        const nextMembers = hasMembers ? parseMembers(body.members ?? body.raw) : null;
+        const preparedZones = [];
+
+        if (nextMembers && nextMembers.length === 0) {
+            sendJson(res, 400, { error: '길드원 목록이 비어 있습니다.' });
+            return true;
+        }
+
+        for (const item of zoneUpdates) {
+            const id = String(item.id || '');
+            const zone = state.zones.find((entry) => entry.id === id);
+            const name = cleanText(item.name, 40);
+            const cooldownMin = normalizeCooldown(item.cooldownMin);
+
+            if (!zone) {
+                sendJson(res, 404, { error: '구역을 찾을 수 없습니다.' });
+                return true;
+            }
+
+            if (!name || !cooldownMin) {
+                sendJson(res, 400, { error: '구역명과 쿨타임을 확인하세요.' });
+                return true;
+            }
+
+            preparedZones.push({ zone, name, cooldownMin });
+        }
+
+        for (const item of preparedZones) {
+            const oldName = item.zone.name;
+            item.zone.name = item.name;
+            item.zone.cooldownMin = item.cooldownMin;
+
+            if (oldName !== item.name) {
+                for (const log of state.logs) {
+                    if (log.zoneId === item.zone.id) log.zoneName = item.name;
+                }
+            }
+        }
+
+        if (nextMembers) state.members = nextMembers;
+
+        await saveState();
+        sendJson(res, 200, publicState());
+        return true;
+    }
+
     if (url.pathname === '/api/reservations' && req.method === 'POST') {
         const body = await readJson(req);
         const zone = state.zones.find((item) => item.id === body.zoneId);
