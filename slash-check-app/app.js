@@ -15,13 +15,13 @@ const zoneActionTitle = document.querySelector('#zoneActionTitle');
 const zoneActionDesc = document.querySelector('#zoneActionDesc');
 const resetZoneStateButton = document.querySelector('#resetZoneStateButton');
 const cancelLastCheckButton = document.querySelector('#cancelLastCheckButton');
-const openRouletteButton = document.querySelector('#openRouletteButton');
 const rouletteModal = document.querySelector('#rouletteModal');
 const closeRouletteButton = document.querySelector('#closeRouletteButton');
 const rouletteTrack = document.querySelector('#rouletteTrack');
 const rouletteResult = document.querySelector('#rouletteResult');
 const rouletteSpinButton = document.querySelector('#rouletteSpinButton');
 const rouletteReserveButton = document.querySelector('#rouletteReserveButton');
+const rouletteCardTemplate = document.querySelector('#rouletteCardTemplate');
 const toastHost = document.querySelector('#toastHost');
 
 const MEMBER_KEY = 'slashCheckMemberName';
@@ -528,12 +528,23 @@ async function reserveRouletteResult() {
     if (saved) closeRouletteModal();
 }
 
+function createRouletteCard() {
+    const card = rouletteCardTemplate.content.firstElementChild.cloneNode(true);
+    const button = card.querySelector('.rouletteCardButton');
+    button.addEventListener('click', openRouletteModal);
+    return card;
+}
+
 function renderZones() {
     const now = getNowMs();
     zoneList.replaceChildren();
+    zoneList.append(createRouletteCard());
 
     if (state.zones.length === 0) {
-        zoneList.innerHTML = '<div class="empty">아직 등록된 썰자 구역이 없습니다. 관리 페이지에서 구역을 추가하세요.</div>';
+        const empty = document.createElement('div');
+        empty.className = 'empty';
+        empty.textContent = '아직 등록된 썰자 구역이 없습니다. 관리 페이지에서 구역을 추가하세요.';
+        zoneList.append(empty);
         return;
     }
 
@@ -621,7 +632,6 @@ openProfileButton.addEventListener('click', openProfileModal);
 closeProfileButton.addEventListener('click', closeProfileModal);
 skipProfileButton.addEventListener('click', closeProfileModal);
 enableNotifyButton?.addEventListener('click', () => requestNotifications());
-openRouletteButton?.addEventListener('click', openRouletteModal);
 closeRouletteButton?.addEventListener('click', closeRouletteModal);
 rouletteSpinButton?.addEventListener('click', spinRoulette);
 rouletteReserveButton?.addEventListener('click', reserveRouletteResult);

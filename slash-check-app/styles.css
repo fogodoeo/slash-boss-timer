@@ -327,12 +327,6 @@ h1 {
     gap: 10px;
 }
 
-.rouletteBar {
-    display: grid;
-    place-items: center;
-    margin: -2px 0 10px;
-}
-
 .rouletteActions button {
     height: 34px;
     border: 1px solid var(--blue);
@@ -345,24 +339,6 @@ h1 {
     white-space: nowrap;
 }
 
-.rouletteBar button {
-    min-width: 86px;
-    height: 34px;
-    border: 1px solid var(--dark);
-    border-radius: 6px;
-    background: var(--dark);
-    color: #ffffff;
-    padding: 0 16px;
-    font-size: 13px;
-    font-weight: 950;
-    white-space: nowrap;
-}
-
-.rouletteBar button:hover {
-    background: #101828;
-    border-color: #101828;
-}
-
 .rouletteActions button:hover:not(:disabled) {
     border-color: var(--blue-dark);
     background: var(--blue-dark);
@@ -373,6 +349,62 @@ h1 {
     background: #e9edf4;
     color: var(--muted);
     cursor: not-allowed;
+}
+
+.rouletteCard {
+    position: relative;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 92px;
+    gap: 10px;
+    align-items: center;
+    min-height: 58px;
+    padding: 7px 10px 7px 14px;
+    border: 1px solid var(--line);
+    border-left: 4px solid var(--dark);
+    border-radius: 8px;
+    background: var(--panel);
+    box-shadow: var(--shadow);
+}
+
+.rouletteCardMain {
+    display: grid;
+    gap: 3px;
+    min-width: 0;
+}
+
+.rouletteCardName {
+    color: var(--text);
+    font-size: 19px;
+    font-weight: 950;
+    line-height: 1.18;
+}
+
+.rouletteCardDesc {
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 750;
+    line-height: 1.35;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.rouletteCardButton {
+    width: 100%;
+    height: 34px;
+    border: 1px solid var(--dark);
+    border-radius: 6px;
+    background: var(--dark);
+    color: #ffffff;
+    padding: 0 12px;
+    font-size: 13px;
+    font-weight: 950;
+    white-space: nowrap;
+}
+
+.rouletteCardButton:hover {
+    background: #101828;
+    border-color: #101828;
 }
 
 .zoneCard {
@@ -1933,22 +1965,35 @@ h1 {
         gap: 7px;
     }
 
-    .rouletteBar {
-        margin: -2px 0 8px;
-    }
-
-    .rouletteBar button {
-        min-width: 78px;
-        height: 32px;
-        padding: 0 14px;
-    }
-
     .zoneCard {
         grid-template-columns: minmax(0, 1fr) 156px;
         gap: 3px 8px;
         min-height: 0;
         padding: 7px 8px 7px 10px;
         border-left-width: 3px;
+    }
+
+    .rouletteCard {
+        grid-template-columns: minmax(0, 1fr) 78px;
+        gap: 3px 8px;
+        min-height: 0;
+        padding: 7px 8px 7px 10px;
+        border-left-width: 3px;
+    }
+
+    .rouletteCardName {
+        font-size: 18px;
+        line-height: 1.15;
+    }
+
+    .rouletteCardDesc {
+        font-size: 10.5px;
+    }
+
+    .rouletteCardButton {
+        height: 32px;
+        padding: 0 8px;
+        font-size: 13px;
     }
 
     .zoneCard:not(.hasMeta) {

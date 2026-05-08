@@ -28,12 +28,18 @@
             </div>
         </header>
 
-        <section class="rouletteBar" aria-label="예약 룰렛">
-            <button id="openRouletteButton" type="button">룰렛</button>
-        </section>
-
         <section id="zoneList" class="zoneList" aria-label="썰자 구역 목록"></section>
     </main>
+
+    <template id="rouletteCardTemplate">
+        <article class="rouletteCard">
+            <div class="rouletteCardMain">
+                <strong class="rouletteCardName">랜덤 썰자</strong>
+                <span class="rouletteCardDesc">예약 가능한 구역 중 하나를 뽑습니다</span>
+            </div>
+            <button class="rouletteCardButton" type="button">룰렛</button>
+        </article>
+    </template>
 
     <template id="zoneCardTemplate">
         <article class="zoneCard">
