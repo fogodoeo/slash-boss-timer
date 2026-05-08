@@ -111,6 +111,10 @@ function normalizeBossCuts(value) {
     return next;
 }
 
+function isCheckLog(log) {
+    return !log.action || log.action === 'check';
+}
+
 async function readBosses() {
     const raw = await fs.readFile(path.join(ROOT, 'bosses.json'), 'utf8');
     return JSON.parse(raw);
@@ -165,7 +169,7 @@ function restoreZoneAfterUndo(zone, removedLog) {
         return;
     }
 
-    const previousLog = state.logs.find((log) => log.zoneId === zone.id);
+    const previousLog = state.logs.find((log) => log.zoneId === zone.id && isCheckLog(log));
     if (!previousLog) {
         zone.cooldownUntil = null;
         zone.lastBy = null;
@@ -182,6 +186,20 @@ function restoreZoneAfterUndo(zone, removedLog) {
     zone.lastBy = previousLog.memberName || previousLog.checkedBy || null;
     zone.lastAt = previousLog.checkedAt || null;
     zone.reservations = [];
+}
+
+function appendEventLog({ action, zone, memberName, detail = {} }) {
+    state.logs.unshift({
+        id: randomUUID(),
+        action,
+        zoneId: zone.id,
+        zoneName: zone.name,
+        memberName,
+        checkedBy: memberName,
+        checkedAt: new Date().toISOString(),
+        ...detail
+    });
+    state.logs = state.logs.slice(0, 500);
 }
 
 function readBody(req) {
@@ -250,6 +268,8 @@ function buildRankings() {
     }
 
     for (const log of state.logs) {
+        if (!isCheckLog(log)) continue;
+
         const current = counts.get(log.memberName) || {
             memberName: log.memberName,
             count: 0,
@@ -524,6 +544,72 @@ async function handleApi(req, res, url) {
         return true;
     }
 
+    if (url.pathname === '/api/zones/reset-state' && req.method === 'POST') {
+        const body = await readJson(req);
+        const zone = state.zones.find((item) => item.id === body.zoneId);
+        const memberName = cleanText(body.memberName, 24);
+
+        if (!zone) {
+            sendJson(res, 404, { error: '구역을 찾을 수 없습니다.' });
+            return true;
+        }
+
+        if (!state.members.includes(memberName)) {
+            sendJson(res, 400, { error: '등록된 길드원만 초기화할 수 있습니다.' });
+            return true;
+        }
+
+        zone.cooldownUntil = null;
+        zone.lastBy = null;
+        zone.lastAt = null;
+        zone.reservations = [];
+
+        appendEventLog({ action: 'reset-state', zone, memberName });
+        await saveState();
+        sendJson(res, 200, { ...publicState(), action: 'reset-state' });
+        return true;
+    }
+
+    if (url.pathname === '/api/zones/cancel-last-check' && req.method === 'POST') {
+        const body = await readJson(req);
+        const zone = state.zones.find((item) => item.id === body.zoneId);
+        const memberName = cleanText(body.memberName, 24);
+
+        if (!zone) {
+            sendJson(res, 404, { error: '구역을 찾을 수 없습니다.' });
+            return true;
+        }
+
+        if (!state.members.includes(memberName)) {
+            sendJson(res, 400, { error: '등록된 길드원만 기록을 취소할 수 있습니다.' });
+            return true;
+        }
+
+        const logIndex = state.logs.findIndex((log) => log.zoneId === zone.id && isCheckLog(log));
+        if (logIndex === -1) {
+            sendJson(res, 404, { error: '취소할 완료 기록이 없습니다.' });
+            return true;
+        }
+
+        const [removedLog] = state.logs.splice(logIndex, 1);
+        if (zone.lastAt === removedLog.checkedAt && zone.lastBy === removedLog.memberName) {
+            restoreZoneAfterUndo(zone, removedLog);
+        }
+
+        appendEventLog({
+            action: 'cancel-last-check',
+            zone,
+            memberName,
+            detail: {
+                targetMemberName: removedLog.memberName,
+                targetCheckedAt: removedLog.checkedAt
+            }
+        });
+        await saveState();
+        sendJson(res, 200, { ...publicState(), action: 'cancel-last-check' });
+        return true;
+    }
+
     if (url.pathname === '/api/check' && req.method === 'POST') {
         const body = await readJson(req);
         const zone = state.zones.find((item) => item.id === body.zoneId);
@@ -588,6 +674,7 @@ async function handleApi(req, res, url) {
 
         state.logs.unshift({
             id: randomUUID(),
+            action: 'check',
             zoneId: zone.id,
             zoneName: zone.name,
             memberName,

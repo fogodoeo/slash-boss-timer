@@ -19,6 +19,16 @@ function formatTime(iso) {
     return `${pad2(date.getMonth() + 1)}.${pad2(date.getDate())} ${pad2(date.getHours())}:${pad2(date.getMinutes())}`;
 }
 
+function isCheckLog(log) {
+    return !log.action || log.action === 'check';
+}
+
+function actionLabel(log) {
+    if (log.action === 'reset-state') return '상태 초기화';
+    if (log.action === 'cancel-last-check') return `완료 기록 취소${log.targetMemberName ? ` · ${log.targetMemberName}` : ''}`;
+    return '완료';
+}
+
 function startOfToday() {
     const date = new Date();
     date.setHours(0, 0, 0, 0);
@@ -65,6 +75,8 @@ function buildRankings(logs) {
     const map = new Map();
 
     for (const log of logs) {
+        if (!isCheckLog(log)) continue;
+
         const current = map.get(log.memberName) || {
             memberName: log.memberName,
             count: 0,
@@ -107,8 +119,10 @@ function periodLabel() {
 function renderRankings() {
     rankingList.replaceChildren();
     const logs = filteredLogs();
+    const checkLogs = logs.filter(isCheckLog);
     const rankings = buildRankings(logs);
-    rankingSummary.textContent = `${periodLabel()} ${rankings.length}명 · ${logs.length}건`;
+    const actionCount = logs.length - checkLogs.length;
+    rankingSummary.textContent = `${periodLabel()} ${rankings.length}명 · 완료 ${checkLogs.length}건${actionCount ? ` · 관리 ${actionCount}건` : ''}`;
 
     if (rankings.length === 0) {
         rankingList.innerHTML = '<div class="empty small">조건에 맞는 랭킹 기록이 없습니다.</div>';
@@ -183,9 +197,13 @@ function renderLogs() {
         title.textContent = query ? log.zoneName : log.memberName;
 
         const meta = document.createElement('span');
-        meta.textContent = query
-            ? `${log.memberName} · 쿨타임 ${log.cooldownMin || '-'}분`
-            : `${log.zoneName} 완료`;
+        meta.textContent = isCheckLog(log)
+            ? query
+                ? `${log.memberName} · 쿨타임 ${log.cooldownMin || '-'}분`
+                : `${log.zoneName} 완료`
+            : query
+                ? `${log.memberName} · ${actionLabel(log)}`
+                : `${log.zoneName} · ${actionLabel(log)}`;
 
         main.append(title, meta);
         row.append(time, main);

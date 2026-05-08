@@ -349,8 +349,17 @@ h1 {
     min-width: 0;
 }
 
+.zoneTitleLine {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+}
+
 .zoneName {
     display: block;
+    min-width: 0;
+    flex: 1 1 auto;
     color: var(--text);
     font-size: 20px;
     font-weight: 950;
@@ -358,6 +367,25 @@ h1 {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+}
+
+.zoneMenuButton {
+    flex: 0 0 auto;
+    width: 30px;
+    height: 30px;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    background: #ffffff;
+    color: var(--text-soft);
+    font-size: 18px;
+    font-weight: 950;
+    line-height: 1;
+}
+
+.zoneMenuButton:hover {
+    border-color: var(--blue);
+    background: var(--blue-soft);
+    color: var(--blue-dark);
 }
 
 .zoneMeta {
@@ -1096,6 +1124,74 @@ h1 {
     box-shadow: var(--shadow-pop);
 }
 
+.zoneActionSheet {
+    position: relative;
+    width: min(420px, 100%);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: var(--panel);
+    box-shadow: var(--shadow-pop);
+    padding: 22px;
+}
+
+.zoneActionSheet h2 {
+    margin: 0 0 8px;
+    color: var(--text);
+    font-size: 22px;
+    font-weight: 950;
+}
+
+.zoneActionSheet p {
+    margin: 0 0 16px;
+    color: var(--muted);
+    line-height: 1.45;
+}
+
+.zoneActionList {
+    display: grid;
+    gap: 8px;
+}
+
+.zoneActionList button {
+    display: grid;
+    gap: 4px;
+    width: 100%;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: #ffffff;
+    padding: 12px;
+    text-align: left;
+}
+
+.zoneActionList button:hover {
+    border-color: var(--blue);
+    background: var(--blue-soft);
+}
+
+.zoneActionList button.danger {
+    border-color: #f0b7b1;
+}
+
+.zoneActionList button.danger:hover {
+    background: var(--red-soft);
+}
+
+.zoneActionList strong {
+    color: var(--text);
+    font-size: 14px;
+    font-weight: 950;
+}
+
+.zoneActionList span {
+    color: var(--muted);
+    font-size: 12px;
+    line-height: 1.45;
+}
+
+.zoneActionList button.danger strong {
+    color: var(--red);
+}
+
 .modalClose {
     position: absolute;
     top: 12px;
@@ -1498,6 +1594,11 @@ h1 {
         line-height: 1.15;
     }
 
+    .zoneMenuButton {
+        width: 28px;
+        height: 28px;
+    }
+
     .zoneMeta {
         min-height: 20px;
         padding: 0 7px;
@@ -1614,7 +1715,8 @@ h1 {
         padding: 0;
     }
 
-    .profileModal {
+    .profileModal,
+    .zoneActionSheet {
         width: 100%;
         max-width: none;
         border-right: 0;
@@ -1624,11 +1726,13 @@ h1 {
         padding: 20px 16px calc(18px + env(safe-area-inset-bottom));
     }
 
-    .profileModal h2 {
+    .profileModal h2,
+    .zoneActionSheet h2 {
         font-size: 20px;
     }
 
-    .profileModal p {
+    .profileModal p,
+    .zoneActionSheet p {
         margin-bottom: 14px;
         font-size: 13px;
         overflow-wrap: anywhere;

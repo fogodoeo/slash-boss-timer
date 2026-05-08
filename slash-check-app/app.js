@@ -9,6 +9,12 @@ const memberSearchInput = document.querySelector('#memberSearchInput');
 const memberSuggest = document.querySelector('#memberSuggest');
 const zoneCardTemplate = document.querySelector('#zoneCardTemplate');
 const enableNotifyButton = document.querySelector('#enableNotifyButton');
+const zoneActionModal = document.querySelector('#zoneActionModal');
+const closeZoneActionButton = document.querySelector('#closeZoneActionButton');
+const zoneActionTitle = document.querySelector('#zoneActionTitle');
+const zoneActionDesc = document.querySelector('#zoneActionDesc');
+const resetZoneStateButton = document.querySelector('#resetZoneStateButton');
+const cancelLastCheckButton = document.querySelector('#cancelLastCheckButton');
 const toastHost = document.querySelector('#toastHost');
 
 const MEMBER_KEY = 'slashCheckMemberName';
@@ -16,6 +22,7 @@ const CHECK_UNDO_GRACE_MS = 60 * 1000;
 let state = { now: new Date().toISOString(), members: [], zones: [], rankings: [], logs: [] };
 let selectedMember = localStorage.getItem(MEMBER_KEY) || '';
 let lastSyncAt = Date.now();
+let selectedActionZone = null;
 const notifiedReadyReservations = new Set();
 
 function pad2(value) {
@@ -185,6 +192,21 @@ function closeProfileModal() {
     profileModal.classList.add('hidden');
 }
 
+function openZoneActionModal(zone) {
+    const memberName = requireMember();
+    if (!memberName) return;
+
+    selectedActionZone = zone;
+    zoneActionTitle.textContent = zone.name;
+    zoneActionDesc.textContent = `${memberName} 이름으로 처리됩니다.`;
+    zoneActionModal.classList.remove('hidden');
+}
+
+function closeZoneActionModal() {
+    selectedActionZone = null;
+    zoneActionModal.classList.add('hidden');
+}
+
 function requireMember() {
     if (state.members.includes(selectedMember)) return selectedMember;
     openProfileModal();
@@ -236,6 +258,52 @@ async function toggleReservation(zone) {
         );
     } catch (err) {
         showToast('우선권 처리 실패', err.message, 'error');
+        fetchState(true).catch(() => {});
+    }
+}
+
+async function resetZoneState() {
+    const zone = selectedActionZone;
+    const memberName = requireMember();
+    if (!zone || !memberName) return;
+
+    if (!confirm(`${zone.name} 상태를 초기화할까요?\n랭킹 기록은 유지됩니다.`)) return;
+
+    try {
+        const data = await api('/api/zones/reset-state', {
+            method: 'POST',
+            body: JSON.stringify({ zoneId: zone.id, memberName })
+        });
+        state = data;
+        lastSyncAt = Date.now();
+        closeZoneActionModal();
+        render();
+        showToast('상태 초기화 완료', `${zone.name} 잠김과 우선권을 비웠습니다.`);
+    } catch (err) {
+        showToast('초기화 실패', err.message, 'error');
+        fetchState(true).catch(() => {});
+    }
+}
+
+async function cancelLastCheck() {
+    const zone = selectedActionZone;
+    const memberName = requireMember();
+    if (!zone || !memberName) return;
+
+    if (!confirm(`${zone.name}의 마지막 완료 기록을 취소할까요?\n랭킹 횟수도 차감됩니다.`)) return;
+
+    try {
+        const data = await api('/api/zones/cancel-last-check', {
+            method: 'POST',
+            body: JSON.stringify({ zoneId: zone.id, memberName })
+        });
+        state = data;
+        lastSyncAt = Date.now();
+        closeZoneActionModal();
+        render();
+        showToast('마지막 완료 기록 취소됨', `${zone.name} 랭킹 기록을 되돌렸습니다.`);
+    } catch (err) {
+        showToast('기록 취소 실패', err.message, 'error');
         fetchState(true).catch(() => {});
     }
 }
@@ -301,6 +369,9 @@ function renderZones() {
         card.classList.toggle('isLocked', locked);
         card.querySelector('.zoneName').textContent = zone.name;
         card.querySelector('.zoneMeta').textContent = `${zone.cooldownMin}분`;
+        const menuButton = card.querySelector('.zoneMenuButton');
+        menuButton.setAttribute('aria-label', `${zone.name} 관리 메뉴`);
+        menuButton.addEventListener('click', () => openZoneActionModal(zone));
         card.querySelector('.statusText').textContent = locked ? '대기' : '가능';
         card.querySelector('.lastText').textContent = zone.lastBy
             ? `최근 ${zone.lastBy} · ${formatTime(zone.lastAt)}`
@@ -374,10 +445,16 @@ openProfileButton.addEventListener('click', openProfileModal);
 closeProfileButton.addEventListener('click', closeProfileModal);
 skipProfileButton.addEventListener('click', closeProfileModal);
 enableNotifyButton?.addEventListener('click', () => requestNotifications());
+closeZoneActionButton.addEventListener('click', closeZoneActionModal);
+resetZoneStateButton.addEventListener('click', resetZoneState);
+cancelLastCheckButton.addEventListener('click', cancelLastCheck);
 memberSearchInput.addEventListener('input', renderMemberSuggest);
 profileForm.addEventListener('submit', (event) => event.preventDefault());
 profileModal.addEventListener('click', (event) => {
     if (event.target === profileModal) closeProfileModal();
+});
+zoneActionModal.addEventListener('click', (event) => {
+    if (event.target === zoneActionModal) closeZoneActionModal();
 });
 
 setSelectedMember(selectedMember);
