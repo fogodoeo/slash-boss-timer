@@ -354,7 +354,7 @@ h1 {
 .rouletteCard {
     position: relative;
     display: grid;
-    grid-template-columns: minmax(0, 1fr) 104px;
+    grid-template-columns: minmax(0, 1fr) 190px;
     gap: 10px;
     align-items: center;
     min-height: 58px;
@@ -392,7 +392,7 @@ h1 {
 .rouletteCardActions {
     display: flex;
     align-items: center;
-    justify-content: center;
+    justify-content: flex-end;
     gap: 7px;
     min-width: 0;
 }
