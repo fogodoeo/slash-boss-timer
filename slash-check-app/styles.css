@@ -779,6 +779,7 @@ h1 {
 }
 
 .bossAlias,
+.bossLocation,
 .bossMeta,
 .bossReporter {
     color: var(--muted);
@@ -4684,6 +4685,176 @@ body {
 
 .bossLivePanel[hidden] + .bossTimelinePanel {
     margin-top: 0;
+}
+
+.bossPage .bossTimeline {
+    gap: 6px;
+}
+
+.timelineDateDivider {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 2px 0 3px;
+    color: var(--text-soft);
+    font-size: 12px;
+    font-weight: 950;
+    letter-spacing: 0;
+}
+
+.timelineDateDivider::after {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background: var(--line-soft);
+}
+
+.timelineDateDivider.isNextDay {
+    margin-top: 16px;
+}
+
+.bossPage .timelineItem {
+    grid-template-columns: 62px minmax(0, 1fr) 92px 50px;
+    min-height: 48px;
+    padding: 8px 10px;
+}
+
+.bossPage .timelineMain {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+}
+
+.bossPage .timelineMain strong {
+    flex: 0 1 auto;
+    min-width: 0;
+}
+
+.bossPage .timelineMain span {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.bossPage .timelineItem.fixedBoss:not(.soon):not(.spawned),
+.bossPage .bossCard.fixedBoss:not(.soon):not(.spawned) {
+    border-left-color: #111827;
+    background: #f8fafc;
+}
+
+.bossPage .timelineItem.fixedBoss:not(.soon):not(.spawned) .timelineTime {
+    color: #111827;
+}
+
+.bossPage .bossList {
+    gap: 6px;
+}
+
+.bossPage .bossCard {
+    grid-template-columns: minmax(0, 1fr) minmax(128px, 178px) 104px;
+    gap: 8px;
+    min-height: 54px;
+    padding: 8px 10px;
+}
+
+.bossPage .bossCardMain,
+.bossPage .bossCardStatus {
+    gap: 2px;
+}
+
+.bossPage .bossCardTitle {
+    gap: 7px;
+}
+
+.bossPage .bossCardTitle .bossName {
+    min-width: 0;
+}
+
+.bossPage .bossLocation {
+    flex: 1 1 auto;
+    min-width: 0;
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 800;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.bossPage .bossTypeBadge {
+    padding: 2px 6px;
+    background: #111827;
+    color: #ffffff;
+    font-size: 10px;
+}
+
+.bossPage .bossTypeBadge[hidden],
+.bossPage .bossMeta[hidden],
+.bossPage .bossReporter[hidden] {
+    display: none;
+}
+
+.bossPage .bossCutText {
+    font-size: 13px;
+}
+
+.bossPage .bossCutButton,
+.bossPage .bossJoinButton {
+    height: 34px;
+}
+
+@media (max-width: 760px) {
+    .bossPage .timelineItem {
+        grid-template-columns: 48px minmax(0, 1fr) 54px 40px;
+        gap: 6px;
+        min-height: 44px;
+        padding: 7px 8px;
+    }
+
+    .bossPage .timelineDateDivider {
+        margin-top: 1px;
+        font-size: 11px;
+    }
+
+    .bossPage .timelineDateDivider.isNextDay {
+        margin-top: 14px;
+    }
+
+    .bossPage .timelineMain {
+        gap: 6px;
+    }
+
+    .bossPage .bossCard {
+        grid-template-columns: minmax(0, 1fr) 96px;
+        gap: 6px 8px;
+        min-height: 50px;
+        padding: 8px;
+    }
+
+    .bossPage .bossCardStatus {
+        grid-column: 1;
+        grid-row: 2;
+        padding-top: 0;
+        border-top: 0;
+    }
+
+    .bossPage .bossCardActions {
+        grid-column: 2;
+        grid-row: 1 / span 2;
+        align-self: center;
+        gap: 4px;
+    }
+
+    .bossPage .bossCutButton,
+    .bossPage .bossJoinButton {
+        height: 30px;
+        min-height: 30px;
+        padding: 0 5px;
+        font-size: 11px;
+    }
+
+    .bossPage .bossLocation {
+        font-size: 11px;
+    }
 }
 
 @media (max-width: 760px) {

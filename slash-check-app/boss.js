@@ -159,6 +159,26 @@ function formatKstDateTime(iso, { date = true } = {}) {
     return `${pad2(d.getUTCMonth() + 1)}.${pad2(d.getUTCDate())} ${time}`;
 }
 
+function kstDateKey(ms) {
+    const d = kstDate(ms);
+    return `${d.getUTCFullYear()}-${pad2(d.getUTCMonth() + 1)}-${pad2(d.getUTCDate())}`;
+}
+
+function formatTimelineDateLabel(ms, now = getNowMs()) {
+    const dayNames = ['일', '월', '화', '수', '목', '금', '토'];
+    const d = kstDate(ms);
+    const dayStart = startOfKstDay(ms);
+    const todayStart = startOfKstDay(now);
+    const dayDiff = Math.round((dayStart - todayStart) / DAY_MS);
+    const prefix = dayDiff === 0 ? '오늘' : dayDiff === 1 ? '내일' : dayDiff === -1 ? '어제' : '';
+    const dateText = `${pad2(d.getUTCMonth() + 1)}.${pad2(d.getUTCDate())} ${dayNames[d.getUTCDay()]}`;
+    return prefix ? `${prefix} · ${dateText}` : dateText;
+}
+
+function formatSpawnTimeForList(ms, now = getNowMs()) {
+    return formatKstDateTime(new Date(ms).toISOString(), { date: startOfKstDay(ms) !== startOfKstDay(now) });
+}
+
 function formatRemain(targetMs, now = getNowMs()) {
     const diff = targetMs - now;
     if (diff <= 0) return '젠됨';
@@ -510,21 +530,36 @@ function renderTimeline() {
         return;
     }
 
+    let previousDateKey = '';
+    let firstDateGroup = true;
+
     for (const item of timeline.slice(0, 40)) {
+        const dateKey = kstDateKey(item.spawnMs);
+        if (dateKey !== previousDateKey) {
+            const divider = document.createElement('div');
+            divider.className = 'timelineDateDivider';
+            if (!firstDateGroup) divider.classList.add('isNextDay');
+            divider.textContent = formatTimelineDateLabel(item.spawnMs, now);
+            bossTimeline.append(divider);
+            previousDateKey = dateKey;
+            firstDateGroup = false;
+        }
+
         const row = timelineItemTemplate.content.firstElementChild.cloneNode(true);
         const stateName = bossStateFromSpawn(item.spawnMs, now);
         const latest = item.record || latestRecordForBoss(item.boss);
-        row.classList.add(stateName);
+        row.classList.add(stateName, item.boss.타입 === '고정' ? 'fixedBoss' : 'timeBoss');
         row.querySelector('.timelineTime').textContent = formatKstDateTime(new Date(item.spawnMs).toISOString(), { date: false });
         row.querySelector('.timelineBossName').textContent = item.boss.이름;
-        row.querySelector('.timelineMeta').textContent = `${item.boss.애칭 || '-'} · ${item.boss.위치 || '-'}${latest?.requiresParticipation ? ' · 참여 확인' : ''}`;
+        const timelineMeta = row.querySelector('.timelineMeta');
+        timelineMeta.textContent = `${item.boss.위치 || '위치 미등록'}${latest?.requiresParticipation ? ' · 참여 확인' : ''}`;
         row.querySelector('.timelineRemain').textContent = formatRemain(item.spawnMs, now);
         const cutButton = row.querySelector('.timelineCutButton');
         const lock = bossLock(item.boss.이름);
         if (lock && lock.memberName !== selectedMember) {
             cutButton.disabled = true;
             cutButton.textContent = '입력중';
-            row.querySelector('.timelineMeta').textContent += ` · ${lock.memberName}`;
+            timelineMeta.textContent += ` · ${lock.memberName}`;
         }
         cutButton.addEventListener('click', () => openCutModal(item.boss, item.spawnMs));
         bossTimeline.append(row);
@@ -564,33 +599,41 @@ function renderBosses() {
         const nextMs = bossNextSpawnMs(boss);
         const spawnState = bossStateFromSpawn(nextMs, now);
         const card = bossCardTemplate.content.firstElementChild.cloneNode(true);
-        card.classList.add(spawnState);
+        card.classList.add(spawnState, boss.타입 === '고정' ? 'fixedBoss' : 'timeBoss');
 
         card.querySelector('.bossName').textContent = boss.이름;
-        card.querySelector('.bossTypeBadge').textContent = boss.타입;
-        card.querySelector('.bossAlias').textContent = `${boss.애칭 || '-'} · ${boss.위치 || '-'}`;
+        card.querySelector('.bossLocation').textContent = boss.위치 || '위치 미등록';
+        const typeBadge = card.querySelector('.bossTypeBadge');
+        typeBadge.textContent = boss.타입 === '고정' ? '고정' : '';
+        typeBadge.hidden = boss.타입 !== '고정';
         card.querySelector('.bossCutText').textContent = nextMs
-            ? `${formatKstDateTime(new Date(nextMs).toISOString(), { date: false })} · ${formatRemain(nextMs, now)}`
+            ? `${formatSpawnTimeForList(nextMs, now)} · ${formatRemain(nextMs, now)}`
             : boss.타입 === '시간' ? '컷 대기' : '일정 없음';
-        card.querySelector('.bossMeta').textContent = record?.cutAt
+        const metaText = record?.cutAt
             ? `최근 컷 ${formatKstDateTime(record.cutAt)}`
             : boss.타입 === '시간'
-                ? `쿨 ${Math.floor(Number(boss.쿨타임 || 0))}시간`
+                ? ''
                 : `${(boss.요일 || []).join(', ')} ${boss.시간 || ''}`;
+        const metaEl = card.querySelector('.bossMeta');
+        metaEl.textContent = metaText;
+        metaEl.hidden = !metaText;
         const participationOpen = isParticipationOpen(record, now);
         const participationText = record?.requiresParticipation
             ? ` · 참여 ${record.participants?.length || 0}명${participationOpen ? ` · ${formatDuration(participationOpenMs(record) - now)}` : record.hasParticipantPassword ? ' · 마감' : ' · 비번 없음'}`
             : '';
-        card.querySelector('.bossReporter').textContent = record?.reporterName
+        const reporterEl = card.querySelector('.bossReporter');
+        reporterEl.textContent = record?.reporterName
             ? `컷 ${record.reporterName}${participationText}`
             : '';
+        reporterEl.hidden = !reporterEl.textContent;
 
         const cutButton = card.querySelector('.bossCutButton');
         const lock = bossLock(boss.이름);
         if (lock && lock.memberName !== selectedMember) {
             cutButton.disabled = true;
             cutButton.textContent = '입력중';
-            card.querySelector('.bossReporter').textContent = `${lock.memberName} 컷 입력 중`;
+            reporterEl.textContent = `${lock.memberName} 컷 입력 중`;
+            reporterEl.hidden = false;
         }
         cutButton.addEventListener('click', () => openCutModal(boss, Number.isFinite(nextMs) ? nextMs : getNowMs()));
 
