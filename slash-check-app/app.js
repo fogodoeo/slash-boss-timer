@@ -40,12 +40,22 @@ function pad2(value) {
     return String(value).padStart(2, '0');
 }
 
-function formatTime(iso) {
+function formatKstDateTime(iso) {
     if (!iso) return '-';
     const ms = new Date(iso).getTime();
     if (!Number.isFinite(ms)) return '-';
     const date = new Date(ms + KST_OFFSET_MS);
-    return `${pad2(date.getUTCHours())}:${pad2(date.getUTCMinutes())}`;
+    return `${pad2(date.getUTCMonth() + 1)}.${pad2(date.getUTCDate())} ${pad2(date.getUTCHours())}:${pad2(date.getUTCMinutes())}`;
+}
+
+function formatRecentTime(iso, now = getNowMs()) {
+    const ms = new Date(iso).getTime();
+    if (!Number.isFinite(ms)) return '-';
+
+    const elapsedMin = Math.max(0, Math.floor((now - ms) / 60000));
+    if (elapsedMin < 1) return '방금 전';
+    if (elapsedMin < 60) return `${elapsedMin}분 전`;
+    return `${Math.floor(elapsedMin / 60)}시간 전`;
 }
 
 function formatRemain(ms) {
@@ -562,8 +572,12 @@ function renderZones() {
         const menuButton = card.querySelector('.zoneMenuButton');
         menuButton.setAttribute('aria-label', `${zone.name} 관리 메뉴`);
         menuButton.addEventListener('click', () => openZoneActionModal(zone));
-        card.querySelector('.lastText').textContent = zone.lastBy
-            ? `최근 ${zone.lastBy} · ${formatTime(zone.lastAt)}`
+        const lastText = card.querySelector('.lastText');
+        lastText.textContent = zone.lastBy
+            ? `최근 ${zone.lastBy} · ${formatRecentTime(zone.lastAt, now)}`
+            : '';
+        lastText.title = zone.lastBy
+            ? `최근 ${zone.lastBy} · ${formatKstDateTime(zone.lastAt)}`
             : '';
         const reservations = getActiveReservations(zone, now);
         const activeReservation = reservations[0];
