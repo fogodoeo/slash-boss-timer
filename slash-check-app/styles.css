@@ -5134,6 +5134,29 @@ body {
     cursor: pointer;
 }
 
+.bossPage .bossRecordList {
+    gap: 4px;
+}
+
+.bossPage .bossRecordItem {
+    border-left: 0;
+    padding: 8px 10px;
+}
+
+.bossPage .bossRecordItem.compactRecord {
+    grid-template-columns: minmax(0, 1fr) 30px;
+    min-height: 42px;
+    padding: 8px 10px;
+}
+
+.bossPage .bossRecordItem.compactRecord .recordActions {
+    grid-template-columns: 30px;
+}
+
+.bossPage .bossRecordItem.canceled {
+    border-left: 0;
+}
+
 .bossPage .timelineItem.fixedBoss:not(.soon):not(.spawned) {
     background: #ffffff;
 }
