@@ -399,6 +399,17 @@ function showToast(title, message = '', tone = 'success') {
     });
 }
 
+function setNotifyButton(button, text, state, disabled = false) {
+    if (!button) return;
+    const textEl = button.querySelector('.notifyText');
+    if (textEl) textEl.textContent = text;
+    else button.textContent = text;
+    button.dataset.notifyState = state;
+    button.disabled = disabled;
+    button.title = text;
+    button.setAttribute('aria-label', text);
+}
+
 function cacheAdminPassword(value) {
     cachedAdminPassword = String(value || '');
     if (cachedAdminPassword) localStorage.setItem(ADMIN_PASSWORD_KEY, cachedAdminPassword);
@@ -760,22 +771,18 @@ function maybeNotifyTimeline(items) {
 function updateNotifyButton() {
     if (!enableBossNotifyButton) return;
     if (!('Notification' in window)) {
-        enableBossNotifyButton.textContent = '알림 미지원';
-        enableBossNotifyButton.disabled = true;
+        setNotifyButton(enableBossNotifyButton, '알림 미지원', 'unsupported', true);
         return;
     }
     if (Notification.permission === 'granted') {
-        enableBossNotifyButton.textContent = '알림 테스트';
-        enableBossNotifyButton.disabled = false;
+        setNotifyButton(enableBossNotifyButton, '알림 테스트', 'granted');
         return;
     }
     if (Notification.permission === 'denied') {
-        enableBossNotifyButton.textContent = '알림 차단';
-        enableBossNotifyButton.disabled = true;
+        setNotifyButton(enableBossNotifyButton, '알림 차단', 'denied', true);
         return;
     }
-    enableBossNotifyButton.textContent = '알림 켜기';
-    enableBossNotifyButton.disabled = false;
+    setNotifyButton(enableBossNotifyButton, '알림 켜기', 'default');
 }
 
 async function requestNotifications() {

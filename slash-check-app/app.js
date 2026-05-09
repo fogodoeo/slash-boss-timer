@@ -136,29 +136,36 @@ function showToast(title, message = '', tone = 'success') {
     });
 }
 
+function setNotifyButton(button, text, state, disabled = false) {
+    if (!button) return;
+    const textEl = button.querySelector('.notifyText');
+    if (textEl) textEl.textContent = text;
+    else button.textContent = text;
+    button.dataset.notifyState = state;
+    button.disabled = disabled;
+    button.title = text;
+    button.setAttribute('aria-label', text);
+}
+
 function updateNotifyButton() {
     if (!enableNotifyButton) return;
 
     if (!('Notification' in window)) {
-        enableNotifyButton.textContent = '알림 미지원';
-        enableNotifyButton.disabled = true;
+        setNotifyButton(enableNotifyButton, '알림 미지원', 'unsupported', true);
         return;
     }
 
     if (Notification.permission === 'granted') {
-        enableNotifyButton.textContent = '알림 켜짐';
-        enableNotifyButton.disabled = true;
+        setNotifyButton(enableNotifyButton, '알림 켜짐', 'granted');
         return;
     }
 
     if (Notification.permission === 'denied') {
-        enableNotifyButton.textContent = '알림 차단됨';
-        enableNotifyButton.disabled = true;
+        setNotifyButton(enableNotifyButton, '알림 차단됨', 'denied', true);
         return;
     }
 
-    enableNotifyButton.textContent = '알림 켜기';
-    enableNotifyButton.disabled = false;
+    setNotifyButton(enableNotifyButton, '알림 켜기', 'default');
 }
 
 async function requestNotifications({ quiet = false } = {}) {
@@ -168,7 +175,11 @@ async function requestNotifications({ quiet = false } = {}) {
         return false;
     }
 
-    if (Notification.permission === 'granted') return true;
+    if (Notification.permission === 'granted') {
+        if (!quiet) showToast('알림 켜짐', '예약한 구역이 가능해지면 알려드릴게요.');
+        updateNotifyButton();
+        return true;
+    }
 
     if (Notification.permission === 'denied') {
         if (!quiet) showToast('알림이 차단됨', '브라우저 설정에서 알림을 허용해야 합니다.');

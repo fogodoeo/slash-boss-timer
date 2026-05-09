@@ -3671,6 +3671,129 @@ body {
     color: var(--blue);
 }
 
+.topbarActions {
+    justify-self: end;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+    min-width: 0;
+    max-width: 100%;
+}
+
+.memberChip {
+    display: grid;
+    gap: 2px;
+    min-width: 176px;
+    max-width: 230px;
+    min-height: 42px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: #ffffff;
+    color: var(--text);
+    padding: 6px 13px;
+    text-align: left;
+    box-shadow: 0 1px 1px rgba(15, 23, 42, 0.03);
+}
+
+.memberChip:hover {
+    border-color: #bcd0ff;
+    background: #fbfdff;
+}
+
+.memberChip .profileLabel {
+    margin: 0;
+    font-size: 11px;
+    line-height: 1;
+}
+
+.memberChip #selectedMemberLabel {
+    display: block;
+    min-width: 0;
+    overflow: hidden;
+    color: var(--text);
+    font-size: 14px;
+    font-weight: 950;
+    line-height: 1.1;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.notifyIconButton {
+    position: relative;
+    display: grid;
+    place-items: center;
+    flex: 0 0 auto;
+    width: 42px;
+    height: 42px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: #ffffff;
+    color: var(--text-soft);
+    box-shadow: 0 1px 1px rgba(15, 23, 42, 0.03);
+}
+
+.notifyIconButton svg {
+    width: 23px;
+    height: 23px;
+    fill: currentColor;
+}
+
+.notifyIconButton:hover:not(:disabled) {
+    border-color: #bcd0ff;
+    background: var(--blue-soft);
+    color: var(--blue);
+}
+
+.notifyIconButton:disabled {
+    cursor: default;
+    opacity: 0.68;
+}
+
+.notifyIconButton[data-notify-state="granted"] {
+    border-color: rgba(22, 138, 91, 0.28);
+    background: var(--green-soft);
+    color: var(--green);
+}
+
+.notifyIconButton[data-notify-state="denied"] {
+    border-color: rgba(212, 63, 50, 0.26);
+    background: var(--red-soft);
+    color: var(--red);
+}
+
+.notifyDot {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    width: 7px;
+    height: 7px;
+    border: 2px solid #ffffff;
+    border-radius: 999px;
+    background: var(--faint);
+}
+
+.notifyIconButton[data-notify-state="granted"] .notifyDot {
+    background: var(--green);
+}
+
+.notifyIconButton[data-notify-state="default"] .notifyDot {
+    background: var(--blue);
+}
+
+.notifyIconButton[data-notify-state="denied"] .notifyDot {
+    background: var(--red);
+}
+
+.notifyText {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+}
+
 .changeProfileButton,
 .ghostButton,
 .adminButton,
@@ -5672,5 +5795,86 @@ body {
         width: 92px !important;
         min-width: 92px !important;
         font-size: 10.5px;
+    }
+}
+
+@media (max-width: 1180px) {
+    .topbar {
+        grid-template-columns: minmax(0, 1fr) auto;
+        align-items: start;
+    }
+
+    .topbar > div:first-child {
+        grid-column: 1;
+        min-width: 0;
+    }
+
+    .navTabs {
+        grid-column: 1 / -1;
+        grid-row: 2;
+    }
+
+    .topbarActions {
+        grid-column: 2;
+        grid-row: 1;
+        align-self: start;
+        justify-self: end;
+        width: auto;
+    }
+
+    .memberChip {
+        width: 220px;
+        min-width: 0;
+    }
+}
+
+@media (max-width: 760px) {
+    .topbar {
+        grid-template-columns: minmax(0, 1fr) auto;
+        align-items: start;
+    }
+
+    .topbar > div:first-child {
+        grid-column: 1;
+        min-width: 0;
+    }
+
+    .topbarActions {
+        grid-column: 2;
+        grid-row: 1;
+        align-self: start;
+        justify-self: end;
+        width: auto;
+        gap: 6px;
+    }
+
+    .memberChip {
+        width: min(44vw, 172px);
+        min-height: 38px;
+        padding: 6px 10px;
+    }
+
+    .memberChip .profileLabel {
+        font-size: 10.5px;
+    }
+
+    .memberChip #selectedMemberLabel {
+        font-size: 13px;
+    }
+
+    .notifyIconButton {
+        width: 38px;
+        height: 38px;
+        border-radius: 9px;
+    }
+
+    .notifyIconButton svg {
+        width: 22px;
+        height: 22px;
+    }
+
+    .notifyDot {
+        top: 7px;
+        right: 7px;
     }
 }
