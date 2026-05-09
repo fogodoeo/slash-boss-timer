@@ -5900,7 +5900,7 @@ body {
 
 @media (max-width: 760px) {
     .topbar {
-        grid-template-columns: minmax(0, 1fr) auto;
+        grid-template-columns: minmax(0, 1fr);
         align-items: start;
     }
 
@@ -5910,29 +5910,40 @@ body {
     }
 
     .topbarActions {
-        grid-column: 2;
-        grid-row: 1;
+        grid-column: 1;
+        grid-row: 2;
         align-self: start;
-        justify-self: end;
-        width: auto;
+        justify-self: stretch;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 52px;
+        width: 100%;
         gap: 6px;
     }
 
-    .memberChip {
-        width: min(44vw, 172px);
+    .topbarActions #openProfileButton.memberChip {
+        grid-column: auto !important;
+        width: 100% !important;
+        max-width: none !important;
+        min-width: 0 !important;
+        display: flex;
+        align-items: center;
         min-height: 38px;
-        padding: 6px 10px;
+        padding: 0 12px !important;
     }
 
     .memberChip .profileLabel {
-        font-size: 10.5px;
+        display: none !important;
     }
 
     .memberChip #selectedMemberLabel {
-        font-size: 13px;
+        grid-column: auto !important;
+        flex: 1 1 auto;
+        font-size: 14px;
+        line-height: 1;
     }
 
     .notifyIconButton {
+        grid-column: auto;
         width: 52px;
         height: 38px;
         border-radius: 9px;
