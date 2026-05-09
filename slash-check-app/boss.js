@@ -7,9 +7,11 @@ const bossTimeline = document.querySelector('#bossTimeline');
 const bossAlertBanner = document.querySelector('#bossAlertBanner');
 const bossAlertTitle = document.querySelector('#bossAlertTitle');
 const bossAlertMeta = document.querySelector('#bossAlertMeta');
+const bossMainPanel = document.querySelector('.bossMainPanel');
 const bossSummary = document.querySelector('#bossSummary');
 const bossList = document.querySelector('#bossList');
 const bossSearchInput = document.querySelector('#bossSearchInput');
+const toggleBossListButton = document.querySelector('#toggleBossListButton');
 const filterButtons = [...document.querySelectorAll('[data-filter]')];
 const recordSummary = document.querySelector('#recordSummary');
 const bossRecordList = document.querySelector('#bossRecordList');
@@ -49,7 +51,8 @@ const participantCutDateInput = document.querySelector('#participantCutDateInput
 const participantCutTimeInput = document.querySelector('#participantCutTimeInput');
 const participantAdminPasswordInput = document.querySelector('#participantAdminPasswordInput');
 const participantCancelReasonInput = document.querySelector('#participantCancelReasonInput');
-const participantAddMemberSelect = document.querySelector('#participantAddMemberSelect');
+const participantAddMemberInput = document.querySelector('#participantAddMemberInput');
+const participantAddMemberSuggest = document.querySelector('#participantAddMemberSuggest');
 const participantAddAdminPasswordInput = document.querySelector('#participantAddAdminPasswordInput');
 const addParticipantButton = document.querySelector('#addParticipantButton');
 const saveParticipantRecordButton = document.querySelector('#saveParticipantRecordButton');
@@ -62,6 +65,8 @@ const toastHost = document.querySelector('#toastHost');
 const resetTimeBossButton = document.querySelector('#resetTimeBossButton');
 
 const MEMBER_KEY = 'slashCheckMemberName';
+const ADMIN_PASSWORD_KEY = 'slashCheckAdminPassword';
+const BOSS_LIST_OPEN_KEY = 'slashBossListOpen';
 const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
 const DAY_MS = 24 * 60 * 60 * 1000;
 const SPAWNED_KEEP_MS = 60 * 60 * 1000;
@@ -78,6 +83,11 @@ let selectedCutLock = null;
 let selectedJoinRecord = null;
 let selectedParticipantRecord = null;
 let isSubmittingCut = false;
+let cachedAdminPassword = localStorage.getItem(ADMIN_PASSWORD_KEY) || '';
+let bossListOpen = localStorage.getItem(BOSS_LIST_OPEN_KEY) === '1';
+let participantAddCandidates = [];
+let selectedParticipantAddMember = '';
+let bossAlarmAudioContext = null;
 let titleAlertTimer = null;
 let titleAlertKey = '';
 let titleAlertFlip = false;
@@ -151,6 +161,29 @@ function isoFromDateTimeInputs(dateValue, timeValue) {
     }
 
     return new Date(ms).toISOString();
+}
+
+function setDateTimeInputs(dateInput, timeInput, ms) {
+    dateInput.value = dateInputValueFromMs(ms);
+    timeInput.value = timeInputValueFromMs(ms);
+}
+
+function stepDateTimeInputs(dateInput, timeInput, minutes) {
+    const iso = isoFromDateTimeInputs(dateInput.value, timeInput.value);
+    const baseMs = iso ? new Date(iso).getTime() : getNowMs();
+    setDateTimeInputs(dateInput, timeInput, baseMs + minutes * 60000);
+}
+
+function attachMinuteStepper(timeInput, dateInput) {
+    timeInput.addEventListener('input', () => {
+        timeInput.value = normalizeTimeInput(timeInput.value);
+    });
+    timeInput.addEventListener('keydown', (event) => {
+        if (event.key !== 'ArrowUp' && event.key !== 'ArrowDown') return;
+        event.preventDefault();
+        const step = event.shiftKey ? 10 : 1;
+        stepDateTimeInputs(dateInput, timeInput, event.key === 'ArrowUp' ? step : -step);
+    });
 }
 
 function displayTimeValue(value) {
@@ -260,6 +293,66 @@ function showToast(title, message = '', tone = 'success') {
         toast.classList.remove('show');
         setTimeout(() => toast.remove(), 180);
     }, 3600);
+}
+
+function cacheAdminPassword(value) {
+    cachedAdminPassword = String(value || '');
+    if (cachedAdminPassword) localStorage.setItem(ADMIN_PASSWORD_KEY, cachedAdminPassword);
+    else localStorage.removeItem(ADMIN_PASSWORD_KEY);
+}
+
+function fillAdminPasswordInputs() {
+    if (participantAdminPasswordInput && !participantAdminPasswordInput.value) {
+        participantAdminPasswordInput.value = cachedAdminPassword;
+    }
+    if (participantAddAdminPasswordInput && !participantAddAdminPasswordInput.value) {
+        participantAddAdminPasswordInput.value = cachedAdminPassword;
+    }
+}
+
+function syncBossListPanel() {
+    bossMainPanel?.classList.toggle('isCollapsed', !bossListOpen);
+    if (toggleBossListButton) {
+        toggleBossListButton.textContent = bossListOpen ? '목록 접기' : '목록 열기';
+        toggleBossListButton.setAttribute('aria-expanded', String(bossListOpen));
+    }
+}
+
+function setBossListOpen(open) {
+    bossListOpen = Boolean(open);
+    localStorage.setItem(BOSS_LIST_OPEN_KEY, bossListOpen ? '1' : '0');
+    syncBossListPanel();
+    renderBosses();
+}
+
+function unlockBossAlarmAudio() {
+    const AudioContextCtor = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContextCtor) return;
+    if (!bossAlarmAudioContext) bossAlarmAudioContext = new AudioContextCtor();
+    bossAlarmAudioContext.resume?.().catch(() => {});
+}
+
+function playBossAlarm() {
+    try {
+        unlockBossAlarmAudio();
+        if (!bossAlarmAudioContext) return;
+        const startAt = bossAlarmAudioContext.currentTime + 0.02;
+        [0, 0.16, 0.32].forEach((offset) => {
+            const oscillator = bossAlarmAudioContext.createOscillator();
+            const gain = bossAlarmAudioContext.createGain();
+            oscillator.type = 'sine';
+            oscillator.frequency.setValueAtTime(880, startAt + offset);
+            gain.gain.setValueAtTime(0.0001, startAt + offset);
+            gain.gain.exponentialRampToValueAtTime(0.12, startAt + offset + 0.015);
+            gain.gain.exponentialRampToValueAtTime(0.0001, startAt + offset + 0.11);
+            oscillator.connect(gain);
+            gain.connect(bossAlarmAudioContext.destination);
+            oscillator.start(startAt + offset);
+            oscillator.stop(startAt + offset + 0.12);
+        });
+    } catch (err) {
+        // 브라우저 정책상 소리가 막히면 배너/탭/시스템 알림만 유지합니다.
+    }
 }
 
 async function api(path, options = {}) {
@@ -508,10 +601,12 @@ function updateBossAlertBanner(items, now = getNowMs()) {
 
     if (!item) {
         bossAlertBanner?.classList.add('hidden');
+        document.body.classList.remove('hasBossAlert');
         stopTitleAlert();
         return;
     }
 
+    document.body.classList.add('hasBossAlert');
     bossAlertBanner?.classList.remove('hidden');
     if (bossAlertTitle) bossAlertTitle.textContent = `${item.boss.이름} ${formatRemain(item.spawnMs, now)}`;
     if (bossAlertMeta) {
@@ -532,6 +627,8 @@ function maybeNotifyTimeline(items) {
             body: `${formatKstDateTime(new Date(item.spawnMs).toISOString(), { date: false })} 젠 예정 · ${formatRemain(item.spawnMs, now)}`,
             tag: `boss-${key}`
         });
+        playBossAlarm();
+        navigator.vibrate?.([180, 70, 180]);
     }
 }
 
@@ -543,8 +640,8 @@ function updateNotifyButton() {
         return;
     }
     if (Notification.permission === 'granted') {
-        enableBossNotifyButton.textContent = '알림 켜짐';
-        enableBossNotifyButton.disabled = true;
+        enableBossNotifyButton.textContent = '알림 테스트';
+        enableBossNotifyButton.disabled = false;
         return;
     }
     if (Notification.permission === 'denied') {
@@ -558,9 +655,11 @@ function updateNotifyButton() {
 
 async function requestNotifications() {
     if (!('Notification' in window)) return;
+    unlockBossAlarmAudio();
     const permission = await Notification.requestPermission();
     updateNotifyButton();
-    showToast(permission === 'granted' ? '알림 켜짐' : '알림 미설정', permission === 'granted' ? '곧 젠 보스를 알려드릴게요.' : '브라우저 알림은 꺼진 상태입니다.', permission === 'granted' ? 'success' : 'error');
+    if (permission === 'granted') playBossAlarm();
+    showToast(permission === 'granted' ? '알림 켜짐' : '알림 미설정', permission === 'granted' ? '5분 전 배너, 탭 깜빡임, 브라우저 알림을 같이 사용합니다.' : '브라우저 알림은 꺼진 상태입니다.', permission === 'granted' ? 'success' : 'error');
 }
 
 function renderOverview(timeline) {
@@ -599,6 +698,7 @@ function renderLiveParticipation() {
 function renderTimeline() {
     const timeline = buildTimeline();
     const now = getNowMs();
+    const activeAlertKeys = new Set(alertItems(timeline, now).map((item) => `${item.boss.이름}:${item.spawnMs}`));
     renderOverview(timeline);
     updateBossAlertBanner(timeline, now);
     maybeNotifyTimeline(timeline);
@@ -632,22 +732,20 @@ function renderTimeline() {
         const stateName = bossStateFromSpawn(item.spawnMs, now);
         const latest = item.record || latestRecordForBoss(item.boss);
         row.classList.add(stateName, item.boss.타입 === '고정' ? 'fixedBoss' : 'timeBoss');
+        row.classList.toggle('alertTarget', activeAlertKeys.has(`${item.boss.이름}:${item.spawnMs}`));
         row.querySelector('.timelineTime').textContent = formatKstDateTime(new Date(item.spawnMs).toISOString(), { date: false });
         row.querySelector('.timelineBossName').textContent = item.boss.이름;
         const timelineMeta = row.querySelector('.timelineMeta');
         timelineMeta.textContent = `${item.boss.위치 || '위치 미등록'}${latest?.requiresParticipation ? ' · 참여 확인' : ''}`;
         row.querySelector('.timelineRemain').textContent = formatRemain(item.spawnMs, now);
-        const cutButton = row.querySelector('.timelineCutButton');
         const lock = bossLock(item.boss.이름);
         if (lock && lock.memberName !== selectedMember) {
-            cutButton.disabled = true;
-            cutButton.textContent = '입력중';
+            row.classList.add('locked');
             timelineMeta.textContent += ` · ${lock.memberName}`;
         }
-        cutButton.addEventListener('click', () => openCutModal(item.boss, item.spawnMs));
         row.addEventListener('click', (event) => {
             if (isBossCardControl(event.target)) return;
-            if (latest?.id) openParticipantModal(latest);
+            if (lock && lock.memberName !== selectedMember) showToast('컷 입력 중', `${lock.memberName} 님이 먼저 열었습니다.`, 'error');
             else openCutModal(item.boss, item.spawnMs);
         });
         bossTimeline.append(row);
@@ -675,7 +773,10 @@ function renderBosses() {
     });
 
     bossSummary.textContent = `${visible.length}개 / 전체 ${bosses.length}개`;
+    syncBossListPanel();
     bossList.replaceChildren();
+
+    if (!bossListOpen) return;
 
     if (visible.length === 0) {
         bossList.innerHTML = '<div class="empty small">조건에 맞는 보스가 없습니다.</div>';
@@ -887,7 +988,7 @@ function openParticipantModal(record) {
     participantCutTimeInput.value = Number.isFinite(cutMs) ? timeInputValueFromMs(cutMs) : displayTimeValue(record.timeValue).replace(':', '');
     participantCutDateInput.disabled = canceled;
     participantCutTimeInput.disabled = canceled;
-    participantAdminPasswordInput.value = '';
+    participantAdminPasswordInput.value = cachedAdminPassword;
     participantAdminPasswordInput.disabled = canceled;
     participantCancelReasonInput.value = reason;
     participantCancelReasonInput.disabled = canceled;
@@ -895,10 +996,11 @@ function openParticipantModal(record) {
     deleteParticipantRecordButton.disabled = canceled;
     deleteParticipantRecordButton.textContent = canceled ? '취소됨' : '컷 취소';
     const addableCount = renderParticipantAddOptions(record);
-    participantAddAdminPasswordInput.value = '';
-    participantAddMemberSelect.disabled = canceled || addableCount === 0;
+    participantAddAdminPasswordInput.value = cachedAdminPassword;
+    participantAddMemberInput.disabled = canceled || addableCount === 0;
     participantAddAdminPasswordInput.disabled = canceled || addableCount === 0;
     addParticipantButton.disabled = canceled || addableCount === 0;
+    fillAdminPasswordInputs();
     participantList.replaceChildren();
 
     if (names.length === 0) {
@@ -920,26 +1022,75 @@ function openParticipantModal(record) {
 }
 
 function renderParticipantAddOptions(record) {
-    participantAddMemberSelect.replaceChildren();
+    participantAddCandidates = [];
+    selectedParticipantAddMember = '';
+    participantAddMemberInput.value = '';
+    participantAddMemberSuggest.replaceChildren();
     const existing = new Set(participantNames(record));
-    const candidates = state.members.filter((member) => !existing.has(member));
+    participantAddCandidates = state.members.filter((member) => !existing.has(member));
 
-    if (candidates.length === 0) {
-        const option = document.createElement('option');
-        option.value = '';
-        option.textContent = '추가할 길드원 없음';
-        participantAddMemberSelect.append(option);
+    if (participantAddCandidates.length === 0) {
+        participantAddMemberSuggest.innerHTML = '<div class="suggestHint">추가할 길드원이 없습니다.</div>';
         return 0;
     }
 
-    for (const member of candidates) {
-        const option = document.createElement('option');
-        option.value = member;
-        option.textContent = member;
-        participantAddMemberSelect.append(option);
+    renderParticipantAddSuggest();
+    return participantAddCandidates.length;
+}
+
+function participantAddMatches() {
+    const query = cleanName(participantAddMemberInput.value).toLowerCase();
+    const source = participantAddCandidates.length ? participantAddCandidates : state.members;
+    if (!query) return source.slice(0, 8);
+    return source
+        .filter((member) => member.toLowerCase().includes(query))
+        .sort((a, b) => {
+            const aName = a.toLowerCase();
+            const bName = b.toLowerCase();
+            return aName.indexOf(query) - bName.indexOf(query) || a.localeCompare(b, 'ko');
+        })
+        .slice(0, 8);
+}
+
+function renderParticipantAddSuggest() {
+    participantAddMemberSuggest.replaceChildren();
+    if (!selectedParticipantRecord) return;
+    if (participantAddCandidates.length === 0) {
+        participantAddMemberSuggest.innerHTML = '<div class="suggestHint">추가할 길드원이 없습니다.</div>';
+        return;
     }
 
-    return candidates.length;
+    const matches = participantAddMatches();
+    if (matches.length === 0) {
+        participantAddMemberSuggest.innerHTML = '<div class="suggestHint">일치하는 길드원이 없습니다.</div>';
+        selectedParticipantAddMember = '';
+        return;
+    }
+
+    for (const member of matches) {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'suggestItem';
+        button.textContent = member;
+        button.addEventListener('click', () => {
+            selectedParticipantAddMember = member;
+            participantAddMemberInput.value = member;
+            renderParticipantAddSuggest();
+        });
+        participantAddMemberSuggest.append(button);
+    }
+}
+
+function resolveParticipantAddMember() {
+    const typed = cleanName(participantAddMemberInput.value);
+    if (selectedParticipantAddMember && participantAddCandidates.includes(selectedParticipantAddMember)) {
+        return selectedParticipantAddMember;
+    }
+    const exact = participantAddCandidates.find((member) => member === typed)
+        || participantAddCandidates.find((member) => member.toLowerCase() === typed.toLowerCase());
+    if (exact) return exact;
+    const matches = participantAddMatches();
+    return matches.length === 1 ? matches[0] : '';
 }
 
 function closeParticipantModal() {
@@ -1043,6 +1194,7 @@ async function updateParticipantRecordTime() {
         showToast('관리자 확인', '관리자 비밀번호를 입력하세요.', 'error');
         return;
     }
+    cacheAdminPassword(participantAdminPasswordInput.value.trim());
 
     try {
         const recordId = selectedParticipantRecord.id;
@@ -1101,15 +1253,16 @@ async function addParticipantManually() {
     if (!actorName || !selectedParticipantRecord) return;
 
     const record = selectedParticipantRecord;
-    const memberName = participantAddMemberSelect.value;
+    const memberName = resolveParticipantAddMember();
     if (!memberName) {
-        showToast('참여자 선택 필요', '추가할 길드원을 선택하세요.', 'error');
+        showToast('참여자 선택 필요', '추천 목록에서 길드원을 선택하세요.', 'error');
         return;
     }
     if (!participantAddAdminPasswordInput.value.trim()) {
         showToast('관리자 확인', '관리자 비밀번호를 입력하세요.', 'error');
         return;
     }
+    cacheAdminPassword(participantAddAdminPasswordInput.value.trim());
 
     try {
         const data = await api('/api/boss-cuts/participants/admin', {
@@ -1155,9 +1308,10 @@ async function loadBosses() {
 
 async function resetTimeBossSpawns() {
     const actorName = selectedMember || '';
-    const adminPassword = prompt('시간보스 전체를 지금 즉시 젠된 상태로 초기화합니다.\n관리자 비밀번호를 입력하세요.');
+    const adminPassword = prompt('시간보스 전체를 지금 즉시 젠된 상태로 초기화합니다.\n관리자 비밀번호를 입력하세요.', cachedAdminPassword);
     if (!adminPassword) return;
     if (!confirm('모든 시간보스의 다음 젠을 지금 시각으로 맞출까요? 최근 컷 기록은 삭제하지 않습니다.')) return;
+    cacheAdminPassword(adminPassword.trim());
 
     try {
         if (resetTimeBossButton) {
@@ -1194,6 +1348,7 @@ filterButtons.forEach((button) => {
     });
 });
 bossSearchInput.addEventListener('input', renderBosses);
+toggleBossListButton?.addEventListener('click', () => setBossListOpen(!bossListOpen));
 resetTimeBossButton?.addEventListener('click', resetTimeBossSpawns);
 enableBossNotifyButton?.addEventListener('click', requestNotifications);
 openProfileButton.addEventListener('click', openProfileModal);
@@ -1209,9 +1364,7 @@ closeCutModalButton.addEventListener('click', closeCutModal);
 cutModal.addEventListener('click', (event) => {
     if (event.target === cutModal) closeCutModal();
 });
-cutTimeInput.addEventListener('input', () => {
-    cutTimeInput.value = normalizeTimeInput(cutTimeInput.value);
-});
+attachMinuteStepper(cutTimeInput, cutDateInput);
 requiresParticipationInput.addEventListener('change', () => {
     participantPasswordField.classList.toggle('hiddenField', !requiresParticipationInput.checked);
     if (!requiresParticipationInput.checked) participantPasswordInput.value = '';
@@ -1225,13 +1378,19 @@ closeParticipantModalButton.addEventListener('click', closeParticipantModal);
 participantModal.addEventListener('click', (event) => {
     if (event.target === participantModal) closeParticipantModal();
 });
-participantCutTimeInput.addEventListener('input', () => {
-    participantCutTimeInput.value = normalizeTimeInput(participantCutTimeInput.value);
+attachMinuteStepper(participantCutTimeInput, participantCutDateInput);
+participantAdminPasswordInput.addEventListener('input', () => cacheAdminPassword(participantAdminPasswordInput.value));
+participantAddAdminPasswordInput.addEventListener('input', () => cacheAdminPassword(participantAddAdminPasswordInput.value));
+participantAddMemberInput.addEventListener('input', () => {
+    selectedParticipantAddMember = '';
+    renderParticipantAddSuggest();
 });
+participantAddMemberInput.addEventListener('focus', renderParticipantAddSuggest);
 saveParticipantRecordButton.addEventListener('click', updateParticipantRecordTime);
 deleteParticipantRecordButton.addEventListener('click', cancelParticipantRecord);
 addParticipantButton.addEventListener('click', addParticipantManually);
 
+syncBossListPanel();
 setSelectedMember(selectedMember);
 updateNotifyButton();
 loadBosses().then(() => {

@@ -90,12 +90,13 @@
                     <div id="bossTimeline" class="bossTimeline"></div>
                 </section>
 
-                <section class="panel bossMainPanel">
+                <section class="panel bossMainPanel isCollapsed">
                     <div class="bossToolbar">
                         <div>
                             <span class="label">보스 목록</span>
                             <strong id="bossSummary">0개</strong>
                         </div>
+                        <button id="toggleBossListButton" class="copyCommandButton subtle bossListToggle" type="button" aria-expanded="false">목록 열기</button>
                         <label class="bossSearch">
                             <span>검색</span>
                             <input id="bossSearchInput" type="search" placeholder="보스명, 애칭, 위치">
@@ -133,7 +134,6 @@
                 <span class="timelineMeta"></span>
             </div>
             <span class="timelineRemain"></span>
-            <button class="timelineCutButton" type="button">컷</button>
         </article>
     </template>
 
@@ -197,6 +197,7 @@
                 <label>
                     <span>컷 시간</span>
                     <input id="cutTimeInput" type="text" inputmode="numeric" maxlength="5" placeholder="1820">
+                    <small class="fieldHint">↑↓ 1분, Shift+↑↓ 10분</small>
                 </label>
             </div>
             <label class="bossCheckLine">
@@ -244,6 +245,7 @@
                     <label>
                         <span>컷 시간</span>
                         <input id="participantCutTimeInput" type="text" inputmode="numeric" maxlength="5" placeholder="1820">
+                        <small class="fieldHint">↑↓ 1분, Shift+↑↓ 10분</small>
                     </label>
                 </div>
                 <label>
@@ -272,7 +274,8 @@
                 </div>
                 <label>
                     <span>길드원</span>
-                    <select id="participantAddMemberSelect"></select>
+                    <input id="participantAddMemberInput" type="text" autocomplete="off" placeholder="닉네임 일부 입력">
+                    <div id="participantAddMemberSuggest" class="memberSuggest compact"></div>
                 </label>
                 <label>
                     <span>관리자 비밀번호</span>

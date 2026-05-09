@@ -4689,15 +4689,44 @@ body {
 
 .bossAlertBanner {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-columns: 10px minmax(0, 1fr) auto;
     align-items: center;
     gap: 12px;
+    position: relative;
+    overflow: hidden;
     border: 1px solid #fecaca;
     border-left: 4px solid var(--red);
     border-radius: 10px;
     background: linear-gradient(90deg, var(--red-soft), #ffffff 52%);
     padding: 11px 14px;
     box-shadow: 0 8px 18px rgba(217, 45, 32, 0.08);
+}
+
+.bossAlertBanner::before {
+    content: "";
+    width: 8px;
+    height: 8px;
+    border-radius: 999px;
+    background: var(--red);
+    box-shadow: 0 0 0 0 rgba(217, 45, 32, 0.4);
+    animation: bossAlertPulse 1.15s infinite;
+}
+
+.hasBossAlert .bossAlertBanner {
+    border-color: #fca5a5;
+    box-shadow: 0 10px 24px rgba(217, 45, 32, 0.14);
+}
+
+@keyframes bossAlertPulse {
+    0% {
+        box-shadow: 0 0 0 0 rgba(217, 45, 32, 0.4);
+    }
+    70% {
+        box-shadow: 0 0 0 8px rgba(217, 45, 32, 0);
+    }
+    100% {
+        box-shadow: 0 0 0 0 rgba(217, 45, 32, 0);
+    }
 }
 
 .bossAlertBanner.hidden {
@@ -4789,6 +4818,29 @@ body {
     gap: 6px;
 }
 
+.bossPage .bossToolbar {
+    grid-template-columns: minmax(0, 1fr) auto minmax(200px, 280px);
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 10px;
+}
+
+.bossListToggle {
+    height: 34px;
+    min-width: 84px;
+    padding: 0 12px;
+}
+
+.bossMainPanel.isCollapsed .bossToolbar {
+    margin-bottom: 0;
+}
+
+.bossMainPanel.isCollapsed .bossSearch,
+.bossMainPanel.isCollapsed .bossFilters,
+.bossMainPanel.isCollapsed .bossList {
+    display: none;
+}
+
 .timelineDateDivider {
     display: flex;
     align-items: center;
@@ -4812,10 +4864,27 @@ body {
 }
 
 .bossPage .timelineItem {
-    grid-template-columns: 62px minmax(0, 1fr) 92px 50px;
-    min-height: 48px;
-    padding: 8px 10px;
+    grid-template-columns: 58px minmax(0, 1fr) 78px;
+    min-height: 40px;
+    padding: 6px 9px;
     cursor: pointer;
+}
+
+.bossPage .timelineItem:hover {
+    border-color: #c7d2fe;
+    background: #ffffff;
+}
+
+.bossPage .timelineItem.locked {
+    background: #f1f5f9;
+    color: var(--muted);
+}
+
+.bossPage .timelineItem.alertTarget {
+    border-color: #fecaca;
+    border-left-color: var(--red);
+    background: linear-gradient(90deg, var(--red-soft) 0, #ffffff 60%);
+    box-shadow: 0 8px 18px rgba(217, 45, 32, 0.1);
 }
 
 .bossPage .timelineMain {
@@ -4827,11 +4896,13 @@ body {
 .bossPage .timelineMain strong {
     flex: 0 1 auto;
     min-width: 0;
+    font-size: 14px;
 }
 
 .bossPage .timelineMain span {
     flex: 1 1 auto;
     min-width: 0;
+    font-size: 11.5px;
 }
 
 .bossPage .timelineItem.fixedBoss:not(.soon):not(.spawned),
@@ -4866,10 +4937,12 @@ body {
 }
 
 .bossPage .bossCardTitle .bossName {
+    order: 1;
     min-width: 0;
 }
 
 .bossPage .bossLocation {
+    order: 3;
     flex: 1 1 auto;
     min-width: 0;
     color: var(--muted);
@@ -4881,6 +4954,7 @@ body {
 }
 
 .bossPage .bossTypeBadge {
+    order: 2;
     padding: 2px 6px;
     background: #111827;
     color: #ffffff;
@@ -4902,14 +4976,35 @@ body {
     height: 34px;
 }
 
+.fieldHint {
+    color: var(--muted);
+    font-size: 11px;
+    font-weight: 750;
+}
+
+.memberSuggest.compact {
+    gap: 6px;
+    margin-top: 0;
+    max-height: 150px;
+    overflow-y: auto;
+}
+
+.memberSuggest.compact .suggestHint,
+.memberSuggest.compact .suggestItem {
+    min-height: 34px;
+    border-radius: 6px;
+    font-size: 12px;
+}
+
 @media (max-width: 760px) {
     .bossAlertBanner {
-        grid-template-columns: 1fr;
+        grid-template-columns: 10px 1fr;
         gap: 5px;
         padding: 10px 11px;
     }
 
     .bossAlertBanner > span {
+        grid-column: 2;
         font-size: 12px;
         white-space: normal;
     }
@@ -4937,11 +5032,24 @@ body {
         min-width: 0;
     }
 
+    .bossPage .bossToolbar {
+        grid-template-columns: minmax(0, 1fr) auto;
+        align-items: center;
+    }
+
+    .bossPage .bossSearch {
+        grid-column: 1 / -1;
+    }
+
+    .bossMainPanel.isCollapsed .bossSearch {
+        display: none;
+    }
+
     .bossPage .timelineItem {
-        grid-template-columns: 48px minmax(0, 1fr) 54px 40px;
+        grid-template-columns: 46px minmax(0, 1fr) 52px;
         gap: 6px;
-        min-height: 44px;
-        padding: 7px 8px;
+        min-height: 38px;
+        padding: 6px 8px;
     }
 
     .bossPage .timelineDateDivider {
