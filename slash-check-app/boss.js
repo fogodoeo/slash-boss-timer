@@ -637,6 +637,23 @@ function nextFixedSpawnMs(boss, fromMs = getNowMs()) {
     return null;
 }
 
+function nextFixedSpawnAfterMs(boss, afterMs) {
+    if (!Array.isArray(boss?.요일) || !boss?.시간 || !Number.isFinite(afterMs)) return null;
+    const [hour, minute] = String(boss.시간).split(':').map(Number);
+    if (!Number.isFinite(hour) || !Number.isFinite(minute)) return null;
+
+    const dayNames = ['일', '월', '화', '수', '목', '금', '토'];
+    const start = startOfKstDay(afterMs);
+    for (let offset = 0; offset <= 14; offset += 1) {
+        const dayStart = start + offset * DAY_MS;
+        const dayName = dayNames[kstDate(dayStart).getUTCDay()];
+        if (!boss.요일.includes(dayName)) continue;
+        const candidate = dayStart + hour * 60 * 60 * 1000 + minute * 60 * 1000;
+        if (candidate > afterMs) return candidate;
+    }
+    return null;
+}
+
 function bossNextSpawnMs(boss) {
     const latest = latestRecordForBoss(boss);
     const manualMs = manualNextSpawnMs(boss, latest);
@@ -671,6 +688,23 @@ function isUncutPendingTimeItem(item, now = getNowMs()) {
         && item.spawnMs <= now;
 }
 
+function isUncutPendingFixedItem(item, now = getNowMs()) {
+    if (item?.boss?.타입 !== '고정'
+        || item.source !== 'fixed'
+        || !Number.isFinite(item.spawnMs)
+        || item.spawnMs > now
+        || item.spawnMs < now - DAY_MS) {
+        return false;
+    }
+
+    const nextSpawnMs = nextFixedSpawnAfterMs(item.boss, item.spawnMs);
+    return !Number.isFinite(nextSpawnMs) || nextSpawnMs > now;
+}
+
+function isUncutPendingBossItem(item, now = getNowMs()) {
+    return isUncutPendingTimeItem(item, now) || isUncutPendingFixedItem(item, now);
+}
+
 function buildTimeline() {
     const now = getNowMs();
     const start = startOfKstDay(now) - DAY_MS;
@@ -690,7 +724,8 @@ function buildTimeline() {
                 if (!boss.요일?.includes(dayName)) continue;
                 const spawnMs = dayStart + hour * 60 * 60 * 1000 + minute * 60 * 1000;
                 if (fixedSpawnCoveredByLatestCut(latest, spawnMs)) continue;
-                if (spawnMs >= floor && spawnMs <= end) items.push({ boss, spawnMs, source: 'fixed' });
+                const item = { boss, spawnMs, source: 'fixed' };
+                if (spawnMs <= end && (spawnMs >= floor || isUncutPendingBossItem(item, now))) items.push(item);
             }
             continue;
         }
@@ -699,7 +734,7 @@ function buildTimeline() {
         const nextSpawnAt = manualMs ? null : latest?.nextSpawnAt || boss.nextSpawnAt;
         const spawnMs = manualMs || new Date(nextSpawnAt || '').getTime();
         const item = { boss, spawnMs, source: manualMs ? 'manual' : latest ? 'cut' : 'planned', record: manualMs ? null : latest };
-        const keepUncutPending = isUncutPendingTimeItem(item, now);
+        const keepUncutPending = isUncutPendingBossItem(item, now);
         if (Number.isFinite(spawnMs) && spawnMs <= end && (spawnMs >= floor || keepUncutPending)) {
             items.push(item);
         }
@@ -739,7 +774,7 @@ function focusBossItems(items, now = getNowMs()) {
     return items
         .filter((item) => {
             const diff = item.spawnMs - now;
-            return isUncutPendingTimeItem(item, now) || (diff <= BOSS_ALERT_MS && diff >= -SPAWNED_KEEP_MS);
+            return isUncutPendingBossItem(item, now) || (diff <= BOSS_ALERT_MS && diff >= -SPAWNED_KEEP_MS);
         })
         .sort((a, b) => {
             const aSpawned = a.spawnMs <= now ? 0 : 1;
