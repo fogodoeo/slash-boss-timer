@@ -824,7 +824,7 @@ function renderBosses() {
             reporterEl.textContent = `${lock.memberName} 컷 입력 중`;
             reporterEl.hidden = false;
         }
-        cutButton.addEventListener('click', () => openCutModal(boss, Number.isFinite(nextMs) ? nextMs : getNowMs()));
+        cutButton.addEventListener('click', () => openCutModal(boss, getNowMs()));
 
         const joinButton = card.querySelector('.bossJoinButton');
         joinButton.disabled = !participationOpen;
@@ -834,7 +834,7 @@ function renderBosses() {
         card.addEventListener('click', (event) => {
             if (isBossCardControl(event.target)) return;
             if (record?.id) openParticipantModal(record);
-            else openCutModal(boss, Number.isFinite(nextMs) ? nextMs : getNowMs());
+            else openCutModal(boss, getNowMs());
         });
 
         bossList.append(card);
