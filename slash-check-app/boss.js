@@ -80,7 +80,7 @@ const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
 const DAY_MS = 24 * 60 * 60 * 1000;
 const SPAWNED_KEEP_MS = 60 * 60 * 1000;
 const SOON_MS = 10 * 60 * 1000;
-const BOSS_ALERT_MS = 60 * 60 * 1000;
+const BOSS_ALERT_MS = 10 * 60 * 1000;
 const ORIGINAL_TITLE = document.title;
 let state = { now: new Date().toISOString(), members: [], bossCuts: {}, bossCutRecords: [], bossCutLocks: {} };
 let bosses = [];
@@ -897,14 +897,14 @@ async function requestNotifications() {
             playBossAlarm();
         }
         updateNotifyButton();
-        showToast(nextEnabled ? '알림 켜짐' : '알림 꺼짐', nextEnabled ? '5분 전 배너, 탭 깜빡임, 브라우저 알림을 같이 사용합니다.' : '브라우저 권한은 유지하고, 앱 알림만 멈췄습니다.');
+        showToast(nextEnabled ? '알림 켜짐' : '알림 꺼짐', nextEnabled ? '10분 전 배너, 탭 깜빡임, 브라우저 알림을 같이 사용합니다.' : '브라우저 권한은 유지하고, 앱 알림만 멈췄습니다.');
         return;
     }
     const permission = await Notification.requestPermission();
     if (permission === 'granted') setNotificationsEnabled(true);
     updateNotifyButton();
     if (permission === 'granted') playBossAlarm();
-    showToast(permission === 'granted' ? '알림 켜짐' : '알림 미설정', permission === 'granted' ? '5분 전 배너, 탭 깜빡임, 브라우저 알림을 같이 사용합니다.' : '브라우저 알림은 꺼진 상태입니다.', permission === 'granted' ? 'success' : 'error');
+    showToast(permission === 'granted' ? '알림 켜짐' : '알림 미설정', permission === 'granted' ? '10분 전 배너, 탭 깜빡임, 브라우저 알림을 같이 사용합니다.' : '브라우저 알림은 꺼진 상태입니다.', permission === 'granted' ? 'success' : 'error');
 }
 
 function renderOverview(timeline) {

@@ -7,7 +7,7 @@
     const BOSS_NOTIFY_LAST_KEY = 'slashBossLastNotificationKey';
     const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
     const DAY_MS = 24 * 60 * 60 * 1000;
-    const BOSS_ALERT_MS = 60 * 60 * 1000;
+    const BOSS_ALERT_MS = 10 * 60 * 1000;
     const LOOKAHEAD_MS = 24 * 60 * 60 * 1000;
     const ORIGINAL_TITLE = document.title;
 
