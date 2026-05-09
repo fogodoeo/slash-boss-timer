@@ -4925,19 +4925,14 @@ body {
 
 .bossPage .timelineMain {
     display: grid;
-    grid-template-columns: minmax(54px, max-content) minmax(12px, 1fr) minmax(78px, 42%);
+    grid-template-columns: minmax(92px, 128px) minmax(0, 1fr);
     align-items: baseline;
-    gap: 7px;
+    gap: 14px;
     min-width: 0;
 }
 
 .bossPage .timelineMain::before {
-    content: "";
-    grid-column: 2;
-    grid-row: 1;
-    align-self: center;
-    border-bottom: 1px dotted #cbd5e1;
-    transform: translateY(1px);
+    content: none;
 }
 
 .bossPage .timelineMain strong {
@@ -4950,7 +4945,7 @@ body {
 }
 
 .bossPage .timelineMain span {
-    grid-column: 3;
+    grid-column: 2;
     grid-row: 1;
     min-width: 0;
     font-size: 11.5px;
@@ -5172,8 +5167,8 @@ body {
     }
 
     .bossPage .timelineMain {
-        grid-template-columns: minmax(48px, max-content) minmax(8px, 1fr) minmax(66px, 42%);
-        gap: 6px;
+        grid-template-columns: minmax(72px, 108px) minmax(0, 1fr);
+        gap: 9px;
     }
 
     .bossPage .bossCard {
