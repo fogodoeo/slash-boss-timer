@@ -39,6 +39,7 @@ function displayTimeValue(value) {
 
 function showToast(title, message = '', tone = 'success') {
     if (!toastHost) return;
+    [...toastHost.querySelectorAll('.toast')].slice(0, -3).forEach((item) => item.remove());
     const toast = document.createElement('div');
     toast.className = `toast ${tone}`;
     const strong = document.createElement('strong');
@@ -50,11 +51,21 @@ function showToast(title, message = '', tone = 'success') {
         toast.append(span);
     }
     toastHost.append(toast);
-    setTimeout(() => toast.classList.add('show'), 10);
-    setTimeout(() => {
+    requestAnimationFrame(() => toast.classList.add('show'));
+
+    let closing = false;
+    const closeToast = () => {
+        if (closing) return;
+        closing = true;
         toast.classList.remove('show');
-        setTimeout(() => toast.remove(), 180);
-    }, 3200);
+        toast.classList.add('leaving');
+        setTimeout(() => toast.remove(), 260);
+    };
+    const timer = setTimeout(closeToast, tone === 'error' ? 4200 : 2800);
+    toast.addEventListener('click', () => {
+        clearTimeout(timer);
+        closeToast();
+    });
 }
 
 async function api(path) {

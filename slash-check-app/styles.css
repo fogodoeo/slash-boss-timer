@@ -2656,6 +2656,7 @@ h1 {
 .toast {
     display: grid;
     gap: 4px;
+    pointer-events: auto;
     border: 1px solid var(--line);
     border-left: 4px solid var(--blue);
     border-radius: 8px;
@@ -2680,6 +2681,11 @@ h1 {
 .toast.show {
     opacity: 1;
     transform: translateY(0);
+}
+
+.toast.leaving {
+    opacity: 0;
+    transform: translateY(6px);
 }
 
 .toast strong {
