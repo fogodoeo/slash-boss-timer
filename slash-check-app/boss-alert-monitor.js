@@ -111,7 +111,17 @@
         items.push({ boss, spawnMs, source });
     }
 
-    function addFixedBossItems(items, seen, boss) {
+    function fixedSpawnCoveredByLatestCut(latest, spawnMs) {
+        if (!latest) return false;
+
+        const nextSpawnMs = new Date(latest.nextSpawnAt || '').getTime();
+        if (Number.isFinite(nextSpawnMs) && spawnMs < nextSpawnMs) return true;
+
+        const cutMs = new Date(latest.cutAt || '').getTime();
+        return Number.isFinite(cutMs) && spawnMs <= cutMs;
+    }
+
+    function addFixedBossItems(items, seen, boss, latest) {
         if (!Array.isArray(boss.요일) || !boss.시간) return;
         const [hour, minute] = String(boss.시간).split(':').map(Number);
         if (!Number.isFinite(hour) || !Number.isFinite(minute)) return;
@@ -122,7 +132,9 @@
             const dayStart = start + offset * DAY_MS;
             const dayName = dayNames[kstDate(dayStart).getUTCDay()];
             if (!boss.요일.includes(dayName)) continue;
-            addItem(items, seen, boss, dayStart + hour * 60 * 60 * 1000 + minute * 60 * 1000, 'fixed');
+            const spawnMs = dayStart + hour * 60 * 60 * 1000 + minute * 60 * 1000;
+            if (fixedSpawnCoveredByLatestCut(latest, spawnMs)) continue;
+            addItem(items, seen, boss, spawnMs, 'fixed');
         }
     }
 
@@ -133,7 +145,7 @@
             const latest = latestRecordForBoss(data, boss);
             const plannedMs = new Date(latest?.nextSpawnAt || boss.nextSpawnAt || '').getTime();
             addItem(items, seen, boss, plannedMs, latest ? 'cut' : 'planned');
-            if (boss.타입 === '고정') addFixedBossItems(items, seen, boss);
+            if (boss.타입 === '고정') addFixedBossItems(items, seen, boss, latest);
         }
         return items.sort((a, b) => a.spawnMs - b.spawnMs || String(a.boss.이름).localeCompare(String(b.boss.이름), 'ko'));
     }

@@ -644,6 +644,16 @@ function bossNextSpawnMs(boss) {
     return null;
 }
 
+function fixedSpawnCoveredByLatestCut(latest, spawnMs) {
+    if (!latest) return false;
+
+    const nextSpawnMs = new Date(latest.nextSpawnAt || '').getTime();
+    if (Number.isFinite(nextSpawnMs) && spawnMs < nextSpawnMs) return true;
+
+    const cutMs = new Date(latest.cutAt || '').getTime();
+    return Number.isFinite(cutMs) && spawnMs <= cutMs;
+}
+
 function buildTimeline() {
     const now = getNowMs();
     const start = startOfKstDay(now) - DAY_MS;
@@ -652,6 +662,7 @@ function buildTimeline() {
     const items = [];
 
     for (const boss of bosses) {
+        const latest = latestRecordForBoss(boss);
         if (boss.타입 === '고정') {
             const [hour, minute] = String(boss.시간 || '').split(':').map(Number);
             if (!Number.isFinite(hour) || !Number.isFinite(minute)) continue;
@@ -661,12 +672,12 @@ function buildTimeline() {
                 const dayName = dayNames[kstDate(dayStart).getUTCDay()];
                 if (!boss.요일?.includes(dayName)) continue;
                 const spawnMs = dayStart + hour * 60 * 60 * 1000 + minute * 60 * 1000;
+                if (fixedSpawnCoveredByLatestCut(latest, spawnMs)) continue;
                 if (spawnMs >= floor && spawnMs <= end) items.push({ boss, spawnMs, source: 'fixed' });
             }
             continue;
         }
 
-        const latest = latestRecordForBoss(boss);
         const manualMs = manualNextSpawnMs(boss, latest);
         const nextSpawnAt = manualMs ? null : latest?.nextSpawnAt || boss.nextSpawnAt;
         const spawnMs = manualMs || new Date(nextSpawnAt || '').getTime();
