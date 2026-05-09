@@ -36,6 +36,7 @@ const cutModalTitle = document.querySelector('#cutModalTitle');
 const cutModalDesc = document.querySelector('#cutModalDesc');
 const cutDateInput = document.querySelector('#cutDateInput');
 const cutTimeInput = document.querySelector('#cutTimeInput');
+const cutSecondInput = document.querySelector('#cutSecondInput');
 const requiresParticipationInput = document.querySelector('#requiresParticipationInput');
 const participantPasswordField = document.querySelector('#participantPasswordField');
 const participantPasswordInput = document.querySelector('#participantPasswordInput');
@@ -52,6 +53,7 @@ const participantModalDesc = document.querySelector('#participantModalDesc');
 const participantList = document.querySelector('#participantList');
 const participantCutDateInput = document.querySelector('#participantCutDateInput');
 const participantCutTimeInput = document.querySelector('#participantCutTimeInput');
+const participantCutSecondInput = document.querySelector('#participantCutSecondInput');
 const participantAdminPasswordInput = document.querySelector('#participantAdminPasswordInput');
 const participantCancelReasonInput = document.querySelector('#participantCancelReasonInput');
 const participantAddMemberInput = document.querySelector('#participantAddMemberInput');
@@ -118,11 +120,19 @@ function normalizeTimeInput(value) {
     return String(value || '').replace(/\D/g, '').slice(0, 4);
 }
 
+function normalizeSecondInput(value) {
+    return String(value || '').replace(/\D/g, '').slice(0, 2);
+}
+
 function isValidCommandTime(value) {
     if (!/^\d{4}$/.test(value)) return false;
     const hour = Number(value.slice(0, 2));
     const minute = Number(value.slice(2, 4));
     return hour >= 0 && hour <= 23 && minute >= 0 && minute <= 59;
+}
+
+function isValidSecond(value) {
+    return /^\d{2}$/.test(value) && Number(value) >= 0 && Number(value) <= 59;
 }
 
 function kstDate(ms) {
@@ -152,15 +162,23 @@ function timeInputValueFromMs(ms) {
     return `${pad2(date.getUTCHours())}${pad2(date.getUTCMinutes())}`;
 }
 
-function isoFromDateTimeInputs(dateValue, timeValue) {
+function secondInputValueFromMs(ms) {
+    const date = kstDate(ms);
+    return pad2(date.getUTCSeconds());
+}
+
+function isoFromDateTimeInputs(dateValue, timeValue, secondValue = '00') {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(dateValue || '')) return null;
     const normalizedTime = normalizeTimeInput(timeValue);
     if (!isValidCommandTime(normalizedTime)) return null;
+    const normalizedSecond = normalizeSecondInput(secondValue).padStart(2, '0');
+    if (!isValidSecond(normalizedSecond)) return null;
 
     const [year, month, day] = dateValue.split('-').map(Number);
     const hour = Number(normalizedTime.slice(0, 2));
     const minute = Number(normalizedTime.slice(2, 4));
-    const ms = Date.UTC(year, month - 1, day, hour, minute, 0) - KST_OFFSET_MS;
+    const second = Number(normalizedSecond);
+    const ms = Date.UTC(year, month - 1, day, hour, minute, second) - KST_OFFSET_MS;
     const checkDate = kstDate(ms);
 
     if (
@@ -169,6 +187,7 @@ function isoFromDateTimeInputs(dateValue, timeValue) {
         || checkDate.getUTCDate() !== day
         || checkDate.getUTCHours() !== hour
         || checkDate.getUTCMinutes() !== minute
+        || checkDate.getUTCSeconds() !== second
     ) {
         return null;
     }
@@ -176,18 +195,19 @@ function isoFromDateTimeInputs(dateValue, timeValue) {
     return new Date(ms).toISOString();
 }
 
-function setDateTimeInputs(dateInput, timeInput, ms) {
+function setDateTimeInputs(dateInput, timeInput, ms, secondInput = null) {
     dateInput.value = dateInputValueFromMs(ms);
     timeInput.value = timeInputValueFromMs(ms);
+    if (secondInput) secondInput.value = secondInputValueFromMs(ms);
 }
 
-function stepDateTimeInputs(dateInput, timeInput, minutes) {
-    const iso = isoFromDateTimeInputs(dateInput.value, timeInput.value);
+function stepDateTimeInputs(dateInput, timeInput, minutes, secondInput = null) {
+    const iso = isoFromDateTimeInputs(dateInput.value, timeInput.value, secondInput?.value || '00');
     const baseMs = iso ? new Date(iso).getTime() : getNowMs();
-    setDateTimeInputs(dateInput, timeInput, baseMs + minutes * 60000);
+    setDateTimeInputs(dateInput, timeInput, baseMs + minutes * 60000, secondInput);
 }
 
-function attachMinuteStepper(timeInput, dateInput) {
+function attachMinuteStepper(timeInput, dateInput, secondInput = null) {
     timeInput.addEventListener('input', () => {
         timeInput.value = normalizeTimeInput(timeInput.value);
     });
@@ -195,7 +215,24 @@ function attachMinuteStepper(timeInput, dateInput) {
         if (event.key !== 'ArrowUp' && event.key !== 'ArrowDown') return;
         event.preventDefault();
         const step = event.shiftKey ? 10 : 1;
-        stepDateTimeInputs(dateInput, timeInput, event.key === 'ArrowUp' ? step : -step);
+        stepDateTimeInputs(dateInput, timeInput, event.key === 'ArrowUp' ? step : -step, secondInput);
+    });
+    if (!secondInput) return;
+    secondInput.addEventListener('input', () => {
+        secondInput.value = normalizeSecondInput(secondInput.value);
+    });
+    secondInput.addEventListener('blur', () => {
+        secondInput.value = normalizeSecondInput(secondInput.value).padStart(2, '0');
+        if (!isValidSecond(secondInput.value)) secondInput.value = '00';
+    });
+    secondInput.addEventListener('keydown', (event) => {
+        if (event.key !== 'ArrowUp' && event.key !== 'ArrowDown') return;
+        event.preventDefault();
+        const iso = isoFromDateTimeInputs(dateInput.value, timeInput.value, secondInput.value);
+        const baseMs = iso ? new Date(iso).getTime() : getNowMs();
+        const stepMs = (event.shiftKey ? 10 : 1) * 1000;
+        const direction = event.key === 'ArrowUp' ? 1 : -1;
+        setDateTimeInputs(dateInput, timeInput, baseMs + direction * stepMs, secondInput);
     });
 }
 
@@ -212,6 +249,43 @@ function formatKstDateTime(iso, { date = true } = {}) {
     const time = `${pad2(d.getUTCHours())}:${pad2(d.getUTCMinutes())}`;
     if (!date) return time;
     return `${pad2(d.getUTCMonth() + 1)}.${pad2(d.getUTCDate())} ${time}`;
+}
+
+function formatKstDateTimeWithSeconds(iso, { date = true } = {}) {
+    if (!iso) return '-';
+    const ms = new Date(iso).getTime();
+    if (!Number.isFinite(ms)) return '-';
+    const d = kstDate(ms);
+    const time = `${pad2(d.getUTCHours())}:${pad2(d.getUTCMinutes())}:${pad2(d.getUTCSeconds())}`;
+    if (!date) return time;
+    return `${pad2(d.getUTCMonth() + 1)}.${pad2(d.getUTCDate())} ${time}`;
+}
+
+function bossCutMs(record) {
+    const ms = new Date(record?.cutAt || '').getTime();
+    return Number.isFinite(ms) ? ms : 0;
+}
+
+function bossCutClock(record) {
+    const ms = bossCutMs(record);
+    return ms ? formatKstDateTimeWithSeconds(record.cutAt, { date: false }) : displayTimeValue(record?.timeValue || '');
+}
+
+function compareBossCutRecordsForDisplay(a, b) {
+    const aMs = bossCutMs(a);
+    const bMs = bossCutMs(b);
+    const aMinute = Math.floor(aMs / 60000);
+    const bMinute = Math.floor(bMs / 60000);
+    if (aMinute !== bMinute) return bMinute - aMinute;
+    if (aMs !== bMs) return aMs - bMs;
+    return new Date(b.updatedAt || b.createdAt || 0).getTime() - new Date(a.updatedAt || a.createdAt || 0).getTime();
+}
+
+function compareBossCutRecordsByLatest(a, b) {
+    const aMs = bossCutMs(a);
+    const bMs = bossCutMs(b);
+    if (aMs !== bMs) return bMs - aMs;
+    return new Date(b.updatedAt || b.createdAt || 0).getTime() - new Date(a.updatedAt || a.createdAt || 0).getTime();
 }
 
 function kstDateKey(ms) {
@@ -478,7 +552,10 @@ function bossNeedsParticipation(boss) {
 }
 
 function latestRecordForBoss(boss) {
-    return activeCutRecords().find((record) => record.bossName === boss.이름)
+    const latest = activeCutRecords()
+        .filter((record) => record.bossName === boss.이름)
+        .sort(compareBossCutRecordsByLatest)[0];
+    return latest
         || (state.bossCuts?.[boss.이름] ? {
             id: state.bossCuts[boss.이름].recordId,
             bossName: boss.이름,
@@ -829,7 +906,9 @@ function renderTimeline() {
         const sameAsPrevious = previousItem && previousItem.spawnMs === item.spawnMs;
         const sameAsNext = nextItem && nextItem.spawnMs === item.spawnMs;
         const sameTimeGroup = sameAsPrevious || sameAsNext;
+        const newTimeSlot = previousSpawnMs !== null && item.spawnMs !== previousSpawnMs;
         row.classList.add(stateName, item.boss.타입 === '고정' ? 'fixedBoss' : 'timeBoss');
+        row.classList.toggle('newTimeSlot', newTimeSlot);
         row.classList.toggle('sameTimeGroup', sameTimeGroup);
         row.classList.toggle('sameTimeStart', sameTimeGroup && !sameAsPrevious);
         row.classList.toggle('sameTimeMiddle', sameTimeGroup && sameAsPrevious && sameAsNext);
@@ -950,7 +1029,10 @@ function renderBosses() {
 
 function renderRecords() {
     const now = getNowMs();
-    const records = (state.bossCutRecords || []).slice(0, 20);
+    const records = (state.bossCutRecords || [])
+        .slice()
+        .sort(compareBossCutRecordsForDisplay)
+        .slice(0, 20);
     recordSummary.textContent = `${records.length}건`;
     bossRecordList.replaceChildren();
 
@@ -964,8 +1046,8 @@ function renderRecords() {
         const canceled = record.status === 'canceled';
         item.classList.toggle('canceled', canceled);
         item.querySelector('.recordTitle').textContent = canceled
-            ? `${record.bossName} · ${displayTimeValue(record.timeValue)} · 취소됨`
-            : `${record.bossName} · ${displayTimeValue(record.timeValue)}`;
+            ? `${record.bossName} · ${bossCutClock(record)} · 취소됨`
+            : `${record.bossName} · ${bossCutClock(record)}`;
         item.querySelector('.recordMeta').textContent = canceled
             ? `${record.canceledBy || '-'} 취소 · ${formatKstDateTime(record.canceledAt || record.updatedAt)}`
             : `${record.reporterName || '-'} · 다음 ${record.nextSpawnAt ? formatKstDateTime(record.nextSpawnAt) : '-'}`;
@@ -1048,6 +1130,7 @@ async function openCutModal(boss, defaultMs = null) {
     cutModalDesc.textContent = `${boss.애칭 || '-'} · ${displayBossLocation(boss.위치)} · ${boss.타입} · 한국시간 기준으로 기록됩니다.`;
     cutDateInput.value = dateInputValueFromMs(cutMs);
     cutTimeInput.value = timeInputValueFromMs(cutMs);
+    cutSecondInput.value = secondInputValueFromMs(cutMs);
     requiresParticipationInput.checked = false;
     participantPasswordInput.value = '';
     participantPasswordField.classList.add('hiddenField');
@@ -1093,12 +1176,14 @@ function openParticipantModal(record) {
     const reason = cancelReasonText(record);
     participantModalTitle.textContent = canceled ? `${record.bossName} 취소 기록` : `${record.bossName} 컷 상세`;
     participantModalDesc.textContent = canceled
-        ? `${formatKstDateTime(record.cutAt)} 컷 · ${record.canceledBy || '-'} 취소${reason ? ` · ${reason}` : ''} · 참여 ${names.length}명`
-        : `${formatKstDateTime(record.cutAt)} 컷 · 입력 ${record.reporterName || '-'} · 참여 ${names.length}명`;
+        ? `${formatKstDateTimeWithSeconds(record.cutAt)} 컷 · ${record.canceledBy || '-'} 취소${reason ? ` · ${reason}` : ''} · 참여 ${names.length}명`
+        : `${formatKstDateTimeWithSeconds(record.cutAt)} 컷 · 입력 ${record.reporterName || '-'} · 참여 ${names.length}명`;
     participantCutDateInput.value = Number.isFinite(cutMs) ? dateInputValueFromMs(cutMs) : dateInputValueFromMs(getNowMs());
     participantCutTimeInput.value = Number.isFinite(cutMs) ? timeInputValueFromMs(cutMs) : displayTimeValue(record.timeValue).replace(':', '');
+    participantCutSecondInput.value = Number.isFinite(cutMs) ? secondInputValueFromMs(cutMs) : '00';
     participantCutDateInput.disabled = canceled;
     participantCutTimeInput.disabled = canceled;
+    participantCutSecondInput.disabled = canceled;
     participantAdminPasswordInput.value = cachedAdminPassword;
     participantAdminPasswordInput.disabled = canceled;
     participantCancelReasonInput.value = reason;
@@ -1216,13 +1301,14 @@ async function submitCut(event) {
 
     const bossName = selectedCutBoss.이름;
     const normalized = normalizeTimeInput(cutTimeInput.value);
-    if (!cutDateInput.value || !isValidCommandTime(normalized)) {
+    const normalizedSecond = normalizeSecondInput(cutSecondInput.value).padStart(2, '0');
+    if (!cutDateInput.value || !isValidCommandTime(normalized) || !isValidSecond(normalizedSecond)) {
         showToast('컷 시간 확인', '날짜와 시간을 다시 확인하세요.', 'error');
         return;
     }
 
     const timeValue = normalized;
-    const cutAt = isoFromDateTimeInputs(cutDateInput.value, timeValue);
+    const cutAt = isoFromDateTimeInputs(cutDateInput.value, timeValue, normalizedSecond);
     if (!cutAt) {
         showToast('컷 시간 확인', '날짜와 시간을 다시 확인하세요.', 'error');
         return;
@@ -1291,12 +1377,13 @@ async function updateParticipantRecordTime() {
     if (!memberName || !selectedParticipantRecord) return;
 
     const normalized = normalizeTimeInput(participantCutTimeInput.value);
-    if (!participantCutDateInput.value || !isValidCommandTime(normalized)) {
+    const normalizedSecond = normalizeSecondInput(participantCutSecondInput.value).padStart(2, '0');
+    if (!participantCutDateInput.value || !isValidCommandTime(normalized) || !isValidSecond(normalizedSecond)) {
         showToast('컷 시간 확인', '날짜와 시간을 다시 확인하세요.', 'error');
         return;
     }
 
-    const cutAt = isoFromDateTimeInputs(participantCutDateInput.value, normalized);
+    const cutAt = isoFromDateTimeInputs(participantCutDateInput.value, normalized, normalizedSecond);
     if (!cutAt) {
         showToast('컷 시간 확인', '날짜와 시간을 다시 확인하세요.', 'error');
         return;
@@ -1475,7 +1562,7 @@ closeCutModalButton.addEventListener('click', closeCutModal);
 cutModal.addEventListener('click', (event) => {
     if (event.target === cutModal) closeCutModal();
 });
-attachMinuteStepper(cutTimeInput, cutDateInput);
+attachMinuteStepper(cutTimeInput, cutDateInput, cutSecondInput);
 requiresParticipationInput.addEventListener('change', () => {
     participantPasswordField.classList.toggle('hiddenField', !requiresParticipationInput.checked);
     if (!requiresParticipationInput.checked) participantPasswordInput.value = '';
@@ -1489,7 +1576,7 @@ closeParticipantModalButton.addEventListener('click', closeParticipantModal);
 participantModal.addEventListener('click', (event) => {
     if (event.target === participantModal) closeParticipantModal();
 });
-attachMinuteStepper(participantCutTimeInput, participantCutDateInput);
+attachMinuteStepper(participantCutTimeInput, participantCutDateInput, participantCutSecondInput);
 participantAdminPasswordInput.addEventListener('input', () => cacheAdminPassword(participantAdminPasswordInput.value));
 participantAddAdminPasswordInput.addEventListener('input', () => cacheAdminPassword(participantAddAdminPasswordInput.value));
 participantAddMemberInput.addEventListener('input', () => {

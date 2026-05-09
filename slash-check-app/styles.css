@@ -1486,13 +1486,17 @@ h1 {
 
 .bossDateTimeFields {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) 72px;
     gap: 8px;
     align-items: start;
 }
 
 .bossDateTimeFields label {
     grid-template-rows: auto 40px 13px;
+}
+
+.bossDateTimeFields .bossSecondField input {
+    text-align: center;
 }
 
 .bossModalSheet input[type="text"],
@@ -5008,9 +5012,14 @@ body {
     cursor: pointer;
 }
 
+.bossPage .timelineItem.newTimeSlot {
+    border-top-width: 9px;
+    border-top-color: #f5f7fb;
+}
+
 .bossPage .timelineItem.hasTimeGap {
-    border-top-width: 7px;
-    border-top-color: #f1f4f8;
+    border-top-width: 16px;
+    border-top-color: #eef2f7;
 }
 
 .bossPage .timelineItem.sameTimeGroup:not(.sameTimeStart) {
@@ -5284,9 +5293,13 @@ body {
         padding: 2px 6px;
     }
 
+    .bossPage .timelineItem.newTimeSlot {
+        border-top-width: 8px;
+    }
+
     .bossPage .timelineItem.hasTimeGap {
-        border-top-width: 6px;
-        border-top-color: #f1f4f8;
+        border-top-width: 13px;
+        border-top-color: #eef2f7;
     }
 
     .bossPage .timelineDateDivider {
