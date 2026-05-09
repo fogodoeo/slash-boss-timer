@@ -3762,6 +3762,12 @@ body {
     color: var(--red);
 }
 
+.notifyIconButton[data-notify-state="off"] {
+    border-color: var(--line);
+    background: #f8fafc;
+    color: #64748b;
+}
+
 .notifyDot {
     position: absolute;
     top: 8px;
@@ -3783,6 +3789,10 @@ body {
 
 .notifyIconButton[data-notify-state="denied"] .notifyDot {
     background: var(--red);
+}
+
+.notifyIconButton[data-notify-state="off"] .notifyDot {
+    background: var(--faint);
 }
 
 .notifyText {

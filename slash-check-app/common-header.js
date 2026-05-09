@@ -1,11 +1,20 @@
 (() => {
     const MEMBER_KEY = 'slashCheckMemberName';
+    const NOTIFY_ENABLED_KEY = 'slashCheckNotificationsEnabled';
     const memberButton = document.querySelector('#openProfileButton');
     const memberLabel = document.querySelector('#selectedMemberLabel');
     const notifyButton = document.querySelector('#enableNotifyButton');
 
     function cleanName(value) {
         return String(value || '').trim().replace(/\s+/g, ' ').slice(0, 24);
+    }
+
+    function notificationsEnabled() {
+        return localStorage.getItem(NOTIFY_ENABLED_KEY) !== 'off';
+    }
+
+    function setNotificationsEnabled(enabled) {
+        localStorage.setItem(NOTIFY_ENABLED_KEY, enabled ? 'on' : 'off');
     }
 
     function updateMemberLabel() {
@@ -73,7 +82,7 @@
             return;
         }
         if (Notification.permission === 'granted') {
-            setNotifyButton(notifyButton, '알림 켜짐', 'granted');
+            setNotifyButton(notifyButton, notificationsEnabled() ? '알림 끄기' : '알림 켜기', notificationsEnabled() ? 'granted' : 'off');
             return;
         }
         if (Notification.permission === 'denied') {
@@ -90,8 +99,10 @@
             return;
         }
         if (Notification.permission === 'granted') {
-            showToast('알림 켜짐', '이 브라우저에서 알림을 받을 수 있습니다.');
+            const nextEnabled = !notificationsEnabled();
+            setNotificationsEnabled(nextEnabled);
             updateNotifyButton();
+            showToast(nextEnabled ? '알림 켜짐' : '알림 꺼짐', nextEnabled ? '이 브라우저에서 알림을 받을 수 있습니다.' : '브라우저 권한은 유지하고, 앱 알림만 멈췄습니다.');
             return;
         }
         if (Notification.permission === 'denied') {
@@ -101,6 +112,7 @@
         }
 
         const permission = await Notification.requestPermission();
+        if (permission === 'granted') setNotificationsEnabled(true);
         updateNotifyButton();
         showToast(permission === 'granted' ? '알림이 켜졌습니다' : '알림을 켜지 못했습니다', permission === 'granted' ? '예약과 보스 알림을 받을 준비가 됐습니다.' : '브라우저 알림 권한이 필요합니다.', permission === 'granted' ? 'success' : 'error');
     }

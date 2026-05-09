@@ -26,6 +26,7 @@ const rouletteCardTemplate = document.querySelector('#rouletteCardTemplate');
 const toastHost = document.querySelector('#toastHost');
 
 const MEMBER_KEY = 'slashCheckMemberName';
+const NOTIFY_ENABLED_KEY = 'slashCheckNotificationsEnabled';
 const CHECK_UNDO_GRACE_MS = 60 * 1000;
 const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
 let state = { now: new Date().toISOString(), members: [], zones: [], rankings: [], logs: [] };
@@ -84,6 +85,14 @@ function formatCountdown(ms) {
 
 function cleanName(value) {
     return String(value || '').trim().replace(/\s+/g, ' ').slice(0, 24);
+}
+
+function notificationsEnabled() {
+    return localStorage.getItem(NOTIFY_ENABLED_KEY) !== 'off';
+}
+
+function setNotificationsEnabled(enabled) {
+    localStorage.setItem(NOTIFY_ENABLED_KEY, enabled ? 'on' : 'off');
 }
 
 function getNowMs() {
@@ -156,7 +165,7 @@ function updateNotifyButton() {
     }
 
     if (Notification.permission === 'granted') {
-        setNotifyButton(enableNotifyButton, '알림 켜짐', 'granted');
+        setNotifyButton(enableNotifyButton, notificationsEnabled() ? '알림 끄기' : '알림 켜기', notificationsEnabled() ? 'granted' : 'off');
         return;
     }
 
@@ -176,9 +185,15 @@ async function requestNotifications({ quiet = false } = {}) {
     }
 
     if (Notification.permission === 'granted') {
-        if (!quiet) showToast('알림 켜짐', '예약한 구역이 가능해지면 알려드릴게요.');
+        if (quiet) {
+            updateNotifyButton();
+            return notificationsEnabled();
+        }
+        const nextEnabled = !notificationsEnabled();
+        setNotificationsEnabled(nextEnabled);
         updateNotifyButton();
-        return true;
+        if (!quiet) showToast(nextEnabled ? '알림 켜짐' : '알림 꺼짐', nextEnabled ? '예약한 구역이 가능해지면 알려드릴게요.' : '브라우저 권한은 유지하고, 앱 알림만 멈췄습니다.');
+        return nextEnabled;
     }
 
     if (Notification.permission === 'denied') {
@@ -188,6 +203,7 @@ async function requestNotifications({ quiet = false } = {}) {
     }
 
     const permission = await Notification.requestPermission();
+    if (permission === 'granted') setNotificationsEnabled(true);
     updateNotifyButton();
 
     if (permission === 'granted') {
@@ -200,6 +216,8 @@ async function requestNotifications({ quiet = false } = {}) {
 }
 
 function notifyReservationReady(zone) {
+    if (!notificationsEnabled()) return;
+
     showToast(`${zone.name} 진행 가능`, '예약한 구역의 쿨타임이 끝났습니다.');
 
     if ('Notification' in window && Notification.permission === 'granted') {
@@ -211,6 +229,7 @@ function notifyReservationReady(zone) {
 }
 
 function shouldAlertReservationReady(zone, reservation, locked) {
+    if (!notificationsEnabled()) return false;
     if (!reservation || reservation.memberName !== selectedMember || locked) return false;
 
     const key = `${zone.id}:${reservation.reservedAt || ''}:${reservation.expiresAt || ''}`;
@@ -315,7 +334,7 @@ async function toggleReservation(zone) {
         : '/api/reservations';
 
     try {
-        if (!reserved) requestNotifications({ quiet: true }).catch(() => {});
+        if (!reserved && notificationsEnabled()) requestNotifications({ quiet: true }).catch(() => {});
 
         state = await api(path, {
             method: reserved ? 'DELETE' : 'POST',
@@ -323,9 +342,12 @@ async function toggleReservation(zone) {
         });
         lastSyncAt = Date.now();
         render();
+        const reserveMessage = wasLocked
+            ? notificationsEnabled() ? '쿨타임이 끝나면 알려드릴게요.' : '알림은 꺼져 있습니다.'
+            : '지금 바로 완료할 수 있습니다.';
         showToast(
             reserved ? '예약을 취소했습니다' : '예약했습니다',
-            reserved ? zone.name : wasLocked ? '쿨타임이 끝나면 알려드릴게요.' : '지금 바로 완료할 수 있습니다.'
+            reserved ? zone.name : reserveMessage
         );
         return true;
     } catch (err) {

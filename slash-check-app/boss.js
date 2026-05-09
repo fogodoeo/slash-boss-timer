@@ -72,6 +72,7 @@ const resetTimeBossButton = document.querySelector('#resetTimeBossButton');
 const MEMBER_KEY = 'slashCheckMemberName';
 const ADMIN_PASSWORD_KEY = 'slashCheckAdminPassword';
 const BOSS_LIST_OPEN_KEY = 'slashBossListOpen';
+const NOTIFY_ENABLED_KEY = 'slashCheckNotificationsEnabled';
 const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
 const DAY_MS = 24 * 60 * 60 * 1000;
 const SPAWNED_KEEP_MS = 60 * 60 * 1000;
@@ -104,6 +105,14 @@ function pad2(value) {
 
 function cleanName(value) {
     return String(value || '').trim().replace(/\s+/g, ' ').slice(0, 24);
+}
+
+function notificationsEnabled() {
+    return localStorage.getItem(NOTIFY_ENABLED_KEY) !== 'off';
+}
+
+function setNotificationsEnabled(enabled) {
+    localStorage.setItem(NOTIFY_ENABLED_KEY, enabled ? 'on' : 'off');
 }
 
 function displayBossLocation(value) {
@@ -731,6 +740,13 @@ function startTitleAlert(item) {
 }
 
 function updateBossAlertBanner(items, now = getNowMs()) {
+    if (!notificationsEnabled()) {
+        bossAlertBanner?.classList.add('hidden');
+        document.body.classList.remove('hasBossAlert');
+        stopTitleAlert();
+        return;
+    }
+
     const item = leadingAlertItem(items, now);
 
     if (!item) {
@@ -750,7 +766,7 @@ function updateBossAlertBanner(items, now = getNowMs()) {
 }
 
 function maybeNotifyTimeline(items) {
-    if (!('Notification' in window) || Notification.permission !== 'granted') return;
+    if (!notificationsEnabled() || !('Notification' in window) || Notification.permission !== 'granted') return;
     const now = getNowMs();
     const item = leadingAlertItem(items, now);
     if (!item) return;
@@ -775,7 +791,7 @@ function updateNotifyButton() {
         return;
     }
     if (Notification.permission === 'granted') {
-        setNotifyButton(enableBossNotifyButton, '알림 테스트', 'granted');
+        setNotifyButton(enableBossNotifyButton, notificationsEnabled() ? '알림 끄기' : '알림 켜기', notificationsEnabled() ? 'granted' : 'off');
         return;
     }
     if (Notification.permission === 'denied') {
@@ -788,7 +804,22 @@ function updateNotifyButton() {
 async function requestNotifications() {
     if (!('Notification' in window)) return;
     unlockBossAlarmAudio();
+    if (Notification.permission === 'granted') {
+        const nextEnabled = !notificationsEnabled();
+        setNotificationsEnabled(nextEnabled);
+        if (!nextEnabled) {
+            stopTitleAlert();
+            bossAlertBanner?.classList.add('hidden');
+            document.body.classList.remove('hasBossAlert');
+        } else {
+            playBossAlarm();
+        }
+        updateNotifyButton();
+        showToast(nextEnabled ? '알림 켜짐' : '알림 꺼짐', nextEnabled ? '5분 전 배너, 탭 깜빡임, 브라우저 알림을 같이 사용합니다.' : '브라우저 권한은 유지하고, 앱 알림만 멈췄습니다.');
+        return;
+    }
     const permission = await Notification.requestPermission();
+    if (permission === 'granted') setNotificationsEnabled(true);
     updateNotifyButton();
     if (permission === 'granted') playBossAlarm();
     showToast(permission === 'granted' ? '알림 켜짐' : '알림 미설정', permission === 'granted' ? '5분 전 배너, 탭 깜빡임, 브라우저 알림을 같이 사용합니다.' : '브라우저 알림은 꺼진 상태입니다.', permission === 'granted' ? 'success' : 'error');
