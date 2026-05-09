@@ -4871,6 +4871,7 @@ body {
 .bossPage .timelineItem {
     grid-template-columns: 54px minmax(0, 1fr) 72px;
     min-height: 26px;
+    border-left-color: #e2e8f0;
     border-radius: 5px;
     padding: 2px 7px;
     cursor: pointer;
@@ -4892,7 +4893,7 @@ body {
 
 .bossPage .timelineItem.alertTarget {
     border-color: #fecaca;
-    border-left-color: var(--red);
+    border-left-color: #fecaca;
     background: linear-gradient(90deg, var(--red-soft) 0, #ffffff 60%);
     box-shadow: 0 8px 18px rgba(217, 45, 32, 0.1);
 }
@@ -4922,18 +4923,44 @@ body {
     line-height: 1;
 }
 
+.bossPage .timelineItem.timeBoss:not(.alertTarget) .timelineTime,
+.bossPage .timelineItem.timeBoss:not(.alertTarget) .timelineBossName,
+.bossPage .timelineItem.timeBoss:not(.alertTarget) .timelineRemain {
+    color: #64748b;
+}
+
+.bossPage .timelineItem.timeBoss:not(.alertTarget) .timelineBossName {
+    font-weight: 850;
+}
+
+.bossPage .timelineItem.fixedBoss .timelineTime,
+.bossPage .timelineItem.fixedBoss .timelineBossName,
+.bossPage .timelineItem.fixedBoss .timelineRemain {
+    color: #020617;
+    font-weight: 1000;
+}
+
+.bossPage .timelineItem.fixedBoss .timelineMeta {
+    color: #475569;
+    font-weight: 850;
+}
+
 .bossRecordItem {
     cursor: pointer;
 }
 
-.bossPage .timelineItem.fixedBoss:not(.soon):not(.spawned),
+.bossPage .timelineItem.fixedBoss:not(.soon):not(.spawned) {
+    border-left-color: #e2e8f0;
+    background: #ffffff;
+}
+
 .bossPage .bossCard.fixedBoss:not(.soon):not(.spawned) {
     border-left-color: #111827;
     background: #f8fafc;
 }
 
 .bossPage .timelineItem.fixedBoss:not(.soon):not(.spawned) .timelineTime {
-    color: #111827;
+    color: #020617;
 }
 
 .bossPage .bossList {
