@@ -550,6 +550,25 @@ function closeRouletteModal() {
     rouletteModal.classList.add('hidden');
 }
 
+function isModalVisible(modal) {
+    return modal && !modal.classList.contains('hidden');
+}
+
+function closeTopModalByEscape(event) {
+    if (event.key !== 'Escape') return;
+
+    if (isModalVisible(rouletteModal)) {
+        closeRouletteModal();
+    } else if (isModalVisible(zoneActionModal)) {
+        closeZoneActionModal();
+    } else if (isModalVisible(profileModal)) {
+        closeProfileModal();
+    } else {
+        return;
+    }
+    event.preventDefault();
+}
+
 function spinRoulette() {
     if (rouletteSpinning) return;
 
@@ -719,15 +738,7 @@ resetZoneStateButton.addEventListener('click', resetZoneState);
 cancelLastCheckButton.addEventListener('click', cancelLastCheck);
 memberSearchInput.addEventListener('input', renderMemberSuggest);
 profileForm.addEventListener('submit', (event) => event.preventDefault());
-profileModal.addEventListener('click', (event) => {
-    if (event.target === profileModal) closeProfileModal();
-});
-zoneActionModal.addEventListener('click', (event) => {
-    if (event.target === zoneActionModal) closeZoneActionModal();
-});
-rouletteModal?.addEventListener('click', (event) => {
-    if (event.target === rouletteModal) closeRouletteModal();
-});
+document.addEventListener('keydown', closeTopModalByEscape);
 
 setSelectedMember(selectedMember);
 updateNotifyButton();

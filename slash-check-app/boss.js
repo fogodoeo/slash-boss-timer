@@ -1433,6 +1433,27 @@ function closeParticipantModal() {
     participantModal.classList.add('hidden');
 }
 
+function isModalVisible(modal) {
+    return modal && !modal.classList.contains('hidden');
+}
+
+function closeTopBossModalByEscape(event) {
+    if (event.key !== 'Escape') return;
+
+    if (isModalVisible(cutModal)) {
+        closeCutModal();
+    } else if (isModalVisible(joinModal)) {
+        closeJoinModal();
+    } else if (isModalVisible(participantModal)) {
+        closeParticipantModal();
+    } else if (isModalVisible(profileModal)) {
+        closeProfileModal();
+    } else {
+        return;
+    }
+    event.preventDefault();
+}
+
 async function submitCut(event) {
     event.preventDefault();
     const memberName = requireMember();
@@ -1698,14 +1719,8 @@ closeProfileButton.addEventListener('click', closeProfileModal);
 skipProfileButton.addEventListener('click', closeProfileModal);
 memberSearchInput.addEventListener('input', renderMemberSuggest);
 profileForm.addEventListener('submit', (event) => event.preventDefault());
-profileModal.addEventListener('click', (event) => {
-    if (event.target === profileModal) closeProfileModal();
-});
 cutForm.addEventListener('submit', submitCut);
 closeCutModalButton.addEventListener('click', closeCutModal);
-cutModal.addEventListener('click', (event) => {
-    if (event.target === cutModal) closeCutModal();
-});
 attachMinuteStepper(cutTimeInput, cutDateInput, cutSecondInput);
 requiresParticipationInput.addEventListener('change', () => {
     participantPasswordField.classList.toggle('hiddenField', !requiresParticipationInput.checked);
@@ -1713,13 +1728,8 @@ requiresParticipationInput.addEventListener('change', () => {
 });
 joinForm.addEventListener('submit', submitJoin);
 closeJoinModalButton.addEventListener('click', closeJoinModal);
-joinModal.addEventListener('click', (event) => {
-    if (event.target === joinModal) closeJoinModal();
-});
 closeParticipantModalButton.addEventListener('click', closeParticipantModal);
-participantModal.addEventListener('click', (event) => {
-    if (event.target === participantModal) closeParticipantModal();
-});
+document.addEventListener('keydown', closeTopBossModalByEscape);
 attachMinuteStepper(participantCutTimeInput, participantCutDateInput, participantCutSecondInput);
 participantAdminPasswordInput.addEventListener('input', () => cacheAdminPassword(participantAdminPasswordInput.value));
 participantAddAdminPasswordInput.addEventListener('input', () => cacheAdminPassword(participantAddAdminPasswordInput.value));

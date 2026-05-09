@@ -156,9 +156,7 @@
         document.body.append(modal);
 
         modal.addEventListener('click', (event) => {
-            if (event.target === modal || event.target.closest('[data-profile-close]')) {
-                closeProfileModal();
-            }
+            if (event.target.closest('[data-profile-close]')) closeProfileModal();
         });
         modal.querySelector('form').addEventListener('submit', (event) => event.preventDefault());
         modal.querySelector('#commonMemberSearchInput').addEventListener('input', () => renderSuggestions());
@@ -167,6 +165,13 @@
 
     function closeProfileModal() {
         document.querySelector('#commonProfileModal')?.classList.add('hidden');
+    }
+
+    function closeProfileModalByEscape(event) {
+        const modal = document.querySelector('#commonProfileModal');
+        if (event.key !== 'Escape' || !modal || modal.classList.contains('hidden')) return;
+        closeProfileModal();
+        event.preventDefault();
     }
 
     async function renderSuggestions() {
@@ -229,4 +234,5 @@
     updateNotifyButton();
     memberButton?.addEventListener('click', openProfileModal);
     notifyButton?.addEventListener('click', requestNotifications);
+    document.addEventListener('keydown', closeProfileModalByEscape);
 })();

@@ -138,6 +138,12 @@ function closeLogManageModal() {
     logManageModal.classList.add('hidden');
 }
 
+function closeLogManageModalByEscape(event) {
+    if (event.key !== 'Escape' || logManageModal.classList.contains('hidden')) return;
+    closeLogManageModal();
+    event.preventDefault();
+}
+
 function renderMemberOptions(selectedMemberName) {
     logMemberSelect.replaceChildren();
     logActorSelect.replaceChildren();
@@ -465,9 +471,7 @@ deleteLogButton.addEventListener('click', deleteSelectedLog);
 deleteConfirmInput.addEventListener('input', () => {
     deleteLogButton.disabled = deleteConfirmInput.value.trim() !== '취소';
 });
-logManageModal.addEventListener('click', (event) => {
-    if (event.target === logManageModal) closeLogManageModal();
-});
+document.addEventListener('keydown', closeLogManageModalByEscape);
 
 fetchState();
 setInterval(() => fetchState().catch(() => {}), 3000);
