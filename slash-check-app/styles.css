@@ -3724,7 +3724,7 @@ body {
     display: grid;
     place-items: center;
     flex: 0 0 auto;
-    width: 42px;
+    width: 56px;
     height: 42px;
     border: 1px solid var(--line);
     border-radius: 10px;
@@ -3733,10 +3733,27 @@ body {
     box-shadow: 0 1px 1px rgba(15, 23, 42, 0.03);
 }
 
+.notifyIconButton::after {
+    content: "OFF";
+    position: absolute;
+    right: 5px;
+    bottom: 4px;
+    min-width: 24px;
+    border-radius: 999px;
+    background: #e2e8f0;
+    color: #475569;
+    padding: 1px 5px 2px;
+    font-size: 9px;
+    font-weight: 1000;
+    line-height: 1;
+    text-align: center;
+}
+
 .notifyIconButton svg {
     width: 23px;
     height: 23px;
     fill: currentColor;
+    transform: translateX(-4px);
 }
 
 .notifyIconButton:hover:not(:disabled) {
@@ -3751,9 +3768,10 @@ body {
 }
 
 .notifyIconButton[data-notify-state="granted"] {
-    border-color: rgba(22, 138, 91, 0.28);
-    background: var(--green-soft);
-    color: var(--green);
+    border-color: #16a34a;
+    background: #16a34a;
+    color: #ffffff;
+    box-shadow: 0 8px 18px rgba(22, 163, 74, 0.22);
 }
 
 .notifyIconButton[data-notify-state="denied"] {
@@ -3764,8 +3782,50 @@ body {
 
 .notifyIconButton[data-notify-state="off"] {
     border-color: var(--line);
-    background: #f8fafc;
+    background: #eef2f7;
     color: #64748b;
+}
+
+.notifyIconButton[data-notify-state="default"] {
+    border-color: #bcd0ff;
+    background: #f8fbff;
+    color: var(--blue);
+}
+
+.notifyIconButton[data-notify-state="granted"]::after {
+    content: "ON";
+    background: #ffffff;
+    color: #15803d;
+}
+
+.notifyIconButton[data-notify-state="default"]::after,
+.notifyIconButton[data-notify-state="off"]::after {
+    content: "OFF";
+}
+
+.notifyIconButton[data-notify-state="denied"]::after {
+    content: "차단";
+    min-width: 28px;
+    background: #ffffff;
+    color: var(--red);
+}
+
+.notifyIconButton[data-notify-state="unsupported"]::after {
+    content: "불가";
+    min-width: 28px;
+}
+
+.notifyIconButton[data-notify-state="off"]::before {
+    content: "";
+    position: absolute;
+    left: 12px;
+    top: 20px;
+    width: 23px;
+    height: 2px;
+    border-radius: 999px;
+    background: #64748b;
+    transform: rotate(-35deg);
+    transform-origin: center;
 }
 
 .notifyDot {
@@ -3780,7 +3840,7 @@ body {
 }
 
 .notifyIconButton[data-notify-state="granted"] .notifyDot {
-    background: var(--green);
+    background: #ffffff;
 }
 
 .notifyIconButton[data-notify-state="default"] .notifyDot {
@@ -5873,18 +5933,31 @@ body {
     }
 
     .notifyIconButton {
-        width: 38px;
+        width: 52px;
         height: 38px;
         border-radius: 9px;
     }
 
     .notifyIconButton svg {
-        width: 22px;
-        height: 22px;
+        width: 21px;
+        height: 21px;
     }
 
     .notifyDot {
         top: 7px;
         right: 7px;
+    }
+
+    .notifyIconButton::after {
+        right: 4px;
+        bottom: 3px;
+        min-width: 22px;
+        font-size: 8.5px;
+    }
+
+    .notifyIconButton[data-notify-state="off"]::before {
+        left: 10px;
+        top: 18px;
+        width: 22px;
     }
 }
