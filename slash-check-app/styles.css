@@ -4820,7 +4820,7 @@ body {
 }
 
 .bossPage .bossTimeline {
-    gap: 6px;
+    gap: 2px;
 }
 
 .bossPage .bossToolbar {
@@ -4850,7 +4850,7 @@ body {
     display: flex;
     align-items: center;
     gap: 10px;
-    margin: 2px 0 3px;
+    margin: 2px 0 2px;
     color: var(--text-soft);
     font-size: 12px;
     font-weight: 950;
@@ -4865,14 +4865,18 @@ body {
 }
 
 .timelineDateDivider.isNextDay {
-    margin-top: 16px;
+    margin-top: 12px;
 }
 
 .bossPage .timelineItem {
-    grid-template-columns: 58px minmax(0, 1fr) 78px;
-    min-height: 40px;
-    padding: 6px 9px;
+    grid-template-columns: 56px minmax(0, 1fr) 74px;
+    min-height: 34px;
+    padding: 4px 8px;
     cursor: pointer;
+}
+
+.bossPage .timelineItem.hasTimeGap {
+    margin-top: 8px;
 }
 
 .bossPage .timelineItem:hover {
@@ -4895,7 +4899,7 @@ body {
 .bossPage .timelineMain {
     display: flex;
     align-items: baseline;
-    gap: 8px;
+    gap: 7px;
 }
 
 .bossPage .timelineMain strong {
@@ -4908,6 +4912,15 @@ body {
     flex: 1 1 auto;
     min-width: 0;
     font-size: 11.5px;
+}
+
+.bossPage .timelineTime,
+.bossPage .timelineRemain {
+    line-height: 1.1;
+}
+
+.bossRecordItem {
+    cursor: pointer;
 }
 
 .bossPage .timelineItem.fixedBoss:not(.soon):not(.spawned),
@@ -5053,10 +5066,14 @@ body {
     }
 
     .bossPage .timelineItem {
-        grid-template-columns: 46px minmax(0, 1fr) 52px;
-        gap: 6px;
-        min-height: 38px;
-        padding: 6px 8px;
+        grid-template-columns: 44px minmax(0, 1fr) 50px;
+        gap: 5px;
+        min-height: 34px;
+        padding: 4px 7px;
+    }
+
+    .bossPage .timelineItem.hasTimeGap {
+        margin-top: 7px;
     }
 
     .bossPage .timelineDateDivider {
@@ -5065,7 +5082,7 @@ body {
     }
 
     .bossPage .timelineDateDivider.isNextDay {
-        margin-top: 14px;
+        margin-top: 10px;
     }
 
     .bossPage .timelineMain {

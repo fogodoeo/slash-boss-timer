@@ -715,8 +715,9 @@ function renderTimeline() {
 
     let previousDateKey = '';
     let firstDateGroup = true;
+    let previousSpawnMs = null;
 
-    for (const item of timeline.slice(0, 40)) {
+    for (const item of timeline) {
         const dateKey = kstDateKey(item.spawnMs);
         if (dateKey !== previousDateKey) {
             const divider = document.createElement('div');
@@ -732,6 +733,9 @@ function renderTimeline() {
         const stateName = bossStateFromSpawn(item.spawnMs, now);
         const latest = item.record || latestRecordForBoss(item.boss);
         row.classList.add(stateName, item.boss.타입 === '고정' ? 'fixedBoss' : 'timeBoss');
+        if (previousSpawnMs && item.spawnMs - previousSpawnMs > 60 * 60 * 1000) {
+            row.classList.add('hasTimeGap');
+        }
         row.classList.toggle('alertTarget', activeAlertKeys.has(`${item.boss.이름}:${item.spawnMs}`));
         row.querySelector('.timelineTime').textContent = formatKstDateTime(new Date(item.spawnMs).toISOString(), { date: false });
         row.querySelector('.timelineBossName').textContent = item.boss.이름;
@@ -746,9 +750,10 @@ function renderTimeline() {
         row.addEventListener('click', (event) => {
             if (isBossCardControl(event.target)) return;
             if (lock && lock.memberName !== selectedMember) showToast('컷 입력 중', `${lock.memberName} 님이 먼저 열었습니다.`, 'error');
-            else openCutModal(item.boss, item.spawnMs);
+            else openCutModal(item.boss, getNowMs());
         });
         bossTimeline.append(row);
+        previousSpawnMs = item.spawnMs;
     }
 }
 
@@ -876,6 +881,10 @@ function renderRecords() {
         button.textContent = canceled ? '취소' : open ? '입력' : record.requiresParticipation ? '마감' : '-';
         button.disabled = canceled || !open;
         button.addEventListener('click', () => openJoinModal(record));
+        item.addEventListener('click', (event) => {
+            if (isBossCardControl(event.target)) return;
+            openParticipantModal(record);
+        });
         bossRecordList.append(item);
     }
 }
