@@ -549,8 +549,21 @@ function appendBossAuditLog(action, { bossName, recordId = '', actorName = '', d
     state.bossAuditLogs = state.bossAuditLogs.slice(0, MAX_BOSS_AUDIT_LOGS);
 }
 
+function normalizeAdminPasswordValue(value) {
+    const raw = String(value || '').trim();
+    if (raw.length >= 2) {
+        const first = raw[0];
+        const last = raw[raw.length - 1];
+        if ((first === '"' && last === '"') || (first === "'" && last === "'")) {
+            return raw.slice(1, -1).trim();
+        }
+    }
+    return raw;
+}
+
 function verifyAdminPassword(value) {
-    return ADMIN_PASSWORD_CONFIGURED && String(value || '') === ADMIN_PASSWORD;
+    return ADMIN_PASSWORD_CONFIGURED
+        && normalizeAdminPasswordValue(value) === normalizeAdminPasswordValue(ADMIN_PASSWORD);
 }
 
 function rejectInvalidAdmin(res, value) {
