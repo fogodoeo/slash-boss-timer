@@ -36,10 +36,20 @@
 
         <section id="bossAlertBanner" class="bossAlertBanner hidden" aria-live="polite">
             <div>
-                <span class="label">5분 전 알림</span>
+                <span class="label">보스 알림</span>
                 <strong id="bossAlertTitle">젠 예정 보스</strong>
             </div>
             <span id="bossAlertMeta">보스 시간이 가까워졌습니다.</span>
+        </section>
+
+        <section id="bossQuickPanel" class="bossQuickPanel hidden" aria-label="임박 보스">
+            <div class="bossQuickHead">
+                <div>
+                    <span class="label">임박 / 젠 보스</span>
+                    <strong id="bossQuickSummary">컷 대기 없음</strong>
+                </div>
+            </div>
+            <div id="bossQuickList" class="bossQuickList"></div>
         </section>
 
         <section class="bossOverview">

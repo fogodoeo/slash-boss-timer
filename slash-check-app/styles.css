@@ -4763,6 +4763,124 @@ body {
     white-space: nowrap;
 }
 
+.bossQuickPanel {
+    display: grid;
+    gap: 8px;
+    border: 1px solid #dbe4f0;
+    border-radius: 10px;
+    background: #ffffff;
+    padding: 10px;
+    box-shadow: 0 8px 18px rgba(15, 23, 42, 0.04);
+}
+
+.bossQuickPanel.hidden {
+    display: none;
+}
+
+.bossQuickHead {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.bossQuickHead > div {
+    display: grid;
+    gap: 2px;
+    min-width: 0;
+}
+
+.bossQuickHead strong {
+    color: var(--text);
+    font-size: 15px;
+    font-weight: 950;
+}
+
+.bossQuickList {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
+}
+
+.bossQuickItem {
+    display: grid;
+    grid-template-columns: 48px minmax(0, 1fr) 46px;
+    align-items: center;
+    gap: 8px;
+    min-height: 38px;
+    border: 1px solid #dbe4f0;
+    border-radius: 8px;
+    background: #f8fafc;
+    padding: 6px 8px;
+    text-align: left;
+}
+
+.bossQuickItem:hover:not(:disabled) {
+    border-color: #9db7ff;
+    background: #ffffff;
+}
+
+.bossQuickItem.spawned {
+    border-color: #bbf7d0;
+    background: linear-gradient(90deg, var(--green-soft), #ffffff 60%);
+}
+
+.bossQuickItem.upcoming {
+    border-color: #fed7aa;
+    background: linear-gradient(90deg, #fff7ed, #ffffff 62%);
+}
+
+.bossQuickItem.fixedBoss .bossQuickMain strong,
+.bossQuickItem.fixedBoss time,
+.bossQuickItem.fixedBoss .bossQuickRemain {
+    color: #020617;
+    font-weight: 1000;
+}
+
+.bossQuickItem:disabled {
+    opacity: 0.58;
+    cursor: not-allowed;
+}
+
+.bossQuickItem time,
+.bossQuickRemain {
+    color: var(--text);
+    font-size: 13px;
+    font-weight: 950;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+.bossQuickMain {
+    display: grid;
+    gap: 2px;
+    min-width: 0;
+}
+
+.bossQuickMain strong,
+.bossQuickMain span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.bossQuickMain strong {
+    color: var(--text);
+    font-size: 14px;
+    font-weight: 950;
+}
+
+.bossQuickMain span {
+    color: var(--muted);
+    font-size: 11.5px;
+    font-weight: 800;
+}
+
+.bossQuickRemain {
+    justify-self: end;
+    color: var(--blue-dark);
+}
+
 .sectionTabs {
     display: flex;
     align-items: center;
@@ -4965,14 +5083,6 @@ body {
     min-width: 0;
 }
 
-.bossPage .timelineTime[data-count]::after {
-    content: "x" attr(data-count);
-    color: #475569;
-    font-size: 10px;
-    font-weight: 900;
-    line-height: 1;
-}
-
 .bossPage .timelineItem.timeBoss:not(.alertTarget) .timelineTime,
 .bossPage .timelineItem.timeBoss:not(.alertTarget) .timelineBossName,
 .bossPage .timelineItem.timeBoss:not(.alertTarget) .timelineRemain {
@@ -5106,6 +5216,29 @@ body {
         grid-column: 2;
         font-size: 12px;
         white-space: normal;
+    }
+
+    .bossQuickPanel {
+        padding: 8px;
+    }
+
+    .bossQuickList {
+        grid-template-columns: 1fr;
+        gap: 5px;
+    }
+
+    .bossQuickItem {
+        grid-template-columns: 44px minmax(0, 1fr) 42px;
+        min-height: 34px;
+        padding: 5px 7px;
+    }
+
+    .bossQuickMain strong {
+        font-size: 13px;
+    }
+
+    .bossQuickMain span {
+        font-size: 11px;
     }
 
     .sectionTabs {

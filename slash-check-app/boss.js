@@ -7,6 +7,9 @@ const bossTimeline = document.querySelector('#bossTimeline');
 const bossAlertBanner = document.querySelector('#bossAlertBanner');
 const bossAlertTitle = document.querySelector('#bossAlertTitle');
 const bossAlertMeta = document.querySelector('#bossAlertMeta');
+const bossQuickPanel = document.querySelector('#bossQuickPanel');
+const bossQuickSummary = document.querySelector('#bossQuickSummary');
+const bossQuickList = document.querySelector('#bossQuickList');
 const bossMainPanel = document.querySelector('.bossMainPanel');
 const bossSummary = document.querySelector('#bossSummary');
 const bossList = document.querySelector('#bossList');
@@ -71,7 +74,7 @@ const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
 const DAY_MS = 24 * 60 * 60 * 1000;
 const SPAWNED_KEEP_MS = 60 * 60 * 1000;
 const SOON_MS = 10 * 60 * 1000;
-const BOSS_ALERT_MS = 5 * 60 * 1000;
+const BOSS_ALERT_MS = 60 * 60 * 1000;
 const ORIGINAL_TITLE = document.title;
 let state = { now: new Date().toISOString(), members: [], bossCuts: {}, bossCutRecords: [], bossCutLocks: {} };
 let bosses = [];
@@ -99,6 +102,16 @@ function pad2(value) {
 
 function cleanName(value) {
     return String(value || '').trim().replace(/\s+/g, ' ').slice(0, 24);
+}
+
+function displayBossLocation(value) {
+    const raw = String(value || '').trim();
+    if (!raw) return '위치 미등록';
+    if (!/^\s*\(?\s*\d+\s*-\s*\d+/.test(raw)) return raw;
+    return raw
+        .replace(/^\s*\(?\s*\d+\s*-\s*\d+\s*/, '')
+        .replace(/\)\s*$/, '')
+        .trim() || raw;
 }
 
 function normalizeTimeInput(value) {
@@ -581,6 +594,23 @@ function alertItems(items, now = getNowMs()) {
         .sort((a, b) => a.spawnMs - b.spawnMs);
 }
 
+function leadingAlertItem(items, now = getNowMs()) {
+    return alertItems(items, now)[0] || null;
+}
+
+function focusBossItems(items, now = getNowMs()) {
+    return items
+        .filter((item) => {
+            const diff = item.spawnMs - now;
+            return diff <= BOSS_ALERT_MS && diff >= -SPAWNED_KEEP_MS;
+        })
+        .sort((a, b) => {
+            const aSpawned = a.spawnMs <= now ? 0 : 1;
+            const bSpawned = b.spawnMs <= now ? 0 : 1;
+            return aSpawned - bSpawned || Math.abs(a.spawnMs - now) - Math.abs(b.spawnMs - now) || a.spawnMs - b.spawnMs;
+        });
+}
+
 function stopTitleAlert() {
     if (titleAlertTimer) clearInterval(titleAlertTimer);
     titleAlertTimer = null;
@@ -608,8 +638,7 @@ function startTitleAlert(item) {
 }
 
 function updateBossAlertBanner(items, now = getNowMs()) {
-    const alerts = alertItems(items, now);
-    const item = alerts[0];
+    const item = leadingAlertItem(items, now);
 
     if (!item) {
         bossAlertBanner?.classList.add('hidden');
@@ -622,8 +651,7 @@ function updateBossAlertBanner(items, now = getNowMs()) {
     bossAlertBanner?.classList.remove('hidden');
     if (bossAlertTitle) bossAlertTitle.textContent = `${item.boss.이름} ${formatRemain(item.spawnMs, now)}`;
     if (bossAlertMeta) {
-        const extra = alerts.length > 1 ? ` · 외 ${alerts.length - 1}개` : '';
-        bossAlertMeta.textContent = `${formatKstDateTime(new Date(item.spawnMs).toISOString(), { date: false })} 젠 예정 · ${item.boss.위치 || '위치 미등록'}${extra}`;
+        bossAlertMeta.textContent = `${formatKstDateTime(new Date(item.spawnMs).toISOString(), { date: false })} 젠 예정 · ${displayBossLocation(item.boss.위치)}`;
     }
     startTitleAlert(item);
 }
@@ -631,17 +659,20 @@ function updateBossAlertBanner(items, now = getNowMs()) {
 function maybeNotifyTimeline(items) {
     if (!('Notification' in window) || Notification.permission !== 'granted') return;
     const now = getNowMs();
-    for (const item of alertItems(items, now)) {
-        const key = `${item.boss.이름}:${item.spawnMs}`;
-        if (notifiedSpawnKeys.has(key)) continue;
-        notifiedSpawnKeys.add(key);
-        new Notification(`${item.boss.이름} 5분 전`, {
-            body: `${formatKstDateTime(new Date(item.spawnMs).toISOString(), { date: false })} 젠 예정 · ${formatRemain(item.spawnMs, now)}`,
-            tag: `boss-${key}`
-        });
-        playBossAlarm();
-        navigator.vibrate?.([180, 70, 180]);
-    }
+    const item = leadingAlertItem(items, now);
+    if (!item) return;
+
+    const key = `${item.boss.이름}:${item.spawnMs}`;
+    if (notifiedSpawnKeys.has(key)) return;
+    notifiedSpawnKeys.add(key);
+    const notification = new Notification(`${item.boss.이름} ${formatRemain(item.spawnMs, now)}`, {
+        body: `${formatKstDateTime(new Date(item.spawnMs).toISOString(), { date: false })} 젠 예정 · ${displayBossLocation(item.boss.위치)}`,
+        tag: `boss-leading-${key}`,
+        requireInteraction: false
+    });
+    setTimeout(() => notification.close?.(), 7000);
+    playBossAlarm();
+    navigator.vibrate?.([180, 70, 180]);
 }
 
 function updateNotifyButton() {
@@ -707,12 +738,61 @@ function renderLiveParticipation() {
     }
 }
 
+function renderQuickBosses(timeline, now = getNowMs()) {
+    const items = focusBossItems(timeline, now).slice(0, 8);
+    bossQuickList.replaceChildren();
+
+    if (items.length === 0) {
+        bossQuickPanel?.classList.add('hidden');
+        if (bossQuickSummary) bossQuickSummary.textContent = '컷 대기 없음';
+        return;
+    }
+
+    bossQuickPanel?.classList.remove('hidden');
+    const spawnedCount = items.filter((item) => item.spawnMs <= now).length;
+    const upcomingCount = items.length - spawnedCount;
+    if (bossQuickSummary) {
+        bossQuickSummary.textContent = `젠됨 ${spawnedCount} · 1시간 이내 ${upcomingCount}`;
+    }
+
+    for (const item of items) {
+        const button = document.createElement('button');
+        const lock = bossLock(item.boss.이름);
+        const lockedByOther = lock && lock.memberName !== selectedMember;
+        button.type = 'button';
+        button.className = `bossQuickItem ${item.spawnMs <= now ? 'spawned' : 'upcoming'} ${item.boss.타입 === '고정' ? 'fixedBoss' : 'timeBoss'}`;
+        button.disabled = Boolean(lockedByOther);
+
+        const time = document.createElement('time');
+        time.textContent = formatKstDateTime(new Date(item.spawnMs).toISOString(), { date: false });
+        const main = document.createElement('span');
+        main.className = 'bossQuickMain';
+        const name = document.createElement('strong');
+        name.textContent = item.boss.이름;
+        const location = document.createElement('span');
+        location.textContent = lockedByOther ? `${lock.memberName} 입력중` : displayBossLocation(item.boss.위치);
+        main.append(name, location);
+        const remain = document.createElement('span');
+        remain.className = 'bossQuickRemain';
+        remain.textContent = item.spawnMs <= now ? '컷' : formatRemain(item.spawnMs, now);
+
+        button.append(time, main, remain);
+        button.addEventListener('click', () => {
+            if (lockedByOther) return;
+            openCutModal(item.boss, getNowMs());
+        });
+        bossQuickList.append(button);
+    }
+}
+
 function renderTimeline() {
     const timeline = buildTimeline();
     const now = getNowMs();
-    const activeAlertKeys = new Set(alertItems(timeline, now).map((item) => `${item.boss.이름}:${item.spawnMs}`));
+    const leadingAlert = leadingAlertItem(timeline, now);
+    const activeAlertKeys = new Set(leadingAlert ? [`${leadingAlert.boss.이름}:${leadingAlert.spawnMs}`] : []);
     renderOverview(timeline);
     updateBossAlertBanner(timeline, now);
+    renderQuickBosses(timeline, now);
     maybeNotifyTimeline(timeline);
     bossTimeline.replaceChildren();
 
@@ -728,12 +808,6 @@ function renderTimeline() {
     let previousDateKey = '';
     let firstDateGroup = true;
     let previousSpawnMs = null;
-    const slotCounts = timeline.reduce((counts, item) => {
-        const key = `${kstDateKey(item.spawnMs)}:${timeInputValueFromMs(item.spawnMs)}`;
-        counts.set(key, (counts.get(key) || 0) + 1);
-        return counts;
-    }, new Map());
-
     for (let index = 0; index < timeline.length; index += 1) {
         const item = timeline[index];
         const dateKey = kstDateKey(item.spawnMs);
@@ -750,27 +824,25 @@ function renderTimeline() {
         const row = timelineItemTemplate.content.firstElementChild.cloneNode(true);
         const stateName = bossStateFromSpawn(item.spawnMs, now);
         const latest = item.record || latestRecordForBoss(item.boss);
-        const slotKey = `${dateKey}:${timeInputValueFromMs(item.spawnMs)}`;
-        const slotCount = slotCounts.get(slotKey) || 1;
         const previousItem = timeline[index - 1];
         const nextItem = timeline[index + 1];
         const sameAsPrevious = previousItem && previousItem.spawnMs === item.spawnMs;
         const sameAsNext = nextItem && nextItem.spawnMs === item.spawnMs;
+        const sameTimeGroup = sameAsPrevious || sameAsNext;
         row.classList.add(stateName, item.boss.타입 === '고정' ? 'fixedBoss' : 'timeBoss');
-        row.classList.toggle('sameTimeGroup', slotCount > 1);
-        row.classList.toggle('sameTimeStart', slotCount > 1 && !sameAsPrevious);
-        row.classList.toggle('sameTimeMiddle', slotCount > 1 && sameAsPrevious && sameAsNext);
-        row.classList.toggle('sameTimeEnd', slotCount > 1 && !sameAsNext);
+        row.classList.toggle('sameTimeGroup', sameTimeGroup);
+        row.classList.toggle('sameTimeStart', sameTimeGroup && !sameAsPrevious);
+        row.classList.toggle('sameTimeMiddle', sameTimeGroup && sameAsPrevious && sameAsNext);
+        row.classList.toggle('sameTimeEnd', sameTimeGroup && !sameAsNext);
         if (previousSpawnMs && item.spawnMs - previousSpawnMs > 60 * 60 * 1000) {
             row.classList.add('hasTimeGap');
         }
         row.classList.toggle('alertTarget', activeAlertKeys.has(`${item.boss.이름}:${item.spawnMs}`));
         const timeEl = row.querySelector('.timelineTime');
         timeEl.textContent = formatKstDateTime(new Date(item.spawnMs).toISOString(), { date: false });
-        if (slotCount > 1 && !sameAsPrevious) timeEl.dataset.count = `${slotCount}`;
         row.querySelector('.timelineBossName').textContent = item.boss.이름;
         const timelineMeta = row.querySelector('.timelineMeta');
-        timelineMeta.textContent = `${item.boss.위치 || '위치 미등록'}${latest?.requiresParticipation ? ' · 참여 확인' : ''}`;
+        timelineMeta.textContent = `${displayBossLocation(item.boss.위치)}${latest?.requiresParticipation ? ' · 참여 확인' : ''}`;
         row.querySelector('.timelineRemain').textContent = formatRemain(item.spawnMs, now);
         const lock = bossLock(item.boss.이름);
         if (lock && lock.memberName !== selectedMember) {
@@ -826,7 +898,7 @@ function renderBosses() {
         card.classList.add(spawnState, boss.타입 === '고정' ? 'fixedBoss' : 'timeBoss');
 
         card.querySelector('.bossName').textContent = boss.이름;
-        card.querySelector('.bossLocation').textContent = boss.위치 || '위치 미등록';
+        card.querySelector('.bossLocation').textContent = displayBossLocation(boss.위치);
         const typeBadge = card.querySelector('.bossTypeBadge');
         typeBadge.textContent = boss.타입 === '고정' ? '고정' : '';
         typeBadge.hidden = boss.타입 !== '고정';
@@ -973,7 +1045,7 @@ async function openCutModal(boss, defaultMs = null) {
     const cutMs = Number.isFinite(defaultMs) ? defaultMs : getNowMs();
     selectedCutBoss = boss;
     cutModalTitle.textContent = `${boss.이름} 컷 확인`;
-    cutModalDesc.textContent = `${boss.애칭 || '-'} · ${boss.위치 || '-'} · ${boss.타입} · 한국시간 기준으로 기록됩니다.`;
+    cutModalDesc.textContent = `${boss.애칭 || '-'} · ${displayBossLocation(boss.위치)} · ${boss.타입} · 한국시간 기준으로 기록됩니다.`;
     cutDateInput.value = dateInputValueFromMs(cutMs);
     cutTimeInput.value = timeInputValueFromMs(cutMs);
     requiresParticipationInput.checked = false;
