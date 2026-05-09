@@ -10,11 +10,15 @@
     }
 
     function notificationsEnabled() {
-        return localStorage.getItem(NOTIFY_ENABLED_KEY) !== 'off';
+        const saved = localStorage.getItem(NOTIFY_ENABLED_KEY);
+        if (saved === 'off') return false;
+        if (saved === 'on') return true;
+        return 'Notification' in window && Notification.permission === 'granted';
     }
 
     function setNotificationsEnabled(enabled) {
         localStorage.setItem(NOTIFY_ENABLED_KEY, enabled ? 'on' : 'off');
+        window.dispatchEvent(new Event('slash-notify-setting-changed'));
     }
 
     function updateMemberLabel() {

@@ -73,6 +73,7 @@ const MEMBER_KEY = 'slashCheckMemberName';
 const ADMIN_PASSWORD_KEY = 'slashCheckAdminPassword';
 const BOSS_LIST_OPEN_KEY = 'slashBossListOpen';
 const NOTIFY_ENABLED_KEY = 'slashCheckNotificationsEnabled';
+const BOSS_NOTIFY_LAST_KEY = 'slashBossLastNotificationKey';
 const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
 const DAY_MS = 24 * 60 * 60 * 1000;
 const SPAWNED_KEEP_MS = 60 * 60 * 1000;
@@ -108,11 +109,15 @@ function cleanName(value) {
 }
 
 function notificationsEnabled() {
-    return localStorage.getItem(NOTIFY_ENABLED_KEY) !== 'off';
+    const saved = localStorage.getItem(NOTIFY_ENABLED_KEY);
+    if (saved === 'off') return false;
+    if (saved === 'on') return true;
+    return 'Notification' in window && Notification.permission === 'granted';
 }
 
 function setNotificationsEnabled(enabled) {
     localStorage.setItem(NOTIFY_ENABLED_KEY, enabled ? 'on' : 'off');
+    window.dispatchEvent(new Event('slash-notify-setting-changed'));
 }
 
 function displayBossLocation(value) {
@@ -783,6 +788,9 @@ function maybeNotifyTimeline(items) {
     const key = `${item.boss.이름}:${item.spawnMs}`;
     if (notifiedSpawnKeys.has(key)) return;
     notifiedSpawnKeys.add(key);
+    const storedKey = `boss:${key}`;
+    if (localStorage.getItem(BOSS_NOTIFY_LAST_KEY) === storedKey) return;
+    localStorage.setItem(BOSS_NOTIFY_LAST_KEY, storedKey);
     const notification = new Notification(`${item.boss.이름} ${formatRemain(item.spawnMs, now)}`, {
         body: `${formatKstDateTime(new Date(item.spawnMs).toISOString(), { date: false })} 젠 예정 · ${displayBossLocation(item.boss.위치)}`,
         tag: `boss-leading-${key}`,
