@@ -728,8 +728,14 @@ function renderTimeline() {
     let previousDateKey = '';
     let firstDateGroup = true;
     let previousSpawnMs = null;
+    const slotCounts = timeline.reduce((counts, item) => {
+        const key = `${kstDateKey(item.spawnMs)}:${timeInputValueFromMs(item.spawnMs)}`;
+        counts.set(key, (counts.get(key) || 0) + 1);
+        return counts;
+    }, new Map());
 
-    for (const item of timeline) {
+    for (let index = 0; index < timeline.length; index += 1) {
+        const item = timeline[index];
         const dateKey = kstDateKey(item.spawnMs);
         if (dateKey !== previousDateKey) {
             const divider = document.createElement('div');
@@ -744,12 +750,24 @@ function renderTimeline() {
         const row = timelineItemTemplate.content.firstElementChild.cloneNode(true);
         const stateName = bossStateFromSpawn(item.spawnMs, now);
         const latest = item.record || latestRecordForBoss(item.boss);
+        const slotKey = `${dateKey}:${timeInputValueFromMs(item.spawnMs)}`;
+        const slotCount = slotCounts.get(slotKey) || 1;
+        const previousItem = timeline[index - 1];
+        const nextItem = timeline[index + 1];
+        const sameAsPrevious = previousItem && previousItem.spawnMs === item.spawnMs;
+        const sameAsNext = nextItem && nextItem.spawnMs === item.spawnMs;
         row.classList.add(stateName, item.boss.타입 === '고정' ? 'fixedBoss' : 'timeBoss');
+        row.classList.toggle('sameTimeGroup', slotCount > 1);
+        row.classList.toggle('sameTimeStart', slotCount > 1 && !sameAsPrevious);
+        row.classList.toggle('sameTimeMiddle', slotCount > 1 && sameAsPrevious && sameAsNext);
+        row.classList.toggle('sameTimeEnd', slotCount > 1 && !sameAsNext);
         if (previousSpawnMs && item.spawnMs - previousSpawnMs > 60 * 60 * 1000) {
             row.classList.add('hasTimeGap');
         }
         row.classList.toggle('alertTarget', activeAlertKeys.has(`${item.boss.이름}:${item.spawnMs}`));
-        row.querySelector('.timelineTime').textContent = formatKstDateTime(new Date(item.spawnMs).toISOString(), { date: false });
+        const timeEl = row.querySelector('.timelineTime');
+        timeEl.textContent = formatKstDateTime(new Date(item.spawnMs).toISOString(), { date: false });
+        if (slotCount > 1 && !sameAsPrevious) timeEl.dataset.count = `${slotCount}`;
         row.querySelector('.timelineBossName').textContent = item.boss.이름;
         const timelineMeta = row.querySelector('.timelineMeta');
         timelineMeta.textContent = `${item.boss.위치 || '위치 미등록'}${latest?.requiresParticipation ? ' · 참여 확인' : ''}`;
