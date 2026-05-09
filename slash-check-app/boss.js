@@ -740,6 +740,15 @@ function startTitleAlert(item) {
 }
 
 function updateBossAlertBanner(items, now = getNowMs()) {
+    if (!bossAlertBanner) {
+        const item = leadingAlertItem(items, now);
+        if (!notificationsEnabled()) stopTitleAlert();
+        else if (item) startTitleAlert(item);
+        else stopTitleAlert();
+        document.body.classList.remove('hasBossAlert');
+        return;
+    }
+
     if (!notificationsEnabled()) {
         bossAlertBanner?.classList.add('hidden');
         document.body.classList.remove('hasBossAlert');
@@ -860,6 +869,8 @@ function renderLiveParticipation() {
 }
 
 function renderQuickBosses(timeline, now = getNowMs()) {
+    if (!bossQuickPanel || !bossQuickList) return;
+
     const items = focusBossItems(timeline, now).slice(0, 8);
     bossQuickList.replaceChildren();
 
