@@ -37,6 +37,7 @@ const cutModalDesc = document.querySelector('#cutModalDesc');
 const cutDateInput = document.querySelector('#cutDateInput');
 const cutTimeInput = document.querySelector('#cutTimeInput');
 const cutSecondInput = document.querySelector('#cutSecondInput');
+const cutUncertainInput = document.querySelector('#cutUncertainInput');
 const requiresParticipationInput = document.querySelector('#requiresParticipationInput');
 const participantPasswordField = document.querySelector('#participantPasswordField');
 const participantPasswordInput = document.querySelector('#participantPasswordInput');
@@ -54,6 +55,7 @@ const participantList = document.querySelector('#participantList');
 const participantCutDateInput = document.querySelector('#participantCutDateInput');
 const participantCutTimeInput = document.querySelector('#participantCutTimeInput');
 const participantCutSecondInput = document.querySelector('#participantCutSecondInput');
+const participantUncertainInput = document.querySelector('#participantUncertainInput');
 const participantAdminPasswordInput = document.querySelector('#participantAdminPasswordInput');
 const participantCancelReasonInput = document.querySelector('#participantCancelReasonInput');
 const participantAddMemberInput = document.querySelector('#participantAddMemberInput');
@@ -596,6 +598,13 @@ function latestRecordForBoss(boss) {
         } : null);
 }
 
+function isTimeBossRecord(record) {
+    if (!record) return false;
+    if (record.bossType) return record.bossType === '시간';
+    const boss = bosses.find((item) => item.이름 === record.bossName || item.애칭 === record.bossName);
+    return boss?.타입 === '시간';
+}
+
 function manualNextSpawnMs(boss, latest) {
     if (!boss.nextSpawnAt) return null;
     const spawnMs = new Date(boss.nextSpawnAt).getTime();
@@ -1000,7 +1009,19 @@ function renderTimeline() {
         row.querySelector('.timelineBossName').textContent = item.boss.이름;
         const timelineMeta = row.querySelector('.timelineMeta');
         timelineMeta.textContent = `${displayBossLocation(item.boss.위치)}${latest?.requiresParticipation ? ' · 참여 확인' : ''}`;
-        row.querySelector('.timelineRemain').textContent = formatRemainWithSuffix(item.spawnMs, now);
+        const uncertain = item.boss.타입 === '시간' && latest?.timeUncertain;
+        const remainEl = row.querySelector('.timelineRemain');
+        const remainText = document.createElement('span');
+        remainText.textContent = formatRemainWithSuffix(item.spawnMs, now);
+        remainEl.replaceChildren();
+        if (uncertain) {
+            const uncertainLabel = document.createElement('span');
+            uncertainLabel.className = 'timelineUncertain';
+            uncertainLabel.textContent = '* 불확실';
+            remainEl.append(uncertainLabel);
+        }
+        remainEl.append(remainText);
+        row.classList.toggle('isUncertain', Boolean(uncertain));
         const lock = bossLock(item.boss.이름);
         if (lock && lock.memberName !== selectedMember) {
             row.classList.add('locked');
@@ -1198,6 +1219,8 @@ async function openCutModal(boss, defaultMs = null) {
     cutDateInput.value = dateInputValueFromMs(cutMs);
     cutTimeInput.value = timeInputValueFromMs(cutMs);
     cutSecondInput.value = secondInputValueFromMs(cutMs);
+    cutUncertainInput.checked = false;
+    cutUncertainInput.closest('label')?.classList.toggle('hiddenField', boss.타입 !== '시간');
     requiresParticipationInput.checked = false;
     participantPasswordInput.value = '';
     participantPasswordField.classList.add('hiddenField');
@@ -1251,6 +1274,10 @@ function openParticipantModal(record) {
     participantCutDateInput.disabled = canceled;
     participantCutTimeInput.disabled = canceled;
     participantCutSecondInput.disabled = canceled;
+    const canMarkUncertain = isTimeBossRecord(record);
+    participantUncertainInput.checked = Boolean(record.timeUncertain);
+    participantUncertainInput.disabled = canceled || !canMarkUncertain;
+    participantUncertainInput.closest('label')?.classList.toggle('hiddenField', !canMarkUncertain);
     participantAdminPasswordInput.value = cachedAdminPassword;
     participantAdminPasswordInput.disabled = canceled;
     participantCancelReasonInput.value = reason;
@@ -1394,6 +1421,7 @@ async function submitCut(event) {
                 timeValue,
                 cutAt,
                 reporterName: memberName,
+                timeUncertain: selectedCutBoss.타입 === '시간' && cutUncertainInput.checked,
                 requiresParticipation: requiresParticipationInput.checked,
                 participantPassword: participantPasswordInput.value
             })
@@ -1470,6 +1498,7 @@ async function updateParticipantRecordTime() {
                 timeValue: normalized,
                 cutAt,
                 actorName: memberName,
+                timeUncertain: isTimeBossRecord(selectedParticipantRecord) && participantUncertainInput.checked,
                 adminPassword: participantAdminPasswordInput.value
             })
         });

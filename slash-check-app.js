@@ -328,6 +328,7 @@ function normalizeBossCutRecord(value) {
         canceledBy: cleanText(value.canceledBy, 24),
         cancelReason: cleanText(value.cancelReason, 80),
         editedBy: cleanText(value.editedBy, 24),
+        timeUncertain: cleanText(value.bossType, 16) !== '고정' && Boolean(value.timeUncertain),
         requiresParticipation: Boolean(value.requiresParticipation),
         participantPasswordHash: cleanText(value.participantPasswordHash, 128),
         participationOpenUntil: value.participationOpenUntil || null,
@@ -407,6 +408,7 @@ function normalizeBossCuts(value) {
             nextSpawnAt: cut?.nextSpawnAt || null,
             reporterName: cleanText(cut?.reporterName, 24),
             updatedAt: cut?.updatedAt || new Date().toISOString(),
+            timeUncertain: Boolean(cut?.timeUncertain),
             requiresParticipation: Boolean(cut?.requiresParticipation),
             participantPasswordHash: cleanText(cut?.participantPasswordHash, 128),
             participationOpenUntil: cut?.participationOpenUntil || null,
@@ -428,6 +430,7 @@ function publicBossCut(value) {
         nextSpawnAt: value.nextSpawnAt || null,
         reporterName: value.reporterName || '',
         updatedAt: value.updatedAt || null,
+        timeUncertain: Boolean(value.timeUncertain),
         requiresParticipation: Boolean(value.requiresParticipation),
         hasParticipantPassword: Boolean(value.participantPasswordHash),
         participationOpenUntil: value.participationOpenUntil || null,
@@ -461,6 +464,7 @@ function publicBossCutRecords() {
         canceledBy: record.canceledBy || '',
         cancelReason: record.cancelReason || '',
         editedBy: record.editedBy || '',
+        timeUncertain: Boolean(record.timeUncertain),
         requiresParticipation: Boolean(record.requiresParticipation),
         hasParticipantPassword: Boolean(record.participantPasswordHash),
         participationOpenUntil: record.participationOpenUntil || null,
@@ -496,6 +500,7 @@ function bossCutStateFromRecord(record) {
         reporterName: record.reporterName || '',
         updatedAt: record.updatedAt || null,
         status: record.status || 'active',
+        timeUncertain: Boolean(record.timeUncertain),
         requiresParticipation: Boolean(record.requiresParticipation),
         participantPasswordHash: record.participantPasswordHash || '',
         participationOpenUntil: record.participationOpenUntil || null,
@@ -587,6 +592,7 @@ async function hydrateBossCutState() {
 
         if (!cut.nextSpawnAt) cut.nextSpawnAt = calcBossNextSpawnAt(boss, cut.cutAt);
         if (!Array.isArray(cut.participants)) cut.participants = [];
+        cut.timeUncertain = boss.타입 === '시간' && Boolean(cut.timeUncertain);
         cut.requiresParticipation = Boolean(cut.requiresParticipation);
         cut.participantPasswordHash = cleanText(cut.participantPasswordHash, 128);
         cut.participationOpenUntil = cut.participationOpenUntil || null;
@@ -603,6 +609,7 @@ async function hydrateBossCutState() {
                 nextSpawnAt: cut.nextSpawnAt,
                 reporterName: cut.reporterName,
                 updatedAt: cut.updatedAt,
+                timeUncertain: cut.timeUncertain,
                 requiresParticipation: cut.requiresParticipation,
                 participantPasswordHash: cut.participantPasswordHash,
                 participationOpenUntil: cut.participationOpenUntil,
@@ -1053,6 +1060,7 @@ async function handleApi(req, res, url) {
 
         const nextSpawnAt = calcBossNextSpawnAt(boss, cutAt);
         const nowIso = new Date().toISOString();
+        const timeUncertain = boss.타입 === '시간' && Boolean(body.timeUncertain);
         const participationOpenUntil = requiresParticipation && participantPasswordHash
             ? new Date(Date.now() + BOSS_PARTICIPATION_WINDOW_MS).toISOString()
             : null;
@@ -1068,6 +1076,7 @@ async function handleApi(req, res, url) {
             reporterName,
             updatedAt: nowIso,
             status: 'active',
+            timeUncertain,
             requiresParticipation,
             participantPasswordHash,
             participationOpenUntil,
@@ -1089,6 +1098,7 @@ async function handleApi(req, res, url) {
                 timeValue,
                 cutAt,
                 nextSpawnAt,
+                timeUncertain,
                 requiresParticipation,
                 hasParticipantPassword: Boolean(participantPasswordHash)
             }
@@ -1142,16 +1152,19 @@ async function handleApi(req, res, url) {
         }
 
         const nowIso = new Date().toISOString();
+        const timeUncertain = boss.타입 === '시간' && Boolean(body.timeUncertain);
         const previous = {
             timeValue: record.timeValue,
             cutAt: record.cutAt,
-            nextSpawnAt: record.nextSpawnAt || null
+            nextSpawnAt: record.nextSpawnAt || null,
+            timeUncertain: Boolean(record.timeUncertain)
         };
         record.timeValue = timeValue;
         record.cutAt = cutAt;
         record.nextSpawnAt = calcBossNextSpawnAt(boss, cutAt);
         record.updatedAt = nowIso;
         record.editedBy = actorName;
+        record.timeUncertain = timeUncertain;
         state.bossCutRecords = [record, ...(state.bossCutRecords || []).filter((item) => item.id !== record.id)]
             .slice(0, MAX_BOSS_CUT_RECORDS);
 
@@ -1165,7 +1178,8 @@ async function handleApi(req, res, url) {
                 next: {
                     timeValue: record.timeValue,
                     cutAt: record.cutAt,
-                    nextSpawnAt: record.nextSpawnAt || null
+                    nextSpawnAt: record.nextSpawnAt || null,
+                    timeUncertain: Boolean(record.timeUncertain)
                 }
             }
         });
