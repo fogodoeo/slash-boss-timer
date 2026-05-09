@@ -663,6 +663,14 @@ function fixedSpawnCoveredByLatestCut(latest, spawnMs) {
     return Number.isFinite(cutMs) && spawnMs <= cutMs;
 }
 
+function isUncutPendingTimeItem(item, now = getNowMs()) {
+    return item?.boss?.타입 === '시간'
+        && item.source === 'planned'
+        && !item.record
+        && Number.isFinite(item.spawnMs)
+        && item.spawnMs <= now;
+}
+
 function buildTimeline() {
     const now = getNowMs();
     const start = startOfKstDay(now) - DAY_MS;
@@ -690,8 +698,10 @@ function buildTimeline() {
         const manualMs = manualNextSpawnMs(boss, latest);
         const nextSpawnAt = manualMs ? null : latest?.nextSpawnAt || boss.nextSpawnAt;
         const spawnMs = manualMs || new Date(nextSpawnAt || '').getTime();
-        if (Number.isFinite(spawnMs) && spawnMs >= floor && spawnMs <= end) {
-            items.push({ boss, spawnMs, source: manualMs ? 'manual' : latest ? 'cut' : 'planned', record: manualMs ? null : latest });
+        const item = { boss, spawnMs, source: manualMs ? 'manual' : latest ? 'cut' : 'planned', record: manualMs ? null : latest };
+        const keepUncutPending = isUncutPendingTimeItem(item, now);
+        if (Number.isFinite(spawnMs) && spawnMs <= end && (spawnMs >= floor || keepUncutPending)) {
+            items.push(item);
         }
     }
 
@@ -729,7 +739,7 @@ function focusBossItems(items, now = getNowMs()) {
     return items
         .filter((item) => {
             const diff = item.spawnMs - now;
-            return diff <= BOSS_ALERT_MS && diff >= -SPAWNED_KEEP_MS;
+            return isUncutPendingTimeItem(item, now) || (diff <= BOSS_ALERT_MS && diff >= -SPAWNED_KEEP_MS);
         })
         .sort((a, b) => {
             const aSpawned = a.spawnMs <= now ? 0 : 1;
