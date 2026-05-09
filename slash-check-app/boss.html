@@ -13,7 +13,7 @@
             <div>
                 <span class="eyebrow">보스 운영</span>
                 <h1>보스 현황</h1>
-                <p class="pageDesc">24시간 젠 일정, 컷 기록, 참여 확인을 같은 규칙으로 관리합니다.</p>
+                <p class="pageDesc">가까운 젠, 컷 기록, 참여 확인을 같은 규칙으로 관리합니다.</p>
             </div>
             <nav class="navTabs" aria-label="페이지 이동">
                 <a href="./">썰자</a>
@@ -42,37 +42,14 @@
             <span id="bossAlertMeta">보스 시간이 가까워졌습니다.</span>
         </section>
 
-        <section id="bossQuickPanel" class="bossQuickPanel hidden" aria-label="임박 보스">
+        <section id="bossQuickPanel" class="bossQuickPanel hidden" aria-label="가까운 보스">
             <div class="bossQuickHead">
                 <div>
-                    <span class="label">임박 / 젠 보스</span>
+                    <span class="label">가까운 보스</span>
                     <strong id="bossQuickSummary">컷 대기 없음</strong>
                 </div>
             </div>
             <div id="bossQuickList" class="bossQuickList"></div>
-        </section>
-
-        <section class="bossOverview">
-            <article>
-                <span>24시간 일정</span>
-                <strong id="todayBossCount">0</strong>
-                <small>현재 기준</small>
-            </article>
-            <article>
-                <span>곧 젠</span>
-                <strong id="soonBossCount">0</strong>
-                <small>10분 이내</small>
-            </article>
-            <article>
-                <span>젠됨</span>
-                <strong id="spawnedBossCount">0</strong>
-                <small>최근 60분</small>
-            </article>
-            <article>
-                <span>참여 확인</span>
-                <strong id="participationBossCount">0</strong>
-                <small>진행 중 기록</small>
-            </article>
         </section>
 
         <section class="bossLayout">
@@ -88,11 +65,8 @@
                 </section>
 
                 <section class="panel bossTimelinePanel">
-                    <div class="panelHead">
-                        <div>
-                            <span class="label">24시간 보스 일정</span>
-                            <strong id="timelineSummary">불러오는 중</strong>
-                        </div>
+                    <div class="bossTimelineTools" aria-label="보스 일정 도구">
+                        <strong id="timelineSummary" hidden>불러오는 중</strong>
                         <div class="panelActions">
                             <button id="resetTimeBossButton" class="copyCommandButton subtle dangerSubtle" type="button">시간보스 초기화</button>
                             <button id="enableBossNotifyButton" class="copyCommandButton subtle" type="button">알림 켜기</button>

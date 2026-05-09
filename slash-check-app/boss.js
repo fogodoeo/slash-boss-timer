@@ -316,6 +316,11 @@ function formatRemain(targetMs, now = getNowMs()) {
     return `${totalMin}분`;
 }
 
+function formatRemainWithSuffix(targetMs, now = getNowMs()) {
+    const remain = formatRemain(targetMs, now);
+    return remain === '젠됨' ? remain : `${remain} 남음`;
+}
+
 function formatDuration(ms) {
     if (ms <= 0) return '마감';
     const totalSec = Math.ceil(ms / 1000);
@@ -783,6 +788,7 @@ async function requestNotifications() {
 }
 
 function renderOverview(timeline) {
+    if (!todayBossCount || !soonBossCount || !spawnedBossCount || !participationBossCount) return;
     const now = getNowMs();
     todayBossCount.textContent = timeline.length;
     soonBossCount.textContent = timeline.filter((item) => bossStateFromSpawn(item.spawnMs, now) === 'soon').length;
@@ -827,9 +833,11 @@ function renderQuickBosses(timeline, now = getNowMs()) {
 
     bossQuickPanel?.classList.remove('hidden');
     const spawnedCount = items.filter((item) => item.spawnMs <= now).length;
-    const upcomingCount = items.length - spawnedCount;
+    const firstUpcoming = items.find((item) => item.spawnMs > now);
     if (bossQuickSummary) {
-        bossQuickSummary.textContent = `젠됨 ${spawnedCount} · 1시간 이내 ${upcomingCount}`;
+        bossQuickSummary.textContent = spawnedCount > 0
+            ? `지금 컷 가능 ${spawnedCount}개`
+            : `${firstUpcoming.boss.이름} ${formatRemainWithSuffix(firstUpcoming.spawnMs, now)}`;
     }
 
     for (const item of items) {
@@ -851,7 +859,7 @@ function renderQuickBosses(timeline, now = getNowMs()) {
         main.append(name, location);
         const remain = document.createElement('span');
         remain.className = 'bossQuickRemain';
-        remain.textContent = item.spawnMs <= now ? '컷' : formatRemain(item.spawnMs, now);
+        remain.textContent = formatRemainWithSuffix(item.spawnMs, now);
 
         button.append(time, main, remain);
         button.addEventListener('click', () => {
@@ -873,9 +881,11 @@ function renderTimeline() {
     maybeNotifyTimeline(timeline);
     bossTimeline.replaceChildren();
 
-    timelineSummary.textContent = timeline.length > 0
-        ? `${timeline[0].boss.이름} ${formatRemain(timeline[0].spawnMs, now)}`
-        : '예정 없음';
+    if (timelineSummary) {
+        timelineSummary.textContent = timeline.length > 0
+            ? `${timeline[0].boss.이름} ${formatRemainWithSuffix(timeline[0].spawnMs, now)}`
+            : '예정 없음';
+    }
 
     if (timeline.length === 0) {
         bossTimeline.innerHTML = '<div class="empty small">24시간 안에 표시할 보스 일정이 없습니다.</div>';
@@ -922,7 +932,7 @@ function renderTimeline() {
         row.querySelector('.timelineBossName').textContent = item.boss.이름;
         const timelineMeta = row.querySelector('.timelineMeta');
         timelineMeta.textContent = `${displayBossLocation(item.boss.위치)}${latest?.requiresParticipation ? ' · 참여 확인' : ''}`;
-        row.querySelector('.timelineRemain').textContent = formatRemain(item.spawnMs, now);
+        row.querySelector('.timelineRemain').textContent = formatRemainWithSuffix(item.spawnMs, now);
         const lock = bossLock(item.boss.이름);
         if (lock && lock.memberName !== selectedMember) {
             row.classList.add('locked');

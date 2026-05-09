@@ -1067,6 +1067,13 @@ h1 {
     min-width: 0;
 }
 
+.bossTimelineTools {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+
 .bossTimeline,
 .bossRecordList,
 .liveParticipationList,
@@ -4824,7 +4831,7 @@ body {
 
 .bossQuickItem {
     display: grid;
-    grid-template-columns: 48px minmax(0, 1fr) 46px;
+    grid-template-columns: 48px minmax(0, 1fr) 84px;
     align-items: center;
     gap: 8px;
     min-height: 38px;
@@ -5018,7 +5025,7 @@ body {
 }
 
 .bossPage .timelineItem {
-    grid-template-columns: 78px minmax(0, 1fr) 66px;
+    grid-template-columns: 64px minmax(0, 1fr) 104px;
     min-height: 26px;
     border: 0;
     border-top: 1px solid #edf1f6;
@@ -5276,7 +5283,7 @@ body {
     }
 
     .bossQuickItem {
-        grid-template-columns: 44px minmax(0, 1fr) 42px;
+        grid-template-columns: 44px minmax(0, 1fr) 76px;
         min-height: 34px;
         padding: 5px 7px;
     }
@@ -5326,10 +5333,14 @@ body {
     }
 
     .bossPage .timelineItem {
-        grid-template-columns: 64px minmax(0, 1fr) 50px;
+        grid-template-columns: 54px minmax(0, 1fr) 82px;
         gap: 5px;
         min-height: 26px;
         padding: 2px 6px;
+    }
+
+    .bossTimelineTools {
+        margin-bottom: 6px;
     }
 
     .bossPage .timelineItem.newTimeSlot {
