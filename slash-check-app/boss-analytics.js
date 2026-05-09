@@ -124,7 +124,10 @@ function renderHourChart(records) {
 function renderAnalysisList(target, entries, emptyText, suffix = '건') {
     target.replaceChildren();
     if (entries.length === 0) {
-        target.innerHTML = `<div class="empty small">${emptyText}</div>`;
+        const empty = document.createElement('div');
+        empty.className = 'empty small';
+        empty.textContent = emptyText;
+        target.append(empty);
         return;
     }
 
@@ -133,7 +136,11 @@ function renderAnalysisList(target, entries, emptyText, suffix = '건') {
         const row = document.createElement('div');
         row.className = 'analysisRow';
         row.style.setProperty('--ratio', `${Math.max(6, Math.round((count / max) * 100))}%`);
-        row.innerHTML = `<strong>${name}</strong><span>${count}${suffix}</span>`;
+        const title = document.createElement('strong');
+        title.textContent = name;
+        const value = document.createElement('span');
+        value.textContent = `${count}${suffix}`;
+        row.append(title, value);
         target.append(row);
     }
 }

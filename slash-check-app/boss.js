@@ -1028,7 +1028,6 @@ function renderBosses() {
 }
 
 function renderRecords() {
-    const now = getNowMs();
     const records = (state.bossCutRecords || [])
         .slice()
         .sort(compareBossCutRecordsForDisplay)
@@ -1044,27 +1043,17 @@ function renderRecords() {
     for (const record of records) {
         const item = recordItemTemplate.content.firstElementChild.cloneNode(true);
         const canceled = record.status === 'canceled';
+        item.classList.add('compactRecord');
         item.classList.toggle('canceled', canceled);
         item.querySelector('.recordTitle').textContent = canceled
             ? `${record.bossName} · ${bossCutClock(record)} · 취소됨`
             : `${record.bossName} · ${bossCutClock(record)}`;
-        item.querySelector('.recordMeta').textContent = canceled
-            ? `${record.canceledBy || '-'} 취소 · ${formatKstDateTime(record.canceledAt || record.updatedAt)}`
-            : `${record.reporterName || '-'} · 다음 ${record.nextSpawnAt ? formatKstDateTime(record.nextSpawnAt) : '-'}`;
-        const reason = cancelReasonText(record);
-        const open = isParticipationOpen(record, now);
-        item.querySelector('.recordParticipants').textContent = canceled
-            ? `원 입력 ${record.reporterName || '-'} · 참여 ${record.participants?.length || 0}명${reason ? ` · ${reason}` : ''}`
-            : record.requiresParticipation
-            ? `참여 ${record.participants?.length || 0}명${open ? ` · ${formatDuration(participationOpenMs(record) - now)}` : record.hasParticipantPassword ? ' · 마감' : ' · 비번 없음'}`
-            : record.participants?.length
-                ? `참여 ${record.participants.length}명`
-                : '참여 확인 없음';
+        item.querySelector('.recordMeta').hidden = true;
+        item.querySelector('.recordParticipants').hidden = true;
         item.querySelector('.recordDetailButton').addEventListener('click', () => openParticipantModal(record));
         const button = item.querySelector('.recordJoinButton');
-        button.textContent = canceled ? '취소' : open ? '입력' : record.requiresParticipation ? '마감' : '-';
-        button.disabled = canceled || !open;
-        button.addEventListener('click', () => openJoinModal(record));
+        button.hidden = true;
+        button.disabled = true;
         item.addEventListener('click', (event) => {
             if (isBossCardControl(event.target)) return;
             openParticipantModal(record);
@@ -1476,7 +1465,10 @@ async function addParticipantManually() {
         state.bossCutRecords = data.records || [];
         const updated = state.bossCutRecords.find((item) => item.id === record.id);
         render();
-        if (updated) openParticipantModal(updated);
+        if (updated) {
+            openParticipantModal(updated);
+            setTimeout(() => participantAddMemberInput.focus(), 30);
+        }
         showToast('참여자 추가됨', `${record.bossName} · ${memberName}`);
     } catch (err) {
         showToast('참여자 추가 실패', err.message, 'error');

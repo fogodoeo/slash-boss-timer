@@ -7,7 +7,10 @@ const PORT = Number(process.env.PORT || process.env.SLASH_CHECK_PORT || process.
 const HOST = process.env.SLASH_CHECK_HOST || '0.0.0.0';
 const ROOT = __dirname;
 const PUBLIC_DIR = path.join(ROOT, 'slash-check-app');
-const STATE_DIR = process.env.SLASH_CHECK_STATE_DIR || process.env.STATE_DIR || ROOT;
+const IS_RENDER_RUNTIME = Boolean(process.env.RENDER || process.env.RENDER_SERVICE_ID || process.env.RENDER_EXTERNAL_URL);
+const DEFAULT_STATE_DIR = IS_RENDER_RUNTIME ? '/var/data' : ROOT;
+const ROOT_STATE_FILE = path.join(ROOT, 'slash-check-state.json');
+const STATE_DIR = process.env.SLASH_CHECK_STATE_DIR || process.env.STATE_DIR || DEFAULT_STATE_DIR;
 const STATE_FILE = process.env.SLASH_CHECK_STATE_FILE || path.join(STATE_DIR, 'slash-check-state.json');
 const LEGACY_BOSS_STATE_FILE = path.join(ROOT, 'local-boss-state.json');
 
@@ -52,7 +55,9 @@ const BOSS_PARTICIPATION_WINDOW_MS = 10 * 60 * 1000;
 const BOSS_CUT_LOCK_MS = 90 * 1000;
 const MAX_BOSS_CUT_RECORDS = 300;
 const MAX_BOSS_AUDIT_LOGS = 500;
-const ADMIN_PASSWORD = process.env.SLASH_CHECK_ADMIN_PASSWORD || process.env.ADMIN_PASSWORD || '1234';
+const ADMIN_PASSWORD = process.env.SLASH_CHECK_ADMIN_PASSWORD || process.env.ADMIN_PASSWORD || (IS_RENDER_RUNTIME ? '' : '1234');
+const ADMIN_PASSWORD_CONFIGURED = Boolean(ADMIN_PASSWORD);
+let saveStateQueue = Promise.resolve();
 
 function send(res, status, body, type = 'text/plain; charset=utf-8') {
     res.writeHead(status, {
@@ -498,9 +503,26 @@ function bossCutStateFromRecord(record) {
     };
 }
 
+function timestampMs(value) {
+    const ms = new Date(value || '').getTime();
+    return Number.isFinite(ms) ? ms : 0;
+}
+
+function compareBossCutRecordsByCutAtDesc(a, b) {
+    const cutDiff = timestampMs(b.cutAt) - timestampMs(a.cutAt);
+    if (cutDiff) return cutDiff;
+    return timestampMs(b.updatedAt || b.createdAt) - timestampMs(a.updatedAt || a.createdAt);
+}
+
+function latestActiveBossRecord(bossName) {
+    return (state.bossCutRecords || [])
+        .filter((record) => record.bossName === bossName && record.status !== 'canceled')
+        .sort(compareBossCutRecordsByCutAtDesc)[0] || null;
+}
+
 function refreshCurrentBossCut(bossName) {
     state.bossCuts = state.bossCuts || {};
-    const latest = (state.bossCutRecords || []).find((record) => record.bossName === bossName && record.status !== 'canceled');
+    const latest = latestActiveBossRecord(bossName);
     if (latest) {
         state.bossCuts[bossName] = bossCutStateFromRecord(latest);
     } else {
@@ -523,10 +545,14 @@ function appendBossAuditLog(action, { bossName, recordId = '', actorName = '', d
 }
 
 function verifyAdminPassword(value) {
-    return String(value || '') === ADMIN_PASSWORD;
+    return ADMIN_PASSWORD_CONFIGURED && String(value || '') === ADMIN_PASSWORD;
 }
 
 function rejectInvalidAdmin(res, value) {
+    if (!ADMIN_PASSWORD_CONFIGURED) {
+        sendJson(res, 503, { error: '관리자 비밀번호가 서버 환경변수에 설정되지 않았습니다.' });
+        return true;
+    }
     if (verifyAdminPassword(value)) return false;
     sendJson(res, 403, { error: '관리자 비밀번호가 맞지 않습니다.' });
     return true;
@@ -737,9 +763,26 @@ async function readJson(req) {
     return JSON.parse(body);
 }
 
+async function readPrimaryStateFile() {
+    try {
+        return await fs.readFile(STATE_FILE, 'utf8');
+    } catch (err) {
+        if (err.code === 'ENOENT' && STATE_FILE !== ROOT_STATE_FILE) {
+            try {
+                const rootState = await fs.readFile(ROOT_STATE_FILE, 'utf8');
+                console.warn(`[slash-check] migrating state from ${ROOT_STATE_FILE} to ${STATE_FILE}`);
+                return rootState;
+            } catch {
+                // Use the normal empty-state path below.
+            }
+        }
+        throw err;
+    }
+}
+
 async function loadState() {
     try {
-        const raw = await fs.readFile(STATE_FILE, 'utf8');
+        const raw = await readPrimaryStateFile();
         const parsed = JSON.parse(raw);
         const legacyCuts = parsed.bossCuts ? null : await readLegacyBossCuts();
         state = {
@@ -779,8 +822,17 @@ async function readLegacyBossCuts() {
 }
 
 async function saveState() {
-    await fs.mkdir(path.dirname(STATE_FILE), { recursive: true });
-    await fs.writeFile(STATE_FILE, JSON.stringify(state, null, 2), 'utf8');
+    const snapshot = JSON.stringify(state, null, 2);
+    const targetDir = path.dirname(STATE_FILE);
+    const tempFile = path.join(targetDir, `.slash-check-state.${process.pid}.${Date.now()}.${randomUUID()}.tmp`);
+
+    saveStateQueue = saveStateQueue.catch(() => {}).then(async () => {
+        await fs.mkdir(targetDir, { recursive: true });
+        await fs.writeFile(tempFile, snapshot, 'utf8');
+        await fs.rename(tempFile, STATE_FILE);
+    });
+
+    return saveStateQueue;
 }
 
 function buildRankings() {
@@ -825,6 +877,13 @@ function publicState() {
     };
 }
 
+async function publicStateWithBosses() {
+    return {
+        ...publicState(),
+        bosses: await readBosses()
+    };
+}
+
 async function handleApi(req, res, url) {
     if (cleanupExpiredReservations() || cleanupExpiredBossCutLocks()) await saveState();
 
@@ -834,7 +893,7 @@ async function handleApi(req, res, url) {
     }
 
     if (url.pathname === '/api/state' && req.method === 'GET') {
-        sendJson(res, 200, publicState());
+        sendJson(res, 200, await publicStateWithBosses());
         return true;
     }
 
@@ -1019,19 +1078,7 @@ async function handleApi(req, res, url) {
         state.bossCutRecords = state.bossCutRecords || [];
         state.bossCutRecords.unshift(record);
         state.bossCutRecords = state.bossCutRecords.slice(0, MAX_BOSS_CUT_RECORDS);
-        state.bossCuts[boss.이름] = {
-            recordId: record.id,
-            timeValue,
-            cutAt,
-            nextSpawnAt,
-            reporterName,
-            updatedAt: nowIso,
-            status: 'active',
-            requiresParticipation,
-            participantPasswordHash,
-            participationOpenUntil,
-            participants: []
-        };
+        refreshCurrentBossCut(boss.이름);
 
         releaseBossCutLock(boss.이름, reporterName);
         appendBossAuditLog('cut-create', {
@@ -1108,8 +1155,7 @@ async function handleApi(req, res, url) {
         state.bossCutRecords = [record, ...(state.bossCutRecords || []).filter((item) => item.id !== record.id)]
             .slice(0, MAX_BOSS_CUT_RECORDS);
 
-        const cut = state.bossCuts?.[record.bossName];
-        if (cut && cut.recordId === record.id) state.bossCuts[record.bossName] = bossCutStateFromRecord(record);
+        refreshCurrentBossCut(record.bossName);
         appendBossAuditLog('cut-update', {
             bossName: record.bossName,
             recordId: record.id,
@@ -1194,7 +1240,7 @@ async function handleApi(req, res, url) {
             return true;
         }
 
-        const record = (state.bossCutRecords || []).find((item) => item.bossName === bossName && item.status !== 'canceled');
+        const record = latestActiveBossRecord(bossName);
         if (record) {
             const nowIso = new Date().toISOString();
             record.status = 'canceled';
@@ -1367,7 +1413,7 @@ async function handleApi(req, res, url) {
         }
         state.members = members;
         await saveState();
-        sendJson(res, 200, publicState());
+        sendJson(res, 200, await publicStateWithBosses());
         return true;
     }
 
@@ -1393,7 +1439,7 @@ async function handleApi(req, res, url) {
             reservations: []
         });
         await saveState();
-        sendJson(res, 200, publicState());
+        sendJson(res, 200, await publicStateWithBosses());
         return true;
     }
 
@@ -1480,7 +1526,7 @@ async function handleApi(req, res, url) {
         }
 
         await saveState();
-        sendJson(res, 200, publicState());
+        sendJson(res, 200, await publicStateWithBosses());
         return true;
     }
 
@@ -1519,7 +1565,7 @@ async function handleApi(req, res, url) {
         }];
 
         await saveState();
-        sendJson(res, 200, publicState());
+        sendJson(res, 200, await publicStateWithBosses());
         return true;
     }
 
@@ -1576,7 +1622,7 @@ async function handleApi(req, res, url) {
         const zoneId = String(url.searchParams.get('id') || '');
         state.zones = state.zones.filter((zone) => zone.id !== zoneId);
         await saveState();
-        sendJson(res, 200, publicState());
+        sendJson(res, 200, await publicStateWithBosses());
         return true;
     }
 

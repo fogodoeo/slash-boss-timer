@@ -270,8 +270,13 @@ async function api(path, options = {}) {
 }
 
 function applyState(data) {
-    state = data;
-    baseline = cloneBaseline(data);
+    state = {
+        ...data,
+        bosses: Array.isArray(data.bosses)
+            ? data.bosses
+            : Array.isArray(state.bosses) ? state.bosses : []
+    };
+    baseline = cloneBaseline(state);
     render();
 }
 
