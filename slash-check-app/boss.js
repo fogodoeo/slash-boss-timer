@@ -1192,7 +1192,12 @@ function renderRecords() {
         item.querySelector('.recordTitle').textContent = canceled
             ? `${record.bossName} · ${bossCutClock(record)} · 취소됨`
             : `${record.bossName} · ${bossCutClock(record)}`;
-        item.querySelector('.recordMeta').hidden = true;
+        const reporterText = canceled
+            ? record.canceledBy ? `취소 ${record.canceledBy}` : record.reporterName ? `기록 ${record.reporterName}` : ''
+            : record.reporterName ? `기록 ${record.reporterName}` : '';
+        const recordMeta = item.querySelector('.recordMeta');
+        recordMeta.textContent = reporterText;
+        recordMeta.hidden = !reporterText;
         item.querySelector('.recordParticipants').hidden = true;
         item.querySelector('.recordDetailButton').addEventListener('click', () => openParticipantModal(record));
         const button = item.querySelector('.recordJoinButton');

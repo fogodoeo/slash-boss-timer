@@ -5041,8 +5041,15 @@ body {
 }
 
 .bossQuickItem.spawned {
-    border-color: #bbf7d0;
-    background: linear-gradient(90deg, var(--green-soft), #ffffff 60%);
+    border-color: #bfdbfe;
+    background: linear-gradient(90deg, #eff6ff, #ffffff 60%);
+}
+
+.bossQuickItem.spawned .bossQuickMain strong,
+.bossQuickItem.spawned time,
+.bossQuickItem.spawned .bossQuickRemain {
+    color: var(--blue);
+    font-weight: 1000;
 }
 
 .bossQuickItem.upcoming {
@@ -5055,6 +5062,12 @@ body {
 .bossQuickItem.fixedBoss .bossQuickRemain {
     color: #020617;
     font-weight: 1000;
+}
+
+.bossQuickItem.fixedBoss.spawned .bossQuickMain strong,
+.bossQuickItem.fixedBoss.spawned time,
+.bossQuickItem.fixedBoss.spawned .bossQuickRemain {
+    color: var(--blue);
 }
 
 .bossQuickItem:disabled {
@@ -5266,6 +5279,11 @@ body {
     box-shadow: 0 8px 18px rgba(217, 45, 32, 0.1);
 }
 
+.bossPage .timelineItem.spawned {
+    border-top-color: #cfe1ff;
+    background: linear-gradient(90deg, #eff6ff 0, #ffffff 62%);
+}
+
 .bossPage .timelineMain {
     display: grid;
     grid-template-columns: minmax(92px, 128px) minmax(0, 1fr);
@@ -5328,6 +5346,18 @@ body {
     color: #64748b;
 }
 
+.bossPage .timelineItem.spawned .timelineTime,
+.bossPage .timelineItem.spawned .timelineBossName,
+.bossPage .timelineItem.spawned .timelineRemain,
+.bossPage .timelineItem.timeBoss.spawned:not(.alertTarget) .timelineTime,
+.bossPage .timelineItem.timeBoss.spawned:not(.alertTarget) .timelineBossName,
+.bossPage .timelineItem.timeBoss.spawned:not(.alertTarget) .timelineRemain,
+.bossPage .timelineItem.fixedBoss.spawned .timelineTime,
+.bossPage .timelineItem.fixedBoss.spawned .timelineBossName,
+.bossPage .timelineItem.fixedBoss.spawned .timelineRemain {
+    color: var(--blue);
+}
+
 .bossPage .timelineItem.timeBoss:not(.alertTarget) .timelineUncertain {
     color: #b45309;
 }
@@ -5341,6 +5371,12 @@ body {
 .bossPage .timelineItem.fixedBoss .timelineRemain {
     color: #020617;
     font-weight: 1000;
+}
+
+.bossPage .timelineItem.fixedBoss.spawned .timelineTime,
+.bossPage .timelineItem.fixedBoss.spawned .timelineBossName,
+.bossPage .timelineItem.fixedBoss.spawned .timelineRemain {
+    color: var(--blue);
 }
 
 .bossPage .timelineItem.fixedBoss .timelineMeta {
@@ -5363,12 +5399,24 @@ body {
 
 .bossPage .bossRecordItem.compactRecord {
     grid-template-columns: minmax(0, 1fr) 30px;
-    min-height: 42px;
-    padding: 8px 10px;
+    min-height: 44px;
+    padding: 7px 10px;
 }
 
 .bossPage .bossRecordItem.compactRecord .recordActions {
     grid-template-columns: 30px;
+}
+
+.bossPage .bossRecordItem.compactRecord .recordMeta {
+    display: block;
+    color: #64748b;
+    font-size: 11px;
+    font-weight: 750;
+    line-height: 1;
+}
+
+.bossPage .bossRecordItem.compactRecord .recordParticipants {
+    display: none;
 }
 
 .bossPage .bossRecordItem.canceled {
