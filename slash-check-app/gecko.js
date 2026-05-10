@@ -57,10 +57,10 @@ const MAX_CARDS = 320;
 const ACTIVE_EGG_STATUSES = new Set(['보관중', '관찰']);
 
 const VIEW_LABELS = {
-    all: ['COLONY', '전체 개체'],
-    breeding: ['BREEDING', '브리딩 개체'],
-    incubation: ['INCUBATION', '보관 알'],
-    attention: ['ATTENTION', '체크 필요']
+    all: ['개체', '전체 개체'],
+    breeding: ['브리딩', '브리딩 개체'],
+    incubation: ['인큐', '보관중 알'],
+    attention: ['확인', '확인 필요']
 };
 
 let state = { geckos: [], count: 0, updatedAt: null };

@@ -13,12 +13,12 @@
             <div class="cbBrand">
                 <span class="cbMark">CB</span>
                 <div>
-                    <span class="cbEyebrow">CRESTED BREEDING OS</span>
+                    <span class="cbEyebrow">크레스티드 관리</span>
                     <h1>CrestBase</h1>
                 </div>
             </div>
             <div class="cbTopActions">
-                <button id="openEggButton" class="cbButton primary" type="button">산란 기록</button>
+                <button id="openEggButton" class="cbButton primary" type="button">산란 입력</button>
                 <button id="openGeckoButton" class="cbButton" type="button">개체 등록</button>
                 <button id="openImportButton" class="cbButton ghost" type="button">일괄</button>
             </div>
@@ -27,14 +27,14 @@
         <section class="cbMetrics" aria-label="관리 지표">
             <article><span>전체 개체</span><strong id="metricTotal">0</strong></article>
             <article><span>브리딩</span><strong id="metricBreeding">0</strong></article>
-            <article><span>보관 알</span><strong id="metricEggs">0</strong></article>
-            <article><span>체크</span><strong id="metricAttention">0</strong></article>
+            <article><span>보관중 알</span><strong id="metricEggs">0</strong></article>
+            <article><span>확인 필요</span><strong id="metricAttention">0</strong></article>
         </section>
 
         <section class="cbCommandBar">
             <label class="cbSearch">
                 <span>검색</span>
-                <input id="searchInput" type="search" placeholder="번호, 이름, 위치, 모프, 페어">
+                <input id="searchInput" type="search" placeholder="번호, 이름, 위치, 모프">
             </label>
             <nav class="cbTabs" aria-label="개체 보기">
                 <button class="active" type="button" data-view="all">전체</button>
@@ -47,58 +47,82 @@
         <section class="cbPanel cbQuickPanel" aria-label="빠른 산란 입력">
             <div class="cbPanelHead">
                 <div>
-                    <span>QUICK LOG</span>
-                    <strong>빠른 산란 입력</strong>
+                    <span>산란</span>
+                    <strong>빠른 입력</strong>
                 </div>
-                <small id="quickSummary">개체 선택</small>
             </div>
             <form id="quickEggForm" class="cbQuickForm">
-                <label class="cbQuickSearch">
-                    <span>암컷</span>
-                    <input id="quickGeckoSearch" type="search" placeholder="번호나 이름 입력">
-                    <div id="quickSuggestions" class="cbQuickSuggest"></div>
-                </label>
-                <strong id="quickSelectedLabel" class="cbQuickSelected">개체를 선택하세요</strong>
-                <label class="cbQuickHalf">
-                    <span>산란일</span>
-                    <input id="quickLayDate" type="date">
-                </label>
-                <label class="cbQuickHalf">
-                    <span>상태</span>
-                    <select id="quickEggStatus">
-                        <option>보관중</option>
-                        <option>관찰</option>
-                        <option>부화</option>
-                        <option>무정란</option>
-                        <option>폐기</option>
-                    </select>
-                </label>
-                <div class="cbQuickPresets" aria-label="알 갯수 빠른 선택">
-                    <button type="button" data-preset="2,0,0">유정 2</button>
-                    <button type="button" data-preset="1,1,0">유1 무1</button>
-                    <button type="button" data-preset="0,2,0">무정 2</button>
-                </div>
-                <label class="cbQuickCount">
-                    <span>유정</span>
-                    <input id="quickFertile" type="number" min="0" max="99" step="1" inputmode="numeric" value="2">
-                </label>
-                <label class="cbQuickCount">
-                    <span>무정</span>
-                    <input id="quickInfertile" type="number" min="0" max="99" step="1" inputmode="numeric" value="0">
-                </label>
-                <label class="cbQuickCount">
-                    <span>미확인</span>
-                    <input id="quickUnknown" type="number" min="0" max="99" step="1" inputmode="numeric" value="0">
-                </label>
-                <label class="cbQuickWideField">
-                    <span>보관 위치</span>
-                    <input id="quickIncubation" type="text" placeholder="인큐 1">
-                </label>
-                <label class="cbQuickPassword">
-                    <span>비밀번호</span>
-                    <input id="quickPassword" type="password" autocomplete="current-password" placeholder="관리자">
-                </label>
-                <button class="cbButton primary cbQuickSave" type="submit">저장</button>
+                <section class="cbQuickBlock cbQuickPick">
+                    <div class="cbQuickBlockHead">
+                        <span>1</span>
+                        <strong>개체 선택</strong>
+                    </div>
+                    <label class="cbQuickSearch">
+                        <span>번호 / 이름</span>
+                        <input id="quickGeckoSearch" type="search" placeholder="예: 바보">
+                        <div id="quickSuggestions" class="cbQuickSuggest"></div>
+                    </label>
+                    <strong id="quickSelectedLabel" class="cbQuickSelected">개체를 선택하세요</strong>
+                </section>
+
+                <section class="cbQuickBlock cbQuickEggBlock">
+                    <div class="cbQuickBlockHead">
+                        <span>2</span>
+                        <strong>산란 정보</strong>
+                        <small id="quickSummary">총 2알</small>
+                    </div>
+                    <div class="cbQuickPair">
+                        <label>
+                            <span>산란일</span>
+                            <input id="quickLayDate" type="date">
+                        </label>
+                        <label>
+                            <span>상태</span>
+                            <select id="quickEggStatus">
+                                <option>보관중</option>
+                                <option>관찰</option>
+                                <option>부화</option>
+                                <option>무정란</option>
+                                <option>폐기</option>
+                            </select>
+                        </label>
+                    </div>
+                    <div class="cbQuickPresets" aria-label="알 갯수 빠른 선택">
+                        <button type="button" data-preset="2,0,0">유정 2</button>
+                        <button type="button" data-preset="1,1,0">유1 무1</button>
+                        <button type="button" data-preset="0,2,0">무정 2</button>
+                    </div>
+                    <div class="cbQuickCounts">
+                        <label>
+                            <span>유정</span>
+                            <input id="quickFertile" type="number" min="0" max="99" step="1" inputmode="numeric" value="2">
+                        </label>
+                        <label>
+                            <span>무정</span>
+                            <input id="quickInfertile" type="number" min="0" max="99" step="1" inputmode="numeric" value="0">
+                        </label>
+                        <label>
+                            <span>미확인</span>
+                            <input id="quickUnknown" type="number" min="0" max="99" step="1" inputmode="numeric" value="0">
+                        </label>
+                    </div>
+                </section>
+
+                <section class="cbQuickBlock cbQuickFinish">
+                    <div class="cbQuickBlockHead">
+                        <span>3</span>
+                        <strong>보관 / 저장</strong>
+                    </div>
+                    <label>
+                        <span>보관 위치</span>
+                        <input id="quickIncubation" type="text" placeholder="인큐 1">
+                    </label>
+                    <label>
+                        <span>비밀번호</span>
+                        <input id="quickPassword" type="password" autocomplete="current-password" placeholder="관리자">
+                    </label>
+                    <button class="cbButton primary cbQuickSave" type="submit">저장</button>
+                </section>
             </form>
         </section>
 
@@ -106,8 +130,8 @@
             <section class="cbPanel cbQueuePanel">
                 <div class="cbPanelHead">
                     <div>
-                        <span>QUEUE</span>
-                        <strong>작업 큐</strong>
+                        <span>확인</span>
+                        <strong>확인할 일</strong>
                     </div>
                     <small id="queueCount">0건</small>
                 </div>
@@ -116,8 +140,8 @@
             <section class="cbPanel cbRecentPanel">
                 <div class="cbPanelHead">
                     <div>
-                        <span>RECENT</span>
-                        <strong>산란 로그</strong>
+                        <span>기록</span>
+                        <strong>최근 산란</strong>
                     </div>
                     <small id="recentCount">0건</small>
                 </div>
@@ -129,7 +153,7 @@
             <section class="cbPanel cbIndexPanel">
                 <div class="cbPanelHead">
                     <div>
-                        <span id="listEyebrow">COLONY</span>
+                        <span id="listEyebrow">개체</span>
                         <strong id="listTitle">전체 개체</strong>
                     </div>
                     <small id="resultCount">0건</small>
@@ -140,7 +164,7 @@
             <aside class="cbPanel cbRecordPanel">
                 <div class="cbPanelHead">
                     <div>
-                        <span>RECORD</span>
+                        <span>상세</span>
                         <strong id="detailTitle">개체를 선택하세요</strong>
                     </div>
                     <div class="cbDetailActions">

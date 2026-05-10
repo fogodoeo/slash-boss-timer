@@ -8565,14 +8565,56 @@ body {
 .cbQuickPanel {
     margin-top: 10px;
     border-color: #c7d6ea;
-    background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+    background: #ffffff;
 }
 
 .cbQuickForm {
     display: grid;
-    grid-template-columns: minmax(210px, 1.15fr) minmax(160px, 0.8fr) 132px 120px minmax(210px, 1fr) 70px 70px 74px minmax(150px, 0.8fr) minmax(118px, 0.7fr) 96px;
-    gap: 7px;
-    align-items: end;
+    grid-template-columns: minmax(260px, 1fr) minmax(360px, 1.25fr) minmax(240px, 0.85fr);
+    gap: 10px;
+    align-items: stretch;
+}
+
+.cbQuickBlock {
+    display: grid;
+    gap: 9px;
+    min-width: 0;
+    border: 1px solid #dce6f2;
+    border-radius: 9px;
+    background: #f8fbff;
+    padding: 10px;
+}
+
+.cbQuickBlockHead {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.cbQuickBlockHead > span {
+    display: inline-grid;
+    place-items: center;
+    width: 24px;
+    height: 24px;
+    border-radius: 7px;
+    background: #111827;
+    color: #ffffff;
+    font-size: 12px;
+    font-weight: 1000;
+}
+
+.cbQuickBlockHead strong {
+    color: #0f172a;
+    font-size: 15px;
+    font-weight: 1000;
+}
+
+.cbQuickBlockHead small {
+    margin-left: auto;
+    color: #1457d9;
+    font-size: 12px;
+    font-weight: 1000;
+    white-space: nowrap;
 }
 
 .cbQuickForm label,
@@ -8593,7 +8635,7 @@ body {
 .cbQuickForm input,
 .cbQuickForm select {
     width: 100%;
-    height: 38px;
+    height: 42px;
     border: 1px solid #cbd5e1;
     border-radius: 8px;
     background: #ffffff;
@@ -8614,7 +8656,7 @@ body {
     display: grid;
     align-items: center;
     min-width: 0;
-    min-height: 38px;
+    min-height: 42px;
     overflow: hidden;
     border-radius: 8px;
     background: #eef4ff;
@@ -8626,14 +8668,28 @@ body {
     white-space: nowrap;
 }
 
+.cbQuickPair,
+.cbQuickCounts {
+    display: grid;
+    gap: 6px;
+}
+
+.cbQuickPair {
+    grid-template-columns: minmax(0, 1fr) 118px;
+}
+
+.cbQuickCounts {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
 .cbQuickPresets {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 4px;
+    gap: 6px;
 }
 
 .cbQuickPresets button {
-    height: 38px;
+    height: 42px;
     border: 1px solid #d7e1ee;
     border-radius: 8px;
     background: #ffffff;
@@ -8651,7 +8707,8 @@ body {
 
 .cbQuickSave {
     width: 100%;
-    height: 38px;
+    height: 44px;
+    margin-top: auto;
 }
 
 .cbQuickSuggest {
@@ -9355,12 +9412,11 @@ body {
 
 @media (max-width: 1180px) {
     .cbQuickForm {
-        grid-template-columns: minmax(220px, 1fr) minmax(160px, 0.8fr) 132px 118px repeat(3, 64px) minmax(150px, 0.8fr) minmax(110px, 0.7fr) 92px;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
-    .cbQuickPresets {
+    .cbQuickFinish {
         grid-column: 1 / -1;
-        grid-template-columns: repeat(3, minmax(0, 1fr));
     }
 
     .cbCardList {
@@ -9446,29 +9502,12 @@ body {
     }
 
     .cbQuickForm {
-        grid-template-columns: repeat(6, minmax(0, 1fr));
-        gap: 6px;
+        grid-template-columns: 1fr;
+        gap: 8px;
     }
 
-    .cbQuickSearch,
-    .cbQuickSelected,
-    .cbQuickPresets,
-    .cbQuickWideField,
-    .cbQuickPassword,
-    .cbQuickSave {
-        grid-column: 1 / -1;
-    }
-
-    .cbQuickHalf {
-        grid-column: span 3;
-    }
-
-    .cbQuickCount {
-        grid-column: span 2;
-    }
-
-    .cbQuickPresets {
-        grid-template-columns: repeat(3, minmax(0, 1fr));
+    .cbQuickFinish {
+        grid-column: auto;
     }
 
     .cbQuickForm input,
