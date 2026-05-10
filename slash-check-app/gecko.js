@@ -31,15 +31,21 @@ const el = {
     regHatchDate: $('#regHatchDate'),
     regMemo: $('#regMemo'),
     regPassword: $('#regPassword'),
+    regContinue: $('#regContinue'),
+    regNextPreview: $('#regNextPreview'),
 
     hatchForm: $('#hatchForm'),
     hatchParentSearch: $('#hatchParentSearch'),
     hatchSuggestions: $('#hatchSuggestions'),
     hatchParentLabel: $('#hatchParentLabel'),
+    hatchPairHint: $('#hatchPairHint'),
     hatchDate: $('#hatchDate'),
     hatchCount: $('#hatchCount'),
     hatchStartNumber: $('#hatchStartNumber'),
+    hatchStartName: $('#hatchStartName'),
     hatchLocation: $('#hatchLocation'),
+    hatchFather: $('#hatchFather'),
+    hatchPreview: $('#hatchPreview'),
     hatchPassword: $('#hatchPassword'),
 
     importForm: $('#importForm'),
@@ -343,17 +349,19 @@ function renderSuggestions(input, host, onPick, predicate = null) {
 
 function clearRegisterForm() {
     editingGeckoId = '';
-    el.registerTitle.textContent = '새 개체 등록';
+    el.registerTitle.textContent = '새 개체 입력';
     el.registerForm.reset();
     el.regSex.value = '미확인';
     el.regStatus.value = '보유';
+    el.regContinue.checked = true;
     syncPasswords();
+    updateRegisterPreview();
     el.regNumber.focus();
 }
 
 function fillRegisterForm(gecko) {
     editingGeckoId = gecko?.id || '';
-    el.registerTitle.textContent = gecko ? `${titleOf(gecko)} 수정` : '새 개체 등록';
+    el.registerTitle.textContent = gecko ? `${titleOf(gecko)} 수정` : '새 개체 입력';
     el.regNumber.value = gecko?.number || '';
     el.regName.value = gecko?.name || '';
     el.regSex.value = gecko?.sex || '미확인';
@@ -367,6 +375,7 @@ function fillRegisterForm(gecko) {
     el.regHatchDate.value = gecko?.hatchDate || '';
     el.regMemo.value = gecko?.memo || '';
     syncPasswords();
+    updateRegisterPreview();
 }
 
 function registerPayload(existing = null) {
@@ -396,6 +405,7 @@ async function saveRegister(event) {
     const adminPassword = passwordValue(el.regPassword);
     const number = el.regNumber.value.trim();
     const existing = geckoById(editingGeckoId) || geckoByNumber(number);
+    const shouldContinue = el.regContinue.checked && !existing;
 
     if (!number) return toast('번호 필요', '개체 번호를 입력하세요.', 'error');
     if (!adminPassword) return toast('비밀번호 필요', '관리 비밀번호를 입력하세요.', 'error');
@@ -410,8 +420,13 @@ async function saveRegister(event) {
         searchSelectedId = data.saved?.id || searchSelectedId;
         breedingSelectedId = data.saved?.id || breedingSelectedId;
         render();
-        fillRegisterForm(data.saved);
-        toast('저장 완료', titleOf(data.saved));
+        if (shouldContinue) {
+            prepareNextRegister(data.saved);
+            toast('저장 완료', `${titleOf(data.saved)} 저장, 다음 번호 준비`);
+        } else {
+            fillRegisterForm(data.saved);
+            toast('저장 완료', titleOf(data.saved));
+        }
     } catch (err) {
         toast('저장 실패', err.message, 'error');
     }
@@ -421,15 +436,57 @@ function setHatchParent(gecko) {
     hatchParentId = gecko?.id || '';
     el.hatchParentLabel.textContent = gecko ? titleOf(gecko) : '어미 개체를 선택하세요';
     el.hatchParentSearch.value = gecko ? titleOf(gecko) : '';
+    el.hatchFather.value = gecko?.pairedWithNumber || el.hatchFather.value || '';
+    el.hatchPairHint.textContent = gecko?.pairedWithNumber
+        ? `수컷 ${gecko.pairedWithNumber} 자동 연결`
+        : '어미에 페어 수컷이 없으면 수컷 번호를 직접 입력하세요.';
     el.hatchSuggestions.replaceChildren();
+    updateHatchPreview();
 }
 
-function incrementNumber(start, index) {
+function incrementTrailingText(start, step = 1) {
     const text = String(start || '').trim();
     if (!text) return '';
     const match = text.match(/^(.*?)(\d+)$/);
-    if (!match) return index === 0 ? text : `${text}-${index + 1}`;
-    return `${match[1]}${String(Number(match[2]) + index).padStart(match[2].length, '0')}`;
+    if (!match) return step === 0 ? text : `${text}${step + 1}`;
+    return `${match[1]}${String(Number(match[2]) + step).padStart(match[2].length, '0')}`;
+}
+
+function seriesValue(start, index) {
+    return index === 0 ? String(start || '').trim() : incrementTrailingText(start, index);
+}
+
+function incrementNumber(start, index) {
+    return seriesValue(start, index);
+}
+
+function updateRegisterPreview() {
+    const nextNumber = incrementTrailingText(el.regNumber.value, 1);
+    const nextName = incrementTrailingText(el.regName.value, 1);
+    el.regNextPreview.textContent = el.regContinue.checked
+        ? `저장 후 다음 값: ${nextNumber || '-'}${nextName ? ` / ${nextName}` : ' / 이름 비움'}`
+        : '연속 입력 꺼짐: 저장 후 현재 개체 수정 상태로 남습니다.';
+}
+
+function updateHatchPreview() {
+    const count = numberValue(el.hatchCount.value) || 1;
+    const firstNumber = seriesValue(el.hatchStartNumber.value, 0);
+    const lastNumber = seriesValue(el.hatchStartNumber.value, Math.max(0, count - 1));
+    const firstName = seriesValue(el.hatchStartName.value, 0);
+    const lastName = seriesValue(el.hatchStartName.value, Math.max(0, count - 1));
+    const numberText = firstNumber ? `${firstNumber}${count > 1 ? ` ~ ${lastNumber}` : ''}` : '-';
+    const nameText = firstName ? ` / ${firstName}${count > 1 ? ` ~ ${lastName}` : ''}` : '';
+    el.hatchPreview.textContent = `생성될 개체: ${numberText}${nameText}`;
+}
+
+function prepareNextRegister(saved) {
+    editingGeckoId = '';
+    el.registerTitle.textContent = '새 개체 입력';
+    el.regNumber.value = incrementTrailingText(saved?.number || el.regNumber.value, 1);
+    el.regName.value = incrementTrailingText(saved?.name || el.regName.value, 1);
+    el.regMemo.value = '';
+    updateRegisterPreview();
+    setTimeout(() => el.regNumber.focus(), 40);
 }
 
 async function saveHatch(event) {
@@ -439,6 +496,8 @@ async function saveHatch(event) {
     const hatchDate = el.hatchDate.value || todayValue();
     const count = numberValue(el.hatchCount.value);
     const startNumber = el.hatchStartNumber.value.trim();
+    const startName = el.hatchStartName.value.trim();
+    const fatherNumber = el.hatchFather.value.trim() || parent?.pairedWithNumber || '';
 
     if (!parent) return toast('어미 선택 필요', '어미 개체를 먼저 선택하세요.', 'error');
     if (!startNumber) return toast('시작 번호 필요', '새 개체 시작 번호를 입력하세요.', 'error');
@@ -447,13 +506,13 @@ async function saveHatch(event) {
 
     const geckos = Array.from({ length: count }, (_, index) => ({
         number: incrementNumber(startNumber, index),
-        name: '',
+        name: seriesValue(startName, index),
         sex: '미확인',
         status: '보유',
         location: el.hatchLocation.value.trim(),
         hatchDate,
         motherNumber: parent.number,
-        fatherNumber: parent.pairedWithNumber || '',
+        fatherNumber,
         breeder: `${titleOf(parent)} 해칭`,
         tags: ['해칭'],
         memo: ''
@@ -490,9 +549,11 @@ async function saveHatch(event) {
             state = data;
         }
 
-        el.hatchStartNumber.value = '';
+        el.hatchStartNumber.value = incrementTrailingText(startNumber, count);
+        if (startName) el.hatchStartName.value = incrementTrailingText(startName, count);
         setHatchParent(parentAfter || parent);
         render();
+        updateHatchPreview();
         toast('해칭 등록 완료', `${count}마리 생성`);
     } catch (err) {
         toast('해칭 등록 실패', err.message, 'error');
@@ -904,6 +965,8 @@ async function load() {
         syncPasswords();
         searchSelectedId = state.geckos[0]?.id || '';
         breedingSelectedId = state.geckos.find(isBreedingCandidate)?.id || '';
+        updateRegisterPreview();
+        updateHatchPreview();
         render();
     } catch (err) {
         toast('불러오기 실패', err.message, 'error');
@@ -923,9 +986,20 @@ el.registerClearButton.addEventListener('click', clearRegisterForm);
 el.hatchForm.addEventListener('submit', saveHatch);
 el.importForm.addEventListener('submit', importGeckos);
 
+['input', 'change'].forEach((eventName) => {
+    [el.regNumber, el.regName, el.regContinue].forEach((input) => {
+        input.addEventListener(eventName, updateRegisterPreview);
+    });
+    [el.hatchCount, el.hatchStartNumber, el.hatchStartName].forEach((input) => {
+        input.addEventListener(eventName, updateHatchPreview);
+    });
+});
+
 el.hatchParentSearch.addEventListener('input', () => {
     hatchParentId = '';
     el.hatchParentLabel.textContent = '어미 개체를 선택하세요';
+    el.hatchFather.value = '';
+    el.hatchPairHint.textContent = '수컷은 어미의 페어 수컷을 자동으로 가져옵니다.';
     renderSuggestions(el.hatchParentSearch, el.hatchSuggestions, setHatchParent);
 });
 el.hatchParentSearch.addEventListener('focus', () => {

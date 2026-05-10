@@ -10450,6 +10450,90 @@ body {
     color: #ffffff;
 }
 
+.cgTermNote,
+.cgContinuityPanel,
+.cgNextPreview,
+.cgPairHint {
+    border: 1px solid #d8e2ee;
+    border-radius: 8px;
+    background: #ffffff;
+}
+
+.cgTermNote {
+    display: grid;
+    gap: 3px;
+    padding: 10px 12px;
+}
+
+.cgTermNote strong,
+.cgContinuityPanel strong {
+    color: #0f172a;
+    font-size: 14px;
+    font-weight: 1000;
+}
+
+.cgTermNote span,
+.cgContinuityPanel span,
+.cgPairHint {
+    color: #64748b;
+    font-size: 12px;
+    font-weight: 850;
+}
+
+.cgContinuityPanel {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 11px;
+    background: #f8fbff;
+}
+
+.cgContinuityPanel > div {
+    display: grid;
+    gap: 3px;
+    min-width: 0;
+}
+
+.cgToggle {
+    display: inline-flex !important;
+    grid-template-columns: none !important;
+    align-items: center;
+    gap: 7px !important;
+    flex: 0 0 auto;
+    border-radius: 999px;
+    background: #111827;
+    color: #ffffff;
+    padding: 8px 11px;
+    font-size: 13px;
+    font-weight: 1000;
+}
+
+.cgToggle input {
+    width: 16px !important;
+    height: 16px !important;
+    accent-color: #1d5bd8;
+}
+
+.cgToggle span {
+    color: #ffffff;
+    font-size: 13px;
+}
+
+.cgNextPreview {
+    padding: 10px 11px;
+    background: #eef4ff;
+    color: #1457d9;
+    font-size: 13px;
+    font-weight: 1000;
+}
+
+.cgPairHint {
+    display: block;
+    padding: 9px 10px;
+    background: #f8fafc;
+}
+
 .cgBeginnerForm {
     gap: 12px;
 }
@@ -10615,6 +10699,16 @@ body {
 
     .cgBeginnerStep > div > strong {
         font-size: 15px;
+    }
+
+    .cgContinuityPanel {
+        align-items: stretch;
+        display: grid;
+    }
+
+    .cgToggle {
+        justify-content: center;
+        width: 100%;
     }
 
     .beginnerGeckoPage .cgPanel {

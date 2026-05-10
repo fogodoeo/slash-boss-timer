@@ -24,41 +24,45 @@
         </header>
 
         <section class="cgBeginnerHero">
-            <strong>오늘 할 작업을 고르세요</strong>
-            <span>고른 작업 화면만 열립니다.</span>
+            <strong>어떤 기록을 남길까요?</strong>
+            <span>반복 입력이 끊기지 않게 다음 값까지 준비합니다.</span>
         </section>
 
         <nav class="cgModeNav beginnerModeNav" aria-label="작업 선택">
             <button class="active" type="button" data-mode="register">
-                <strong>1. 등록</strong>
-                <span>새 개체 / 해칭</span>
+                <strong>1. 개체 입력</strong>
+                <span>입고 · 해칭</span>
             </button>
             <button type="button" data-mode="feeding">
-                <strong>2. 피딩</strong>
-                <span>안먹음 / 탈피</span>
+                <strong>2. 먹이 체크</strong>
+                <span>안먹음 · 탈피</span>
             </button>
             <button type="button" data-mode="search">
-                <strong>3. 찾기</strong>
+                <strong>3. 개체 찾기</strong>
                 <span>개체 정보 확인</span>
             </button>
             <button type="button" data-mode="breeding">
-                <strong>4. 브리딩</strong>
-                <span>페어 / 산란</span>
+                <strong>4. 번식 관리</strong>
+                <span>페어 · 산란</span>
             </button>
         </nav>
 
         <section id="registerModePanel" class="cgModePanel" data-mode-panel="register">
             <div class="cgTaskSwitch" aria-label="등록 작업">
-                <button class="active" type="button" data-register-kind="single">한 마리 등록</button>
-                <button type="button" data-register-kind="hatch">해칭 등록</button>
-                <button type="button" data-register-kind="bulk">여러 마리</button>
+                <button class="active" type="button" data-register-kind="single">새 개체</button>
+                <button type="button" data-register-kind="hatch">해칭 묶음</button>
+                <button type="button" data-register-kind="bulk">표 붙여넣기</button>
+            </div>
+            <div class="cgTermNote">
+                <strong>용어 기준</strong>
+                <span>새 개체는 한 마리씩 이어 입력, 해칭 묶음은 같은 부모에서 나온 형제를 연속 번호로 생성합니다.</span>
             </div>
 
             <form id="registerForm" class="cgPanel cgForm cgBeginnerForm" data-register-panel="single">
                 <div class="cgPanelHead">
                     <div>
                         <span>등록</span>
-                        <strong id="registerTitle">새 개체 등록</strong>
+                        <strong id="registerTitle">새 개체 입력</strong>
                     </div>
                     <button id="registerClearButton" class="cgButton ghost small" type="button">비우기</button>
                 </div>
@@ -115,6 +119,18 @@
                     </div>
                 </section>
 
+                <section class="cgContinuityPanel">
+                    <div>
+                        <strong>연속 입력</strong>
+                        <span>저장 후 번호와 이름만 다음 값으로 바꾸고, 위치·모프·부모 정보는 유지합니다.</span>
+                    </div>
+                    <label class="cgToggle">
+                        <input id="regContinue" type="checkbox" checked>
+                        <span>켜짐</span>
+                    </label>
+                </section>
+                <div id="regNextPreview" class="cgNextPreview">저장 후 다음 값: -</div>
+
                 <details class="cgAdvanced">
                     <summary>상세 정보 더 입력</summary>
                     <div class="cgFieldGrid">
@@ -156,20 +172,21 @@
                 <div class="cgPanelHead">
                     <div>
                         <span>해칭</span>
-                        <strong>알에서 나온 개체 등록</strong>
+                        <strong>같은 부모의 형제 개체 생성</strong>
                     </div>
                 </div>
 
                 <section class="cgBeginnerStep">
                     <b>1</b>
                     <div>
-                        <strong>어미 선택</strong>
+                        <strong>부모 페어 선택</strong>
                         <label class="cgSearchField">
                             <span>어미 검색</span>
                             <input id="hatchParentSearch" type="search" autocomplete="off" placeholder="번호나 이름 입력">
                             <div id="hatchSuggestions" class="cgSuggest"></div>
                         </label>
                         <span id="hatchParentLabel" class="cgSelectedLabel">어미 개체를 선택하세요</span>
+                        <span id="hatchPairHint" class="cgPairHint">수컷은 어미의 페어 수컷을 자동으로 가져옵니다.</span>
                     </div>
                 </section>
 
@@ -191,14 +208,23 @@
                                 <input id="hatchStartNumber" type="text" autocomplete="off" placeholder="예: H-001">
                             </label>
                             <label>
+                                <span>이름 시작</span>
+                                <input id="hatchStartName" type="text" autocomplete="off" placeholder="예: 바보1">
+                            </label>
+                            <label>
                                 <span>입고 위치</span>
                                 <input id="hatchLocation" type="text" autocomplete="off" placeholder="예: 베이비랙 1">
+                            </label>
+                            <label>
+                                <span>수컷 번호</span>
+                                <input id="hatchFather" type="text" autocomplete="off" placeholder="어미 페어에서 자동 입력">
                             </label>
                             <label>
                                 <span>관리 비밀번호</span>
                                 <input id="hatchPassword" data-admin-password type="password" autocomplete="current-password">
                             </label>
                         </div>
+                        <div id="hatchPreview" class="cgNextPreview">생성될 개체: -</div>
                     </div>
                 </section>
 
