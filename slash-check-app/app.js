@@ -628,23 +628,6 @@ function createRouletteCard() {
     return card;
 }
 
-function sortedZonesForDisplay(now = getNowMs()) {
-    return state.zones
-        .map((zone, index) => ({ zone, index }))
-        .sort((a, b) => {
-            const aLocked = isZoneLocked(a.zone, now);
-            const bLocked = isZoneLocked(b.zone, now);
-            if (aLocked !== bLocked) return aLocked ? 1 : -1;
-            if (aLocked && bLocked) {
-                const aLast = new Date(a.zone.lastAt || a.zone.cooldownUntil || 0).getTime() || 0;
-                const bLast = new Date(b.zone.lastAt || b.zone.cooldownUntil || 0).getTime() || 0;
-                return aLast - bLast || a.index - b.index;
-            }
-            return a.index - b.index;
-        })
-        .map((item) => item.zone);
-}
-
 function renderZones() {
     const now = getNowMs();
     zoneList.replaceChildren();
@@ -658,7 +641,7 @@ function renderZones() {
         return;
     }
 
-    for (const zone of sortedZonesForDisplay(now)) {
+    for (const zone of state.zones) {
         const card = zoneCardTemplate.content.firstElementChild.cloneNode(true);
         const cooldownUntil = zone.cooldownUntil ? new Date(zone.cooldownUntil).getTime() : 0;
         const remain = cooldownUntil - now;

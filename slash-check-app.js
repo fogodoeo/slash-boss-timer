@@ -741,8 +741,25 @@ function snapshotZone(zone) {
         cooldownUntil: zone.cooldownUntil || null,
         lastBy: zone.lastBy || null,
         lastAt: zone.lastAt || null,
-        reservations: Array.isArray(zone.reservations) ? structuredClone(zone.reservations) : []
+        reservations: Array.isArray(zone.reservations) ? structuredClone(zone.reservations) : [],
+        orderIndex: state.zones.findIndex((item) => item.id === zone.id)
     };
+}
+
+function moveZoneToIndex(zoneId, targetIndex) {
+    const currentIndex = state.zones.findIndex((zone) => zone.id === zoneId);
+    if (currentIndex === -1) return null;
+    const [zone] = state.zones.splice(currentIndex, 1);
+    const safeIndex = Math.max(0, Math.min(Number(targetIndex) || 0, state.zones.length));
+    state.zones.splice(safeIndex, 0, zone);
+    return zone;
+}
+
+function moveZoneToEnd(zoneId) {
+    const currentIndex = state.zones.findIndex((zone) => zone.id === zoneId);
+    if (currentIndex === -1 || currentIndex === state.zones.length - 1) return;
+    const [zone] = state.zones.splice(currentIndex, 1);
+    state.zones.push(zone);
 }
 
 function restoreZoneAfterUndo(zone, removedLog) {
@@ -752,6 +769,7 @@ function restoreZoneAfterUndo(zone, removedLog) {
         zone.lastBy = previous.lastBy || null;
         zone.lastAt = previous.lastAt || null;
         zone.reservations = Array.isArray(previous.reservations) ? previous.reservations : [];
+        if (Number.isFinite(previous.orderIndex)) moveZoneToIndex(zone.id, previous.orderIndex);
         return;
     }
 
@@ -1899,6 +1917,7 @@ async function handleApi(req, res, url) {
         zone.lastBy = memberName;
         zone.lastAt = checkedAt;
         zone.reservations = [];
+        moveZoneToEnd(zone.id);
 
         state.logs.unshift({
             id: randomUUID(),
