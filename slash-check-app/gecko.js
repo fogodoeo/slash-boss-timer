@@ -5,6 +5,10 @@ const el = {
     search: $('#searchInput'),
     tabs: $$('[data-view]'),
     cardList: $('#cardList'),
+    actionQueue: $('#actionQueue'),
+    recentClutches: $('#recentClutches'),
+    queueCount: $('#queueCount'),
+    recentCount: $('#recentCount'),
     resultCount: $('#resultCount'),
     listTitle: $('#listTitle'),
     listEyebrow: $('#listEyebrow'),
@@ -12,10 +16,10 @@ const el = {
     detailBody: $('#detailBody'),
     detailEggButton: $('#detailEggButton'),
     detailEditButton: $('#detailEditButton'),
-    statTotal: $('#statTotal'),
-    statBreeding: $('#statBreeding'),
-    statActiveEggs: $('#statActiveEggs'),
-    statDue: $('#statDue'),
+    metricTotal: $('#metricTotal'),
+    metricBreeding: $('#metricBreeding'),
+    metricEggs: $('#metricEggs'),
+    metricAttention: $('#metricAttention'),
     geckoTemplate: $('#geckoCardTemplate'),
     geckoModal: $('#geckoModal'),
     geckoForm: $('#geckoForm'),
@@ -36,20 +40,22 @@ const el = {
     openImportButton: $('#openImportButton'),
     closeImportButton: $('#closeImportButton'),
     importText: $('#importText'),
-    importPassword: $('#importPassword'),
     toastHost: $('#toastHost')
 };
 
 const ADMIN_PASSWORD_KEY = 'geckoAdminPassword';
-const MAX_CARDS = 260;
 const DAY_MS = 86400000;
 const NEXT_LAY_MIN_DAYS = 30;
 const NEXT_LAY_MAX_DAYS = 45;
+const INCUBATION_WATCH_DAY = 60;
+const MAX_CARDS = 320;
 const ACTIVE_EGG_STATUSES = new Set(['보관중', '관찰']);
+
 const VIEW_LABELS = {
-    all: ['개체 목록', '전체 개체'],
-    breeding: ['브리딩', '산란 사이클'],
-    incubation: ['인큐베이터', '보관중 알']
+    all: ['COLONY', '전체 개체'],
+    breeding: ['BREEDING', '브리딩 개체'],
+    incubation: ['INCUBATION', '보관 알'],
+    attention: ['ATTENTION', '체크 필요']
 };
 
 let state = { geckos: [], count: 0, updatedAt: null };
@@ -71,7 +77,7 @@ async function api(path, options = {}) {
 
 function toast(title, message = '', type = 'success') {
     const node = document.createElement('div');
-    node.className = `toast ${type === 'error' ? 'error' : ''}`;
+    node.className = `toast ${type === 'error' ? 'error' : 'success'}`;
     const strong = document.createElement('strong');
     strong.textContent = title;
     const span = document.createElement('span');
@@ -105,10 +111,15 @@ function daysUntil(value) {
     return Math.round((target - today) / DAY_MS);
 }
 
+function daysSince(value) {
+    const diff = daysUntil(value);
+    return diff === null ? null : -diff;
+}
+
 function shortDate(value) {
     if (!value) return '-';
     const [, month, day] = String(value).split('-');
-    return month && day ? `${month}.${day}` : value;
+    return month && day ? `${Number(month)}.${String(day).padStart(2, '0')}` : value;
 }
 
 function fullDate(value) {
@@ -124,6 +135,18 @@ function titleOf(gecko) {
     return `${gecko?.number || ''} ${gecko?.name || ''}`.trim() || '이름 없음';
 }
 
+function node(tag, className = '', text = '') {
+    const element = document.createElement(tag);
+    if (className) element.className = className;
+    if (text !== '') element.textContent = text;
+    return element;
+}
+
+function setText(root, selector, value) {
+    const target = root.querySelector(selector);
+    if (target) target.textContent = value || '-';
+}
+
 function recordsOf(gecko) {
     return [...(Array.isArray(gecko?.eggRecords) ? gecko.eggRecords : [])]
         .sort((a, b) => String(b.layDate || '').localeCompare(String(a.layDate || '')));
@@ -133,9 +156,26 @@ function eggTotal(record) {
     return numberValue(record?.fertileCount) + numberValue(record?.infertileCount) + numberValue(record?.unknownCount);
 }
 
-function eggLine(record) {
-    if (!record) return '산란 기록 없음';
+function eggSummary(record) {
+    if (!record) return '산란 없음';
     return `총 ${eggTotal(record)} · 유 ${numberValue(record.fertileCount)} / 무 ${numberValue(record.infertileCount)} / 미 ${numberValue(record.unknownCount)}`;
+}
+
+function isBreedingCandidate(gecko) {
+    return gecko.sex === '암'
+        || gecko.status === '브리딩'
+        || Boolean(gecko.pairedWithNumber)
+        || recordsOf(gecko).length > 0;
+}
+
+function activeEggTotal(gecko) {
+    return recordsOf(gecko).reduce((sum, record) => (
+        ACTIVE_EGG_STATUSES.has(record.eggStatus) ? sum + eggTotal(record) : sum
+    ), 0);
+}
+
+function activeEggRecords(gecko) {
+    return recordsOf(gecko).filter((record) => ACTIVE_EGG_STATUSES.has(record.eggStatus));
 }
 
 function statsOf(gecko) {
@@ -148,41 +188,48 @@ function statsOf(gecko) {
         acc.fertile += numberValue(record.fertileCount);
         acc.infertile += numberValue(record.infertileCount);
         acc.unknown += numberValue(record.unknownCount);
-        if (ACTIVE_EGG_STATUSES.has(record.eggStatus)) acc.active += eggTotal(record);
-        if (record.eggStatus === '관찰') acc.watch += 1;
+        if (ACTIVE_EGG_STATUSES.has(record.eggStatus)) acc.activeEggs += eggTotal(record);
+        if (record.eggStatus === '관찰') acc.watchRecords += 1;
         return acc;
-    }, { eggs: 0, fertile: 0, infertile: 0, unknown: 0, active: 0, watch: 0 });
+    }, { eggs: 0, fertile: 0, infertile: 0, unknown: 0, activeEggs: 0, watchRecords: 0 });
 
-    const nextStart = latest ? addDays(latest.layDate, NEXT_LAY_MIN_DAYS) : '';
-    const nextEnd = latest ? addDays(latest.layDate, NEXT_LAY_MAX_DAYS) : '';
-    const startDiff = daysUntil(nextStart);
-    const endDiff = daysUntil(nextEnd);
-    let nextLabel = '기록 없음';
-    let tone = 'none';
+    let tone = 'quiet';
+    let nextLabel = isBreedingCandidate(gecko) ? '첫 기록 필요' : '산란 없음';
+    let nextStart = '';
+    let nextEnd = '';
+    let nextDays = null;
 
-    if (latest && startDiff !== null && endDiff !== null) {
-        if (endDiff < 0) {
-            nextLabel = `체크 ${Math.abs(endDiff)}일 지남`;
+    if (latest?.layDate) {
+        nextStart = addDays(latest.layDate, NEXT_LAY_MIN_DAYS);
+        nextEnd = addDays(latest.layDate, NEXT_LAY_MAX_DAYS);
+        const startDiff = daysUntil(nextStart);
+        const endDiff = daysUntil(nextEnd);
+        nextDays = startDiff;
+
+        if (endDiff !== null && endDiff < 0) {
             tone = 'danger';
-        } else if (startDiff <= 0) {
-            nextLabel = `${shortDate(nextStart)}~${shortDate(nextEnd)} 예상`;
+            nextLabel = `체크 ${Math.abs(endDiff)}일 지남`;
+        } else if (startDiff !== null && startDiff <= 0) {
             tone = 'ready';
-        } else {
-            nextLabel = `${startDiff}일 후 예상`;
+            nextLabel = `${shortDate(nextStart)}~${shortDate(nextEnd)}`;
+        } else if (startDiff !== null) {
             tone = 'wait';
+            nextLabel = `${startDiff}일 후`;
         }
+    } else if (isBreedingCandidate(gecko)) {
+        tone = 'empty';
     }
 
     let averageGap = null;
-    const asc = [...records].reverse().filter((record) => record.layDate);
-    if (asc.length >= 2) {
+    const ascending = [...records].reverse().filter((record) => record.layDate);
+    if (ascending.length >= 2) {
         let sum = 0;
         let count = 0;
-        for (let i = 1; i < asc.length; i += 1) {
-            const prev = dateMs(asc[i - 1].layDate);
-            const cur = dateMs(asc[i].layDate);
-            if (prev === null || cur === null) continue;
-            sum += Math.round((cur - prev) / DAY_MS);
+        for (let i = 1; i < ascending.length; i += 1) {
+            const previous = dateMs(ascending[i - 1].layDate);
+            const current = dateMs(ascending[i].layDate);
+            if (previous === null || current === null) continue;
+            sum += Math.round((current - previous) / DAY_MS);
             count += 1;
         }
         if (count) averageGap = Math.round(sum / count);
@@ -192,10 +239,11 @@ function statsOf(gecko) {
         records,
         latest,
         seasonRecords,
-        clutches: records.length,
         seasonClutches: seasonRecords.length,
+        clutches: records.length,
         nextStart,
         nextEnd,
+        nextDays,
         nextLabel,
         tone,
         averageGap,
@@ -203,19 +251,15 @@ function statsOf(gecko) {
     };
 }
 
-function isBreeding(gecko) {
-    return gecko.sex === '암'
-        || gecko.status === '브리딩'
-        || Boolean(gecko.pairedWithNumber)
-        || recordsOf(gecko).length > 0;
-}
-
-function hasActiveEggs(gecko) {
-    return recordsOf(gecko).some((record) => ACTIVE_EGG_STATUSES.has(record.eggStatus));
+function needsAttention(gecko) {
+    const stats = statsOf(gecko);
+    return ['danger', 'ready', 'empty'].includes(stats.tone)
+        || stats.watchRecords > 0
+        || activeEggRecords(gecko).some((record) => (daysSince(record.layDate) || 0) >= INCUBATION_WATCH_DAY);
 }
 
 function searchText(gecko) {
-    const recordsText = recordsOf(gecko).map((record) => [
+    const recordText = recordsOf(gecko).map((record) => [
         record.layDate,
         record.clutchCode,
         record.mateNumber,
@@ -236,71 +280,152 @@ function searchText(gecko) {
         gecko.breeder,
         gecko.memo,
         ...(gecko.tags || []),
-        recordsText
+        recordText
     ].join(' ').toLowerCase();
 }
 
 function visibleGeckos() {
     const query = el.search.value.trim().toLowerCase();
-    const tonePriority = { danger: 0, ready: 1, wait: 2, none: 3 };
+    const tonePriority = { danger: 0, ready: 1, empty: 2, wait: 3, quiet: 4 };
     let list = state.geckos.filter((gecko) => !query || searchText(gecko).includes(query));
 
-    if (currentView === 'breeding') list = list.filter(isBreeding);
-    if (currentView === 'incubation') list = list.filter(hasActiveEggs);
+    if (currentView === 'breeding') list = list.filter(isBreedingCandidate);
+    if (currentView === 'incubation') list = list.filter((gecko) => activeEggTotal(gecko) > 0);
+    if (currentView === 'attention') list = list.filter(needsAttention);
 
     return list.sort((a, b) => {
-        if (currentView === 'all') {
-            return String(a.number || '').localeCompare(String(b.number || ''), 'ko', { numeric: true });
+        if (currentView === 'all' && !query) {
+            return String(a.number || '').localeCompare(String(b.number || ''), 'ko', { numeric: true })
+                || String(a.name || '').localeCompare(String(b.name || ''), 'ko');
         }
         const aStats = statsOf(a);
         const bStats = statsOf(b);
-        const aNext = daysUntil(aStats.nextStart) ?? 9999;
-        const bNext = daysUntil(bStats.nextStart) ?? 9999;
         return (tonePriority[aStats.tone] ?? 9) - (tonePriority[bStats.tone] ?? 9)
-            || aNext - bNext
-            || String(bStats.latest?.layDate || '').localeCompare(String(aStats.latest?.layDate || ''))
+            || (aStats.nextDays ?? 9999) - (bStats.nextDays ?? 9999)
             || String(a.number || '').localeCompare(String(b.number || ''), 'ko', { numeric: true });
     });
 }
 
-function setText(root, selector, value) {
-    const target = root.querySelector(selector);
-    if (target) target.textContent = value || '-';
+function allRecentRecords(limit = 12) {
+    return state.geckos.flatMap((gecko) => recordsOf(gecko).map((record) => ({ gecko, record })))
+        .sort((a, b) => String(b.record.layDate || '').localeCompare(String(a.record.layDate || '')))
+        .slice(0, limit);
 }
 
-function node(tag, className = '', text = '') {
-    const element = document.createElement(tag);
-    if (className) element.className = className;
-    if (text) element.textContent = text;
-    return element;
+function buildActionItems(limit = 10) {
+    const items = [];
+    for (const gecko of state.geckos) {
+        const stats = statsOf(gecko);
+        if (stats.tone === 'danger') {
+            items.push({ gecko, tone: 'danger', priority: 0, title: '산란 체크', meta: stats.nextLabel });
+        } else if (stats.tone === 'ready') {
+            items.push({ gecko, tone: 'ready', priority: 1, title: '산란 가능 구간', meta: stats.nextLabel });
+        } else if (stats.tone === 'empty') {
+            items.push({ gecko, tone: 'empty', priority: 3, title: '첫 기록 필요', meta: gecko.pairedWithNumber ? `페어 ${gecko.pairedWithNumber}` : gecko.status || '브리딩' });
+        }
+
+        for (const record of activeEggRecords(gecko)) {
+            const age = daysSince(record.layDate);
+            if (record.eggStatus !== '관찰' && (age === null || age < INCUBATION_WATCH_DAY)) continue;
+            items.push({
+                gecko,
+                record,
+                tone: record.eggStatus === '관찰' ? 'ready' : 'wait',
+                priority: record.eggStatus === '관찰' ? 1 : 2,
+                title: '인큐 확인',
+                meta: `${age ?? '-'}일차 · ${record.incubationLocation || '위치 미등록'}`
+            });
+        }
+    }
+    return items.sort((a, b) => a.priority - b.priority
+        || String(a.gecko.number || '').localeCompare(String(b.gecko.number || ''), 'ko', { numeric: true }))
+        .slice(0, limit);
+}
+
+function selectGecko(geckoId, scroll = false) {
+    selectedGeckoId = geckoId || '';
+    render();
+    if (scroll || window.matchMedia('(max-width: 980px)').matches) {
+        document.querySelector('.cbRecordPanel')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
 }
 
 function selectedGecko() {
     return state.geckos.find((gecko) => gecko.id === selectedGeckoId) || null;
 }
 
-function renderStats() {
-    let breeding = 0;
-    let activeEggs = 0;
-    let due = 0;
+function renderMetrics() {
+    const breeding = state.geckos.filter(isBreedingCandidate).length;
+    const eggs = state.geckos.reduce((sum, gecko) => sum + activeEggTotal(gecko), 0);
+    const attention = state.geckos.filter(needsAttention).length;
+    el.metricTotal.textContent = state.count || state.geckos.length;
+    el.metricBreeding.textContent = breeding;
+    el.metricEggs.textContent = eggs;
+    el.metricAttention.textContent = attention;
+}
 
-    for (const gecko of state.geckos) {
-        const stats = statsOf(gecko);
-        if (isBreeding(gecko)) breeding += 1;
-        activeEggs += stats.active;
-        if (stats.tone === 'danger' || stats.tone === 'ready') due += 1;
-        due += stats.watch;
+function queueNode(item) {
+    const button = node('button', `cbQueueItem tone-${item.tone}`);
+    button.type = 'button';
+    const main = node('div');
+    main.append(
+        node('strong', '', titleOf(item.gecko)),
+        node('span', '', [item.gecko.location, item.gecko.morph].filter(Boolean).join(' · ') || '정보 미등록')
+    );
+    const side = node('div', 'cbQueueSide');
+    side.append(node('em', '', item.title), node('span', '', item.meta || '-'));
+    button.append(main, side);
+    button.addEventListener('click', () => {
+        if (item.record) openEggModal(item.gecko, item.record);
+        else selectGecko(item.gecko.id, true);
+    });
+    return button;
+}
+
+function renderQueue() {
+    const items = buildActionItems();
+    el.queueCount.textContent = `${items.length}건`;
+    el.actionQueue.replaceChildren();
+    if (items.length === 0) {
+        el.actionQueue.append(node('div', 'cbEmpty compact', '오늘 체크할 항목이 없습니다.'));
+        return;
     }
+    items.forEach((item) => el.actionQueue.append(queueNode(item)));
+}
 
-    el.statTotal.textContent = state.count || state.geckos.length;
-    el.statBreeding.textContent = breeding;
-    el.statActiveEggs.textContent = activeEggs;
-    el.statDue.textContent = due;
+function recentNode(item) {
+    const button = node('button', 'cbRecentItem');
+    button.type = 'button';
+    const line = node('div');
+    line.append(
+        node('strong', '', titleOf(item.gecko)),
+        node('span', '', `${fullDate(item.record.layDate)} · ${eggSummary(item.record)}`)
+    );
+    const meta = node('small', '', [
+        item.record.eggStatus || '보관중',
+        item.record.incubationLocation || '',
+        item.record.mateNumber ? `수컷 ${item.record.mateNumber}` : ''
+    ].filter(Boolean).join(' · '));
+    button.append(line, meta);
+    button.addEventListener('click', () => openEggModal(item.gecko, item.record));
+    return button;
+}
+
+function renderRecent() {
+    const records = allRecentRecords(8);
+    el.recentCount.textContent = `${records.length}건`;
+    el.recentClutches.replaceChildren();
+    if (records.length === 0) {
+        el.recentClutches.append(node('div', 'cbEmpty compact', '산란 기록이 없습니다.'));
+        return;
+    }
+    records.forEach((item) => el.recentClutches.append(recentNode(item)));
 }
 
 function renderCards() {
     const list = visibleGeckos();
     if (el.search.value.trim() && list.length === 1) selectedGeckoId = list[0].id;
+    if (!selectedGeckoId && list[0]) selectedGeckoId = list[0].id;
 
     const [eyebrow, title] = VIEW_LABELS[currentView] || VIEW_LABELS.all;
     el.listEyebrow.textContent = eyebrow;
@@ -309,7 +434,7 @@ function renderCards() {
     el.cardList.replaceChildren();
 
     if (list.length === 0) {
-        el.cardList.append(node('div', 'creEmpty', '표시할 개체가 없습니다.'));
+        el.cardList.append(node('div', 'cbEmpty', '조건에 맞는 개체가 없습니다.'));
         return;
     }
 
@@ -319,18 +444,12 @@ function renderCards() {
         card.classList.toggle('active', gecko.id === selectedGeckoId);
         card.classList.add(`tone-${stats.tone}`);
         setText(card, '.cardTitle', titleOf(gecko));
-        setText(card, '.cardSub', [gecko.morph, gecko.sex, gecko.status].filter(Boolean).join(' · '));
-        setText(card, '.cardBadge', gecko.status || '보유');
+        setText(card, '.cardSub', [gecko.morph, gecko.sex, gecko.pairedWithNumber ? `페어 ${gecko.pairedWithNumber}` : ''].filter(Boolean).join(' · '));
+        setText(card, '.cardStatus', gecko.status || '보유');
         setText(card, '.cardLocation', gecko.location || '위치 미등록');
-        setText(card, '.cardCycle', stats.clutches ? `${stats.clutches}회차 · ${stats.eggs}알` : '산란 없음');
+        setText(card, '.cardCycle', stats.clutches ? `${stats.clutches}회 · ${stats.activeEggs}알 보관` : '기록 없음');
         setText(card, '.cardNext', stats.nextLabel);
-        card.addEventListener('click', () => {
-            selectedGeckoId = gecko.id;
-            render();
-            if (window.matchMedia('(max-width: 900px)').matches) {
-                document.querySelector('.creDetailPanel')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            }
-        });
+        card.addEventListener('click', () => selectGecko(gecko.id));
         el.cardList.append(card);
     }
 }
@@ -341,35 +460,38 @@ function metric(label, value, tone = '') {
     return item;
 }
 
-function row(label, value) {
-    const item = node('div', 'creInfoRow');
-    item.append(node('span', '', label), node('strong', '', value || '-'));
-    return item;
+function infoRow(label, value) {
+    const row = node('div', 'cbInfoRow');
+    row.append(node('span', '', label), node('strong', '', value || '-'));
+    return row;
 }
 
-function renderEggTimeline(gecko) {
+function renderTimeline(gecko) {
     const stats = statsOf(gecko);
-    const wrap = node('div', 'creTimeline');
+    const wrap = node('div', 'cbTimeline');
     if (stats.records.length === 0) {
-        wrap.append(node('div', 'creEmpty', '아직 산란 기록이 없습니다.'));
+        wrap.append(node('div', 'cbEmpty compact', '산란 기록이 없습니다.'));
         return wrap;
     }
 
     for (const [index, record] of stats.records.entries()) {
         const cycle = stats.records.length - index;
-        const item = node('article', 'creTimelineItem');
+        const item = node('article', 'cbTimelineItem');
+        const age = daysSince(record.layDate);
         const main = node('div');
         main.append(
             node('strong', '', `${cycle}회차 · ${fullDate(record.layDate)} ${record.clutchCode || ''}`.trim()),
-            node('span', '', `${eggLine(record)} · ${record.eggStatus || '보관중'}`)
+            node('span', '', `${eggSummary(record)} · ${record.eggStatus || '보관중'}`)
         );
         const meta = [
+            age !== null ? `${age}일차` : '',
+            record.incubationLocation ? `보관 ${record.incubationLocation}` : '',
             record.mateNumber ? `수컷 ${record.mateNumber}` : '',
-            record.hatchDate ? `부화 ${fullDate(record.hatchDate)}` : '',
-            record.incubationLocation ? `보관 ${record.incubationLocation}` : ''
+            record.hatchDate ? `부화 ${fullDate(record.hatchDate)}` : ''
         ].filter(Boolean).join(' · ');
         if (meta) main.append(node('small', '', meta));
         if (record.memo) main.append(node('p', '', record.memo));
+
         const edit = node('button', '', '수정');
         edit.type = 'button';
         edit.addEventListener('click', () => openEggModal(gecko, record));
@@ -387,52 +509,68 @@ function renderDetail() {
 
     if (!gecko) {
         el.detailTitle.textContent = '개체를 선택하세요';
-        el.detailBody.append(node('div', 'creEmpty', '개체를 누르면 위치, 페어링, 산란 사이클이 정리됩니다.'));
+        el.detailBody.append(node('div', 'cbEmpty', '개체를 선택하면 기록이 표시됩니다.'));
         return;
     }
 
     const stats = statsOf(gecko);
     el.detailTitle.textContent = titleOf(gecko);
 
-    const hero = node('section', 'creDetailHero');
-    hero.append(
-        node('strong', '', titleOf(gecko)),
-        node('span', '', [gecko.location, gecko.morph, gecko.status].filter(Boolean).join(' · ') || '기본 정보 미등록')
+    const hero = node('section', `cbRecordHero tone-${stats.tone}`);
+    const heroMain = node('div');
+    heroMain.append(
+        node('span', '', gecko.number || 'NO NUMBER'),
+        node('strong', '', gecko.name || '이름 없음'),
+        node('small', '', [gecko.morph, gecko.location].filter(Boolean).join(' · ') || '기본 정보 미등록')
     );
+    const heroState = node('div', 'cbRecordState');
+    heroState.append(node('em', '', gecko.status || '보유'), node('strong', '', stats.nextLabel));
+    hero.append(heroMain, heroState);
 
-    const cycle = node('section', 'creCycleGrid');
+    const cycle = node('section', 'cbCycleGrid');
     cycle.append(
         metric('이번 시즌', `${stats.seasonClutches}회`),
-        metric('전체 산란', `${stats.clutches}회 · ${stats.eggs}알`),
-        metric('유정/무정', `유 ${stats.fertile} · 무 ${stats.infertile} · 미 ${stats.unknown}`),
-        metric('다음 산란', stats.nextLabel, stats.tone)
+        metric('누적 산란', `${stats.clutches}회 · ${stats.eggs}알`),
+        metric('보관 알', `${stats.activeEggs}알`),
+        metric('다음 체크', stats.nextLabel, stats.tone)
     );
+
+    const quick = node('section', 'cbInfoGrid');
+    quick.append(
+        infoRow('위치', gecko.location),
+        infoRow('성별/상태', [gecko.sex, gecko.status].filter(Boolean).join(' · ')),
+        infoRow('페어 수컷', gecko.pairedWithNumber),
+        infoRow('합사일', fullDate(gecko.pairingDate)),
+        infoRow('최근 산란', stats.latest ? `${fullDate(stats.latest.layDate)} · ${eggSummary(stats.latest)}` : ''),
+        infoRow('혈통', [gecko.fatherNumber ? `부 ${gecko.fatherNumber}` : '', gecko.motherNumber ? `모 ${gecko.motherNumber}` : ''].filter(Boolean).join(' · ')),
+        infoRow('무게', gecko.weight ? `${gecko.weight}g · ${fullDate(gecko.weightDate)}` : ''),
+        infoRow('출처', gecko.breeder)
+    );
+
     if (stats.averageGap) {
-        const note = node('p', 'creCycleNote', `평균 산란 간격 ${stats.averageGap}일 · 최근 기록 기준 자동 계산`);
-        cycle.append(note);
+        const note = node('section', 'cbAutoNote');
+        note.append(node('span', '', '자동 계산'), node('strong', '', `평균 산란 간격 ${stats.averageGap}일`));
+        el.detailBody.append(hero, cycle, note, quick);
+    } else {
+        el.detailBody.append(hero, cycle, quick);
     }
 
-    const info = node('section', 'creInfoGrid');
-    info.append(
-        row('위치', gecko.location),
-        row('페어 수컷', gecko.pairedWithNumber),
-        row('합사일', fullDate(gecko.pairingDate)),
-        row('최근 산란', stats.latest ? `${fullDate(stats.latest.layDate)} · ${eggLine(stats.latest)}` : ''),
-        row('부', gecko.fatherNumber),
-        row('모', gecko.motherNumber),
-        row('무게', gecko.weight ? `${gecko.weight}g · ${fullDate(gecko.weightDate)}` : ''),
-        row('출처', gecko.breeder)
-    );
+    if (gecko.memo) {
+        const memo = node('section', 'cbMemo');
+        memo.append(node('span', '', '메모'), node('p', '', gecko.memo));
+        el.detailBody.append(memo);
+    }
 
-    const memo = node('section', 'creMemo');
-    memo.append(node('span', '', '메모'), node('p', '', gecko.memo || '-'));
-
-    el.detailBody.append(hero, cycle, info, memo, renderEggTimeline(gecko));
+    const timelineHead = node('div', 'cbTimelineHead');
+    timelineHead.append(node('strong', '', '산란 기록'), node('span', '', `${stats.records.length}건`));
+    el.detailBody.append(timelineHead, renderTimeline(gecko));
 }
 
 function render() {
     el.tabs.forEach((tab) => tab.classList.toggle('active', tab.dataset.view === currentView));
-    renderStats();
+    renderMetrics();
+    renderQueue();
+    renderRecent();
     renderCards();
     renderDetail();
 }
@@ -536,7 +674,7 @@ async function deleteGecko() {
             method: 'DELETE',
             body: JSON.stringify({ id: gecko.id, adminPassword })
         });
-        selectedGeckoId = '';
+        selectedGeckoId = state.geckos[0]?.id || '';
         closeGeckoModal();
         render();
         toast('삭제 완료', titleOf(gecko));
@@ -569,14 +707,15 @@ function renderSuggestions() {
 
     const suggestions = state.geckos
         .filter((gecko) => searchText(gecko).includes(query))
-        .slice(0, 10);
+        .slice(0, 12);
 
     for (const gecko of suggestions) {
+        const stats = statsOf(gecko);
         const button = node('button');
         button.type = 'button';
         button.append(
             node('strong', '', titleOf(gecko)),
-            node('span', '', [gecko.location, gecko.morph, gecko.pairedWithNumber ? `페어 ${gecko.pairedWithNumber}` : ''].filter(Boolean).join(' · ') || '정보 미등록')
+            node('span', '', [gecko.location, gecko.morph, stats.nextLabel].filter(Boolean).join(' · ') || '정보 미등록')
         );
         button.addEventListener('click', () => {
             setEggSelected(gecko);
@@ -595,7 +734,7 @@ function openEggModal(gecko = null, record = null) {
     const target = gecko || autoGecko || selectedGecko();
     editingEggRecordId = record?.id || '';
     setEggSelected(target);
-    $('#eggModalTitle').textContent = record ? '산란 기록 수정' : '산란 입력';
+    $('#eggModalTitle').textContent = record ? '산란 기록 수정' : '산란 기록';
     el.eggGeckoSearch.value = target ? titleOf(target) : '';
     $('#eggLayDate').value = record?.layDate || todayValue();
     $('#eggStatus').value = record?.eggStatus || '보관중';
@@ -727,9 +866,12 @@ function parseImportRows(text) {
         합사일: 'pairingDate',
         출생일: 'hatchDate',
         부화일: 'hatchDate',
+        입양일: 'acquiredDate',
         부: 'fatherNumber',
         모: 'motherNumber',
         무게: 'weight',
+        측정일: 'weightDate',
+        출처: 'breeder',
         메모: 'memo',
         태그: 'tags'
     };
@@ -779,7 +921,7 @@ function closeImportModal() {
 async function load() {
     try {
         state = await api('/api/geckos');
-        if (!selectedGeckoId && state.geckos[0]) selectedGeckoId = state.geckos[0].id;
+        selectedGeckoId = state.geckos[0]?.id || '';
         render();
     } catch (err) {
         toast('불러오기 실패', err.message, 'error');
@@ -816,15 +958,20 @@ el.eggGeckoSearch.addEventListener('input', () => {
     renderSuggestions();
 });
 ['#eggFertile', '#eggInfertile', '#eggUnknown'].forEach((selector) => {
-    $(selector).addEventListener('input', updateEggTotal);
+    const input = $(selector);
+    input.addEventListener('input', updateEggTotal);
+    input.addEventListener('change', updateEggTotal);
+});
+el.eggForm.addEventListener('input', (event) => {
+    if (['eggFertile', 'eggInfertile', 'eggUnknown'].includes(event.target.id)) updateEggTotal();
 });
 el.openImportButton.addEventListener('click', openImportModal);
 el.closeImportButton.addEventListener('click', closeImportModal);
 el.importForm.addEventListener('submit', importGeckos);
 document.addEventListener('keydown', (event) => {
     if (event.key !== 'Escape') return;
-    if (!el.geckoModal.classList.contains('hidden')) closeGeckoModal();
-    else if (!el.eggModal.classList.contains('hidden')) closeEggModal();
+    if (!el.eggModal.classList.contains('hidden')) closeEggModal();
+    else if (!el.geckoModal.classList.contains('hidden')) closeGeckoModal();
     else if (!el.importModal.classList.contains('hidden')) closeImportModal();
 });
 
