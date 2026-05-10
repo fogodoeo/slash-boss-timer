@@ -9595,3 +9595,777 @@ body {
         padding: 14px;
     }
 }
+
+/* CrestBase mode UI */
+.geckoOpsPage {
+    min-height: 100vh;
+    margin: 0;
+    background: #edf3f8;
+    color: #0f172a;
+    font-family: Pretendard, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.cgShell {
+    width: min(100% - 28px, 1240px);
+    margin: 0 auto;
+    padding: 14px 0 34px;
+}
+
+.cgHeader,
+.cgModeNav,
+.cgModeIntro,
+.cgPanel,
+.cgBigSearch {
+    border: 1px solid #d8e2ee;
+    border-radius: 8px;
+    background: #ffffff;
+}
+
+.cgHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    padding: 12px;
+    box-shadow: 0 18px 44px rgba(15, 23, 42, 0.08);
+}
+
+.cgBrand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+}
+
+.cgMark {
+    display: grid;
+    width: 42px;
+    height: 42px;
+    flex: 0 0 auto;
+    place-items: center;
+    border-radius: 8px;
+    background: #111827;
+    color: #ffffff;
+    font-size: 14px;
+    font-weight: 1000;
+}
+
+.cgBrand span,
+.cgPanelHead span,
+.cgModeIntro span,
+.cgFieldGrid span,
+.cgForm label > span,
+.cgBigSearch span,
+.cgSearchField span,
+.cgSectionTitle {
+    color: #52637a;
+    font-size: 12px;
+    font-weight: 900;
+}
+
+.cgBrand h1 {
+    margin: 1px 0 0;
+    color: #07111f;
+    font-size: 26px;
+    font-weight: 1000;
+    letter-spacing: 0;
+    line-height: 1;
+}
+
+.cgHeaderInfo {
+    display: grid;
+    justify-items: end;
+    gap: 2px;
+    flex: 0 0 auto;
+}
+
+.cgHeaderInfo strong {
+    font-size: 15px;
+    font-weight: 1000;
+}
+
+.cgHeaderInfo span {
+    color: #6b7c92;
+    font-size: 12px;
+    font-weight: 800;
+}
+
+.cgModeNav {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 6px;
+    margin: 10px 0;
+    padding: 6px;
+}
+
+.cgModeNav button {
+    display: grid;
+    gap: 3px;
+    min-width: 0;
+    min-height: 58px;
+    border: 0;
+    border-radius: 7px;
+    background: transparent;
+    color: #334155;
+    cursor: pointer;
+    text-align: left;
+    padding: 9px 12px;
+}
+
+.cgModeNav button.active {
+    background: #0f172a;
+    color: #ffffff;
+}
+
+.cgModeNav strong {
+    font-size: 16px;
+    font-weight: 1000;
+    line-height: 1.05;
+}
+
+.cgModeNav span {
+    color: inherit;
+    opacity: 0.72;
+    font-size: 12px;
+    font-weight: 850;
+}
+
+.cgModePanel {
+    display: grid;
+    gap: 10px;
+}
+
+.cgModeIntro {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 11px 13px;
+}
+
+.cgModeIntro strong {
+    display: block;
+    margin-top: 2px;
+    font-size: 17px;
+    font-weight: 1000;
+}
+
+.cgModeIntro p {
+    margin: 0;
+    color: #64748b;
+    font-size: 13px;
+    font-weight: 800;
+    text-align: right;
+}
+
+.cgGrid {
+    display: grid;
+    gap: 10px;
+}
+
+.cgGrid.two,
+.cgGrid.feed {
+    grid-template-columns: minmax(0, 1.15fr) minmax(360px, 0.85fr);
+}
+
+.cgGrid.breeding {
+    grid-template-columns: minmax(320px, 0.85fr) minmax(0, 1fr);
+    align-items: start;
+}
+
+.cgClutchPanel {
+    grid-column: 1 / -1;
+}
+
+.cgPanel {
+    min-width: 0;
+    padding: 12px;
+}
+
+.cgPanelHead {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 10px;
+}
+
+.cgPanelHead strong {
+    display: block;
+    margin-top: 2px;
+    font-size: 17px;
+    font-weight: 1000;
+}
+
+.cgHeadActions,
+.cgInlineSave {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.cgForm {
+    display: grid;
+    gap: 10px;
+}
+
+.cgFieldGrid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+}
+
+.cgForm label,
+.cgBigSearch,
+.cgSearchField {
+    position: relative;
+    display: grid;
+    gap: 5px;
+    min-width: 0;
+}
+
+.cgForm input,
+.cgForm select,
+.cgForm textarea,
+.cgBigSearch input,
+.cgSearchField input,
+.cgInlineSave input {
+    width: 100%;
+    min-width: 0;
+    border: 1px solid #cbd8e6;
+    border-radius: 8px;
+    background: #ffffff;
+    color: #0f172a;
+    font: inherit;
+    font-size: 14px;
+    font-weight: 850;
+    outline: none;
+}
+
+.cgForm input,
+.cgForm select,
+.cgBigSearch input,
+.cgSearchField input,
+.cgInlineSave input {
+    height: 42px;
+    padding: 0 11px;
+}
+
+.cgForm textarea {
+    min-height: 74px;
+    padding: 10px 11px;
+    resize: vertical;
+}
+
+.cgForm input:focus,
+.cgForm select:focus,
+.cgForm textarea:focus,
+.cgBigSearch input:focus,
+.cgSearchField input:focus {
+    border-color: #1d5bd8;
+    box-shadow: 0 0 0 3px rgba(29, 91, 216, 0.12);
+}
+
+.cgWide {
+    grid-column: 1 / -1;
+}
+
+.cgButton {
+    display: inline-grid;
+    min-width: 84px;
+    height: 42px;
+    place-items: center;
+    border: 1px solid #cbd8e6;
+    border-radius: 8px;
+    background: #ffffff;
+    color: #102033;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 1000;
+}
+
+.cgButton.primary {
+    border-color: #1d5bd8;
+    background: #1d5bd8;
+    color: #ffffff;
+}
+
+.cgButton.ghost {
+    background: #f5f8fc;
+}
+
+.cgButton.small {
+    min-width: 58px;
+    height: 34px;
+    padding: 0 10px;
+    font-size: 12px;
+}
+
+.cgButton:disabled {
+    cursor: not-allowed;
+    opacity: 0.45;
+}
+
+.cgSelectedLabel {
+    display: block;
+    border-radius: 8px;
+    background: #eef4ff;
+    color: #1457d9;
+    padding: 10px 11px;
+    font-size: 14px;
+    font-weight: 1000;
+}
+
+.cgSuggest {
+    position: absolute;
+    z-index: 20;
+    top: calc(100% + 4px);
+    left: 0;
+    right: 0;
+    display: grid;
+    gap: 5px;
+    max-height: 260px;
+    overflow: auto;
+    border-radius: 8px;
+    box-shadow: 0 18px 44px rgba(15, 23, 42, 0.18);
+}
+
+.cgSuggest:empty {
+    display: none;
+}
+
+.cgSuggestItem,
+.cgSuggestEmpty {
+    display: grid;
+    gap: 2px;
+    width: 100%;
+    border: 1px solid #d8e2ee;
+    border-radius: 8px;
+    background: #ffffff;
+    padding: 9px 10px;
+    text-align: left;
+}
+
+.cgSuggestItem {
+    cursor: pointer;
+}
+
+.cgSuggestItem strong {
+    color: #0f172a;
+    font-size: 14px;
+    font-weight: 1000;
+}
+
+.cgSuggestItem span,
+.cgSuggestEmpty {
+    color: #64748b;
+    font-size: 12px;
+    font-weight: 850;
+}
+
+.cgImportPanel summary {
+    cursor: pointer;
+    color: #0f172a;
+    font-size: 14px;
+    font-weight: 1000;
+    list-style: none;
+}
+
+.cgImportPanel summary::-webkit-details-marker {
+    display: none;
+}
+
+.cgImportPanel form {
+    margin-top: 10px;
+}
+
+.cgImportPanel p {
+    margin: 0;
+    color: #64748b;
+    font-size: 13px;
+    font-weight: 800;
+}
+
+.cgInlineSave {
+    align-items: stretch;
+}
+
+.cgSegment {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px;
+    padding: 5px;
+    border: 1px solid #d8e2ee;
+    border-radius: 8px;
+    background: #f4f8fc;
+}
+
+.cgSegment button {
+    height: 40px;
+    border: 0;
+    border-radius: 7px;
+    background: transparent;
+    color: #334155;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 1000;
+}
+
+.cgSegment button.active {
+    background: #111827;
+    color: #ffffff;
+}
+
+.cgBigSearch {
+    padding: 10px;
+}
+
+.cgBigSearch input {
+    height: 48px;
+    font-size: 16px;
+}
+
+.cgWorkspace {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(360px, 0.8fr);
+    gap: 10px;
+    align-items: start;
+}
+
+.cgStickyDetail {
+    position: sticky;
+    top: 10px;
+}
+
+.cgList {
+    display: grid;
+    gap: 7px;
+}
+
+.cgList.compact {
+    gap: 6px;
+}
+
+.cgGeckoCard,
+.cgBreedingCard,
+.cgMiniRecord {
+    display: grid;
+    width: 100%;
+    min-width: 0;
+    border: 1px solid #d8e2ee;
+    border-radius: 8px;
+    background: #ffffff;
+    cursor: pointer;
+    text-align: left;
+}
+
+.cgGeckoCard {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 10px;
+    padding: 10px;
+}
+
+.cgGeckoCard.active,
+.cgBreedingCard.active {
+    border-color: #1d5bd8;
+    box-shadow: 0 0 0 2px rgba(29, 91, 216, 0.12);
+}
+
+.cgGeckoCard strong,
+.cgBreedingCard strong,
+.cgMiniRecord strong {
+    color: #0b1220;
+    font-size: 15px;
+    font-weight: 1000;
+}
+
+.cgGeckoCard span,
+.cgBreedingCard span,
+.cgMiniRecord span {
+    display: block;
+    margin-top: 3px;
+    color: #64748b;
+    font-size: 12px;
+    font-weight: 850;
+}
+
+.cgCardTags {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 4px;
+}
+
+.cgCardTags em {
+    border-radius: 999px;
+    background: #eef2f7;
+    color: #40536b;
+    padding: 4px 7px;
+    font-size: 11px;
+    font-style: normal;
+    font-weight: 1000;
+}
+
+.cgCardTags em.hot {
+    background: #fff3db;
+    color: #9a5b00;
+}
+
+.cgCardTags em.warn {
+    background: #ffe9e9;
+    color: #c43232;
+}
+
+.cgMiniRecord {
+    padding: 10px;
+}
+
+.cgBreedingCard {
+    gap: 3px;
+    padding: 10px;
+}
+
+.cgBreedingCard em {
+    color: #1d5bd8;
+    font-size: 12px;
+    font-style: normal;
+    font-weight: 1000;
+}
+
+.cgBreedingCard.ready em {
+    color: #0f8a4b;
+}
+
+.cgDetailEmpty,
+.cgEmpty {
+    border-radius: 8px;
+    background: #f6f9fc;
+    color: #64748b;
+    padding: 14px;
+    text-align: center;
+    font-size: 13px;
+    font-weight: 850;
+}
+
+.cgDetail {
+    display: grid;
+    gap: 10px;
+}
+
+.cgDetailHero {
+    display: grid;
+    gap: 4px;
+    border-radius: 8px;
+    background: #111827;
+    color: #ffffff;
+    padding: 14px;
+}
+
+.cgDetailHero strong {
+    font-size: 22px;
+    font-weight: 1000;
+}
+
+.cgDetailHero span {
+    color: rgba(255, 255, 255, 0.76);
+    font-size: 13px;
+    font-weight: 850;
+}
+
+.cgInfoGrid,
+.cgBreedingSummary {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 7px;
+}
+
+.cgInfoRow {
+    display: grid;
+    gap: 3px;
+    border-radius: 8px;
+    background: #f8fafc;
+    padding: 9px;
+}
+
+.cgInfoRow span {
+    color: #64748b;
+    font-size: 11px;
+    font-weight: 900;
+}
+
+.cgInfoRow strong {
+    min-width: 0;
+    color: #0f172a;
+    font-size: 13px;
+    font-weight: 1000;
+    word-break: break-word;
+}
+
+.cgMemo {
+    display: grid;
+    gap: 4px;
+    border-radius: 8px;
+    background: #fffdf7;
+    padding: 10px;
+}
+
+.cgMemo span {
+    color: #8a5a00;
+    font-size: 12px;
+    font-weight: 1000;
+}
+
+.cgMemo p {
+    margin: 0;
+    color: #0f172a;
+    font-size: 14px;
+    font-weight: 850;
+    white-space: pre-wrap;
+}
+
+.cgSectionTitle {
+    margin: 3px 0 0;
+}
+
+.cgTimeline {
+    display: grid;
+    gap: 6px;
+}
+
+.cgTimelineItem {
+    display: grid;
+    gap: 3px;
+    border: 1px solid #e4ebf4;
+    border-radius: 8px;
+    background: #ffffff;
+    padding: 9px;
+}
+
+.cgTimelineItem strong {
+    color: #0f172a;
+    font-size: 13px;
+    font-weight: 1000;
+}
+
+.cgTimelineItem span,
+.cgTimelineItem p {
+    margin: 0;
+    color: #64748b;
+    font-size: 12px;
+    font-weight: 850;
+}
+
+.cgBreedingDetail {
+    display: grid;
+    gap: 10px;
+}
+
+@media (max-width: 980px) {
+    .cgGrid.two,
+    .cgGrid.feed,
+    .cgGrid.breeding,
+    .cgWorkspace {
+        grid-template-columns: 1fr;
+    }
+
+    .cgStickyDetail {
+        position: static;
+    }
+}
+
+@media (max-width: 640px) {
+    .cgShell {
+        width: min(100% - 14px, 1240px);
+        padding-top: 7px;
+    }
+
+    .cgHeader {
+        padding: 10px;
+    }
+
+    .cgBrand h1 {
+        font-size: 22px;
+    }
+
+    .cgMark {
+        width: 38px;
+        height: 38px;
+    }
+
+    .cgHeaderInfo strong {
+        font-size: 13px;
+    }
+
+    .cgHeaderInfo span {
+        font-size: 11px;
+    }
+
+    .cgModeNav {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 5px;
+        padding: 5px;
+    }
+
+    .cgModeNav button {
+        min-height: 54px;
+        padding: 8px 10px;
+    }
+
+    .cgModeNav strong {
+        font-size: 15px;
+    }
+
+    .cgModeIntro {
+        display: grid;
+        gap: 4px;
+        padding: 10px;
+    }
+
+    .cgModeIntro strong {
+        font-size: 15px;
+    }
+
+    .cgModeIntro p {
+        font-size: 12px;
+        text-align: left;
+    }
+
+    .cgPanel {
+        padding: 10px;
+    }
+
+    .cgFieldGrid,
+    .cgInfoGrid,
+    .cgBreedingSummary {
+        grid-template-columns: 1fr;
+        gap: 7px;
+    }
+
+    .cgForm input,
+    .cgForm select,
+    .cgBigSearch input,
+    .cgSearchField input,
+    .cgInlineSave input,
+    .cgButton {
+        height: 40px;
+    }
+
+    .cgInlineSave {
+        display: grid;
+    }
+
+    .cgGeckoCard {
+        grid-template-columns: 1fr;
+        gap: 8px;
+        padding: 10px;
+    }
+
+    .cgCardTags {
+        justify-content: flex-start;
+    }
+
+    .cgHeadActions {
+        gap: 5px;
+    }
+}

@@ -7,86 +7,327 @@
     <link rel="icon" href="./favicon.svg" type="image/svg+xml">
     <link rel="stylesheet" href="./styles.css">
 </head>
-<body class="crestBasePage">
-    <main class="cbShell">
-        <header class="cbTopbar">
-            <div class="cbBrand">
-                <span class="cbMark">CB</span>
+<body class="geckoOpsPage">
+    <main class="cgShell">
+        <header class="cgHeader">
+            <div class="cgBrand">
+                <span class="cgMark">CB</span>
                 <div>
-                    <span class="cbEyebrow">크레스티드 관리</span>
+                    <span>크레스티드 관리</span>
                     <h1>CrestBase</h1>
                 </div>
             </div>
-            <div class="cbTopActions">
-                <button id="openEggButton" class="cbButton primary" type="button">산란 입력</button>
-                <button id="openGeckoButton" class="cbButton" type="button">개체 등록</button>
-                <button id="openImportButton" class="cbButton ghost" type="button">일괄</button>
+            <div class="cgHeaderInfo">
+                <strong id="headerCount">0마리</strong>
+                <span id="headerUpdated">-</span>
             </div>
         </header>
 
-        <section class="cbMetrics" aria-label="관리 지표">
-            <article><span>전체 개체</span><strong id="metricTotal">0</strong></article>
-            <article><span>브리딩</span><strong id="metricBreeding">0</strong></article>
-            <article><span>보관중 알</span><strong id="metricEggs">0</strong></article>
-            <article><span>확인 필요</span><strong id="metricAttention">0</strong></article>
-        </section>
+        <nav class="cgModeNav" aria-label="작업 모드">
+            <button class="active" type="button" data-mode="register">
+                <strong>등록</strong>
+                <span>신규 · 해칭</span>
+            </button>
+            <button type="button" data-mode="feeding">
+                <strong>피딩</strong>
+                <span>안먹음 · 탈피</span>
+            </button>
+            <button type="button" data-mode="search">
+                <strong>검색</strong>
+                <span>개체 정보</span>
+            </button>
+            <button type="button" data-mode="breeding">
+                <strong>브리딩</strong>
+                <span>페어 · 산란</span>
+            </button>
+        </nav>
 
-        <section class="cbCommandBar">
-            <label class="cbSearch">
-                <span>검색</span>
-                <input id="searchInput" type="search" placeholder="번호, 이름, 위치, 모프">
-            </label>
-            <nav class="cbTabs" aria-label="개체 보기">
-                <button class="active" type="button" data-view="all">전체</button>
-                <button type="button" data-view="breeding">브리딩</button>
-                <button type="button" data-view="incubation">인큐</button>
-                <button type="button" data-view="attention">체크</button>
-            </nav>
-        </section>
-
-        <section class="cbPanel cbQuickPanel" aria-label="작업 입력">
-            <div class="cbPanelHead">
+        <section id="registerModePanel" class="cgModePanel" data-mode-panel="register">
+            <div class="cgModeIntro">
                 <div>
-                    <span>입력</span>
-                    <strong id="entryModeTitle">산란 입력</strong>
+                    <span>등록모드</span>
+                    <strong>처음 개체 등록과 해칭 개체 생성을 여기서 끝냅니다.</strong>
                 </div>
-                <small id="entryModeHint">모드를 고르면 같은 설정으로 계속 입력합니다.</small>
+                <p>번호를 다시 입력하고 저장하면 같은 개체를 수정합니다.</p>
             </div>
-            <nav class="cbModeTabs" aria-label="입력 모드">
-                <button class="active" type="button" data-entry-mode="clutch">산란</button>
-                <button type="button" data-entry-mode="feeding">피딩·이상</button>
-                <button type="button" data-entry-mode="weight">무게</button>
-                <button type="button" data-entry-mode="hatch">해칭</button>
-            </nav>
 
-            <form id="quickEggForm" class="cbQuickForm cbModePanel" data-mode-panel="clutch">
-                <section class="cbQuickBlock cbQuickPick">
-                    <div class="cbQuickBlockHead">
-                        <span>1</span>
-                        <strong>개체 선택</strong>
+            <div class="cgGrid two">
+                <form id="registerForm" class="cgPanel cgForm">
+                    <div class="cgPanelHead">
+                        <div>
+                            <span>개체 등록</span>
+                            <strong id="registerTitle">신규 개체</strong>
+                        </div>
+                        <button id="registerClearButton" class="cgButton ghost small" type="button">비우기</button>
                     </div>
-                    <label class="cbQuickSearch">
-                        <span>번호 / 이름</span>
-                        <input id="quickGeckoSearch" type="search" placeholder="예: 바보">
-                        <div id="quickSuggestions" class="cbQuickSuggest"></div>
-                    </label>
-                    <strong id="quickSelectedLabel" class="cbQuickSelected">개체를 선택하세요</strong>
-                </section>
 
-                <section class="cbQuickBlock cbQuickEggBlock">
-                    <div class="cbQuickBlockHead">
-                        <span>2</span>
-                        <strong>산란 정보</strong>
-                        <small id="quickSummary">총 2알</small>
-                    </div>
-                    <div class="cbQuickPair">
+                    <div class="cgFieldGrid">
                         <label>
-                            <span>산란일</span>
-                            <input id="quickLayDate" type="date">
+                            <span>번호</span>
+                            <input id="regNumber" type="text" autocomplete="off" placeholder="예: F-001">
+                        </label>
+                        <label>
+                            <span>이름</span>
+                            <input id="regName" type="text" autocomplete="off" placeholder="이름">
+                        </label>
+                        <label>
+                            <span>성별</span>
+                            <select id="regSex">
+                                <option>미확인</option>
+                                <option>암</option>
+                                <option>수</option>
+                            </select>
                         </label>
                         <label>
                             <span>상태</span>
-                            <select id="quickEggStatus">
+                            <select id="regStatus">
+                                <option>보유</option>
+                                <option>브리딩</option>
+                                <option>분양예정</option>
+                                <option>분양</option>
+                                <option>폐사</option>
+                            </select>
+                        </label>
+                        <label>
+                            <span>위치</span>
+                            <input id="regLocation" type="text" autocomplete="off" placeholder="랙 A / 2층">
+                        </label>
+                        <label>
+                            <span>모프</span>
+                            <input id="regMorph" type="text" autocomplete="off" placeholder="릴리화이트, 헬로윈 등">
+                        </label>
+                        <label>
+                            <span>모 개체</span>
+                            <input id="regMother" type="text" autocomplete="off" placeholder="어미 번호">
+                        </label>
+                        <label>
+                            <span>부 개체</span>
+                            <input id="regFather" type="text" autocomplete="off" placeholder="아비 번호">
+                        </label>
+                        <label>
+                            <span>페어 수컷</span>
+                            <input id="regPair" type="text" autocomplete="off" placeholder="브리딩 수컷">
+                        </label>
+                        <label>
+                            <span>합사일</span>
+                            <input id="regPairDate" type="date">
+                        </label>
+                        <label>
+                            <span>부화/출생일</span>
+                            <input id="regHatchDate" type="date">
+                        </label>
+                        <label>
+                            <span>관리 비밀번호</span>
+                            <input id="regPassword" data-admin-password type="password" autocomplete="current-password">
+                        </label>
+                    </div>
+
+                    <label class="cgWide">
+                        <span>메모</span>
+                        <textarea id="regMemo" rows="3" placeholder="성향, 먹이 반응, 분양 메모"></textarea>
+                    </label>
+
+                    <button class="cgButton primary" type="submit">저장</button>
+                </form>
+
+                <form id="hatchForm" class="cgPanel cgForm">
+                    <div class="cgPanelHead">
+                        <div>
+                            <span>해칭 등록</span>
+                            <strong>알에서 나온 개체 한 번에 생성</strong>
+                        </div>
+                    </div>
+
+                    <label class="cgSearchField">
+                        <span>어미 검색</span>
+                        <input id="hatchParentSearch" type="search" autocomplete="off" placeholder="번호나 이름 일부 입력">
+                        <div id="hatchSuggestions" class="cgSuggest"></div>
+                    </label>
+                    <strong id="hatchParentLabel" class="cgSelectedLabel">어미 개체를 선택하세요</strong>
+
+                    <div class="cgFieldGrid">
+                        <label>
+                            <span>해칭일</span>
+                            <input id="hatchDate" type="date">
+                        </label>
+                        <label>
+                            <span>마릿수</span>
+                            <input id="hatchCount" type="number" min="1" max="50" step="1" inputmode="numeric" value="1">
+                        </label>
+                        <label>
+                            <span>시작 번호</span>
+                            <input id="hatchStartNumber" type="text" autocomplete="off" placeholder="예: H-001">
+                        </label>
+                        <label>
+                            <span>입고 위치</span>
+                            <input id="hatchLocation" type="text" autocomplete="off" placeholder="베이비랙 1">
+                        </label>
+                        <label>
+                            <span>관리 비밀번호</span>
+                            <input id="hatchPassword" data-admin-password type="password" autocomplete="current-password">
+                        </label>
+                    </div>
+
+                    <button class="cgButton primary" type="submit">해칭 개체 생성</button>
+                </form>
+            </div>
+
+            <details class="cgPanel cgImportPanel">
+                <summary>초기 개체를 여러 마리 붙여넣기</summary>
+                <form id="importForm" class="cgForm">
+                    <p>첫 줄은 제목으로 두고, 탭이나 쉼표로 붙여넣으면 됩니다. 예: 번호, 이름, 성별, 모프, 위치, 상태</p>
+                    <textarea id="importText" rows="7" placeholder="번호	이름	성별	모프	위치	상태"></textarea>
+                    <div class="cgInlineSave">
+                        <input id="importPassword" data-admin-password type="password" autocomplete="current-password" placeholder="관리 비밀번호">
+                        <button class="cgButton primary" type="submit">가져오기</button>
+                    </div>
+                </form>
+            </details>
+        </section>
+
+        <section id="feedingModePanel" class="cgModePanel hidden" data-mode-panel="feeding">
+            <div class="cgModeIntro">
+                <div>
+                    <span>피딩모드</span>
+                    <strong>안 먹는 개체와 탈피 중인 개체만 빠르게 남깁니다.</strong>
+                </div>
+                <p>위치와 날짜는 유지되므로 같은 랙을 돌면서 개체만 바꿔 입력하면 됩니다.</p>
+            </div>
+
+            <div class="cgGrid feed">
+                <form id="feedingForm" class="cgPanel cgForm">
+                    <div class="cgFieldGrid">
+                        <label>
+                            <span>작업 위치</span>
+                            <input id="feedingLocation" type="text" autocomplete="off" placeholder="랙 A / 2층">
+                        </label>
+                        <label>
+                            <span>작업일</span>
+                            <input id="feedingDate" type="date">
+                        </label>
+                    </div>
+
+                    <label class="cgSearchField">
+                        <span>개체 검색</span>
+                        <input id="feedingGeckoSearch" type="search" autocomplete="off" placeholder="번호나 이름 일부 입력">
+                        <div id="feedingSuggestions" class="cgSuggest"></div>
+                    </label>
+                    <strong id="feedingSelectedLabel" class="cgSelectedLabel">개체를 선택하세요</strong>
+
+                    <div class="cgSegment" aria-label="피딩 상태">
+                        <button class="active" type="button" data-feed-status="안먹음">안먹음</button>
+                        <button type="button" data-feed-status="탈피중">탈피중</button>
+                        <button type="button" data-feed-status="기타">기타</button>
+                    </div>
+
+                    <label>
+                        <span>메모</span>
+                        <input id="feedingMemo" type="text" autocomplete="off" placeholder="거식, 탈피껍질, 컨디션 등">
+                    </label>
+                    <label>
+                        <span>관리 비밀번호</span>
+                        <input id="feedingPassword" data-admin-password type="password" autocomplete="current-password">
+                    </label>
+
+                    <button class="cgButton primary" type="submit">기록하고 다음</button>
+                </form>
+
+                <aside class="cgPanel">
+                    <div class="cgPanelHead">
+                        <div>
+                            <span>오늘 기록</span>
+                            <strong id="todayFeedingCount">0건</strong>
+                        </div>
+                    </div>
+                    <div id="todayFeedingList" class="cgList compact"></div>
+                </aside>
+            </div>
+        </section>
+
+        <section id="searchModePanel" class="cgModePanel hidden" data-mode-panel="search">
+            <div class="cgModeIntro">
+                <div>
+                    <span>검색모드</span>
+                    <strong>번호, 이름, 위치, 모프, 부모 정보로 바로 찾습니다.</strong>
+                </div>
+            </div>
+
+            <label class="cgBigSearch">
+                <span>개체 검색</span>
+                <input id="searchInput" type="search" autocomplete="off" placeholder="예: H-001, 건강, 랙 A, 릴리">
+            </label>
+
+            <div class="cgWorkspace">
+                <section class="cgPanel">
+                    <div class="cgPanelHead">
+                        <div>
+                            <span>검색 결과</span>
+                            <strong id="searchCount">0건</strong>
+                        </div>
+                    </div>
+                    <div id="searchList" class="cgList"></div>
+                </section>
+
+                <aside class="cgPanel cgStickyDetail">
+                    <div class="cgPanelHead">
+                        <div>
+                            <span>개체 정보</span>
+                            <strong id="detailTitle">개체를 선택하세요</strong>
+                        </div>
+                        <div class="cgHeadActions">
+                            <button id="detailEditButton" class="cgButton small" type="button" disabled>수정</button>
+                            <button id="detailClutchButton" class="cgButton small primary" type="button" disabled>산란</button>
+                        </div>
+                    </div>
+                    <div id="detailBody" class="cgDetailEmpty">검색 결과에서 개체를 누르면 정보가 표시됩니다.</div>
+                </aside>
+            </div>
+        </section>
+
+        <section id="breedingModePanel" class="cgModePanel hidden" data-mode-panel="breeding">
+            <div class="cgModeIntro">
+                <div>
+                    <span>브리딩모드</span>
+                    <strong>산란 개체, 페어 수컷, 예상 구간을 한 화면에서 봅니다.</strong>
+                </div>
+                <p>산란 기록은 선택한 암컷에게 바로 누적됩니다.</p>
+            </div>
+
+            <div class="cgGrid breeding">
+                <section class="cgPanel">
+                    <label class="cgSearchField">
+                        <span>브리딩 개체 검색</span>
+                        <input id="breedingSearch" type="search" autocomplete="off" placeholder="번호, 이름, 수컷, 위치">
+                    </label>
+                    <div id="breedingList" class="cgList"></div>
+                </section>
+
+                <aside class="cgPanel">
+                    <div class="cgPanelHead">
+                        <div>
+                            <span>선택한 개체</span>
+                            <strong id="breedingTitle">브리딩 개체를 선택하세요</strong>
+                        </div>
+                    </div>
+                    <div id="breedingDetail" class="cgBreedingDetail"></div>
+                </aside>
+
+                <form id="clutchForm" class="cgPanel cgForm cgClutchPanel">
+                    <div class="cgPanelHead">
+                        <div>
+                            <span>산란 기록</span>
+                            <strong id="clutchTargetLabel">개체 선택 필요</strong>
+                        </div>
+                    </div>
+
+                    <div class="cgFieldGrid">
+                        <label>
+                            <span>산란일</span>
+                            <input id="clutchLayDate" type="date">
+                        </label>
+                        <label>
+                            <span>상태</span>
+                            <select id="clutchStatus">
                                 <option>보관중</option>
                                 <option>관찰</option>
                                 <option>부화</option>
@@ -94,376 +335,42 @@
                                 <option>폐기</option>
                             </select>
                         </label>
-                    </div>
-                    <div class="cbQuickPresets" aria-label="알 갯수 빠른 선택">
-                        <button type="button" data-preset="2,0,0">유정 2</button>
-                        <button type="button" data-preset="1,1,0">유1 무1</button>
-                        <button type="button" data-preset="0,2,0">무정 2</button>
-                    </div>
-                    <div class="cbQuickCounts">
                         <label>
                             <span>유정</span>
-                            <input id="quickFertile" type="number" min="0" max="99" step="1" inputmode="numeric" value="2">
+                            <input id="clutchFertile" type="number" min="0" max="99" step="1" inputmode="numeric" value="2">
                         </label>
                         <label>
                             <span>무정</span>
-                            <input id="quickInfertile" type="number" min="0" max="99" step="1" inputmode="numeric" value="0">
+                            <input id="clutchInfertile" type="number" min="0" max="99" step="1" inputmode="numeric" value="0">
                         </label>
                         <label>
                             <span>미확인</span>
-                            <input id="quickUnknown" type="number" min="0" max="99" step="1" inputmode="numeric" value="0">
-                        </label>
-                    </div>
-                </section>
-
-                <section class="cbQuickBlock cbQuickFinish">
-                    <div class="cbQuickBlockHead">
-                        <span>3</span>
-                        <strong>보관 / 저장</strong>
-                    </div>
-                    <label>
-                        <span>보관 위치</span>
-                        <input id="quickIncubation" type="text" placeholder="인큐 1">
-                    </label>
-                    <label>
-                        <span>비밀번호</span>
-                        <input id="quickPassword" type="password" autocomplete="current-password" placeholder="관리자">
-                    </label>
-                    <button class="cbButton primary cbQuickSave" type="submit">저장</button>
-                </section>
-            </form>
-
-            <form id="feedingForm" class="cbQuickForm cbModePanel hidden" data-mode-panel="feeding">
-                <section class="cbQuickBlock">
-                    <div class="cbQuickBlockHead">
-                        <span>1</span>
-                        <strong>작업 범위</strong>
-                    </div>
-                    <label>
-                        <span>위치 유지</span>
-                        <input id="feedingLocation" type="text" placeholder="랙 A / 2단">
-                    </label>
-                    <label class="cbQuickSearch">
-                        <span>개체 검색</span>
-                        <input id="feedingGeckoSearch" type="search" placeholder="번호나 이름">
-                        <div id="feedingSuggestions" class="cbQuickSuggest"></div>
-                    </label>
-                    <strong id="feedingSelectedLabel" class="cbQuickSelected">개체를 선택하세요</strong>
-                </section>
-
-                <section class="cbQuickBlock">
-                    <div class="cbQuickBlockHead">
-                        <span>2</span>
-                        <strong>상태 선택</strong>
-                    </div>
-                    <div class="cbQuickPresets">
-                        <button type="button" data-feed-status="급여완료">급여 완료</button>
-                        <button type="button" data-feed-status="거부">거부</button>
-                        <button type="button" data-feed-status="이상">이상</button>
-                    </div>
-                    <label>
-                        <span>메모</span>
-                        <input id="feedingMemo" type="text" placeholder="탈피, 꼬리, 컨디션">
-                    </label>
-                </section>
-
-                <section class="cbQuickBlock cbQuickFinish">
-                    <div class="cbQuickBlockHead">
-                        <span>3</span>
-                        <strong>저장</strong>
-                    </div>
-                    <label>
-                        <span>작업일</span>
-                        <input id="feedingDate" type="date">
-                    </label>
-                    <label>
-                        <span>비밀번호</span>
-                        <input id="feedingPassword" type="password" autocomplete="current-password" placeholder="관리자">
-                    </label>
-                    <button class="cbButton primary cbQuickSave" type="submit">저장 후 다음</button>
-                </section>
-            </form>
-
-            <form id="weightForm" class="cbQuickForm cbModePanel hidden" data-mode-panel="weight">
-                <section class="cbQuickBlock">
-                    <div class="cbQuickBlockHead">
-                        <span>1</span>
-                        <strong>개체 선택</strong>
-                    </div>
-                    <label class="cbQuickSearch">
-                        <span>번호 / 이름</span>
-                        <input id="weightGeckoSearch" type="search" placeholder="무게 잴 개체">
-                        <div id="weightSuggestions" class="cbQuickSuggest"></div>
-                    </label>
-                    <strong id="weightSelectedLabel" class="cbQuickSelected">개체를 선택하세요</strong>
-                </section>
-
-                <section class="cbQuickBlock">
-                    <div class="cbQuickBlockHead">
-                        <span>2</span>
-                        <strong>무게 입력</strong>
-                    </div>
-                    <label>
-                        <span>무게(g)</span>
-                        <input id="weightValue" type="number" min="0" step="0.01" inputmode="decimal" placeholder="예: 34.5">
-                    </label>
-                    <label>
-                        <span>메모</span>
-                        <input id="weightMemo" type="text" placeholder="증가, 감소, 산란 후">
-                    </label>
-                </section>
-
-                <section class="cbQuickBlock cbQuickFinish">
-                    <div class="cbQuickBlockHead">
-                        <span>3</span>
-                        <strong>저장</strong>
-                    </div>
-                    <label>
-                        <span>측정일</span>
-                        <input id="weightDate" type="date">
-                    </label>
-                    <label>
-                        <span>비밀번호</span>
-                        <input id="weightPassword" type="password" autocomplete="current-password" placeholder="관리자">
-                    </label>
-                    <button class="cbButton primary cbQuickSave" type="submit">저장 후 다음</button>
-                </section>
-            </form>
-
-            <form id="hatchForm" class="cbQuickForm cbModePanel hidden" data-mode-panel="hatch">
-                <section class="cbQuickBlock">
-                    <div class="cbQuickBlockHead">
-                        <span>1</span>
-                        <strong>부모 선택</strong>
-                    </div>
-                    <label class="cbQuickSearch">
-                        <span>암컷 검색</span>
-                        <input id="hatchGeckoSearch" type="search" placeholder="산란한 암컷">
-                        <div id="hatchSuggestions" class="cbQuickSuggest"></div>
-                    </label>
-                    <strong id="hatchSelectedLabel" class="cbQuickSelected">개체를 선택하세요</strong>
-                </section>
-
-                <section class="cbQuickBlock">
-                    <div class="cbQuickBlockHead">
-                        <span>2</span>
-                        <strong>해칭 정보</strong>
-                    </div>
-                    <div class="cbQuickPair">
-                        <label>
-                            <span>해칭일</span>
-                            <input id="hatchDate" type="date">
+                            <input id="clutchUnknown" type="number" min="0" max="99" step="1" inputmode="numeric" value="0">
                         </label>
                         <label>
-                            <span>마릿수</span>
-                            <input id="hatchCount" type="number" min="1" max="20" step="1" inputmode="numeric" value="1">
+                            <span>보관 위치</span>
+                            <input id="clutchIncubation" type="text" autocomplete="off" placeholder="인큐 1">
+                        </label>
+                        <label>
+                            <span>페어 수컷</span>
+                            <input id="clutchMate" type="text" autocomplete="off" placeholder="자동 입력 가능">
+                        </label>
+                        <label>
+                            <span>관리 비밀번호</span>
+                            <input id="clutchPassword" data-admin-password type="password" autocomplete="current-password">
                         </label>
                     </div>
-                    <label>
-                        <span>새끼 번호 시작</span>
-                        <input id="hatchStartNumber" type="text" placeholder="예: H-001">
+
+                    <label class="cgWide">
+                        <span>메모</span>
+                        <textarea id="clutchMemo" rows="2" placeholder="알 상태, 보관 특이사항"></textarea>
                     </label>
-                    <label>
-                        <span>입고 위치</span>
-                        <input id="hatchLocation" type="text" placeholder="베이비랙 1">
-                    </label>
-                </section>
 
-                <section class="cbQuickBlock cbQuickFinish">
-                    <div class="cbQuickBlockHead">
-                        <span>3</span>
-                        <strong>생성</strong>
-                    </div>
-                    <label>
-                        <span>비밀번호</span>
-                        <input id="hatchPassword" type="password" autocomplete="current-password" placeholder="관리자">
-                    </label>
-                    <button class="cbButton primary cbQuickSave" type="submit">새 개체 생성</button>
-                </section>
-            </form>
-        </section>
-
-        <section class="cbOpsGrid">
-            <section class="cbPanel cbQueuePanel">
-                <div class="cbPanelHead">
-                    <div>
-                        <span>확인</span>
-                        <strong>확인할 일</strong>
-                    </div>
-                    <small id="queueCount">0건</small>
-                </div>
-                <div id="actionQueue" class="cbQueueList"></div>
-            </section>
-            <section class="cbPanel cbRecentPanel">
-                <div class="cbPanelHead">
-                    <div>
-                        <span>기록</span>
-                        <strong>최근 산란</strong>
-                    </div>
-                    <small id="recentCount">0건</small>
-                </div>
-                <div id="recentClutches" class="cbRecentList"></div>
-            </section>
-        </section>
-
-        <section class="cbWorkspace">
-            <section class="cbPanel cbIndexPanel">
-                <div class="cbPanelHead">
-                    <div>
-                        <span id="listEyebrow">개체</span>
-                        <strong id="listTitle">전체 개체</strong>
-                    </div>
-                    <small id="resultCount">0건</small>
-                </div>
-                <div id="cardList" class="cbCardList"></div>
-            </section>
-
-            <aside class="cbPanel cbRecordPanel">
-                <div class="cbPanelHead">
-                    <div>
-                        <span>상세</span>
-                        <strong id="detailTitle">개체를 선택하세요</strong>
-                    </div>
-                    <div class="cbDetailActions">
-                        <button id="detailEggButton" class="cbButton tiny primary" type="button" disabled>산란</button>
-                        <button id="detailEditButton" class="cbButton tiny" type="button" disabled>수정</button>
-                    </div>
-                </div>
-                <div id="detailBody" class="cbDetailBody">
-                    <div class="cbEmpty">개체를 선택하면 기록이 표시됩니다.</div>
-                </div>
-            </aside>
+                    <button class="cgButton primary" type="submit">산란 저장</button>
+                </form>
+            </div>
         </section>
     </main>
-
-    <template id="geckoCardTemplate">
-        <article class="cbGeckoCard">
-            <div class="cbCardMain">
-                <strong class="cardTitle"></strong>
-                <span class="cardSub"></span>
-            </div>
-            <span class="cardStatus"></span>
-            <div class="cbCardMeta">
-                <span class="cardLocation"></span>
-                <span class="cardCycle"></span>
-                <span class="cardNext"></span>
-            </div>
-        </article>
-    </template>
-
-    <div id="geckoModal" class="modalOverlay hidden" role="dialog" aria-modal="true" aria-labelledby="geckoModalTitle">
-        <form id="geckoForm" class="cbSheet">
-            <button id="closeGeckoButton" class="modalClose" type="button" aria-label="닫기">×</button>
-            <span class="cbSheetKicker">PROFILE</span>
-            <h2 id="geckoModalTitle">개체 등록</h2>
-
-            <section class="cbFormSection">
-                <h3>기본</h3>
-                <div class="cbFormGrid">
-                    <label><span>번호</span><input id="geckoNumber" type="text" placeholder="CG-0001"></label>
-                    <label><span>이름</span><input id="geckoName" type="text" placeholder="이름"></label>
-                    <label><span>성별</span><select id="geckoSex"><option>미확인</option><option>수</option><option>암</option></select></label>
-                    <label><span>상태</span><select id="geckoStatus"><option>보유</option><option>브리딩</option><option>예약</option><option>분양</option><option>폐사</option></select></label>
-                    <label><span>위치</span><input id="geckoLocation" type="text" placeholder="랙 A / 2단 / 03번"></label>
-                    <label><span>모프</span><input id="geckoMorph" type="text" placeholder="릴리화이트, 할리퀸"></label>
-                </div>
-            </section>
-
-            <section class="cbFormSection">
-                <h3>브리딩</h3>
-                <div class="cbFormGrid">
-                    <label><span>페어 수컷</span><input id="geckoPair" type="text" placeholder="수컷 번호 또는 이름"></label>
-                    <label><span>합사일</span><input id="geckoPairingDate" type="date"></label>
-                    <label><span>부</span><input id="geckoFather" type="text" placeholder="부 개체"></label>
-                    <label><span>모</span><input id="geckoMother" type="text" placeholder="모 개체"></label>
-                </div>
-            </section>
-
-            <details class="cbFold">
-                <summary>성장/기타</summary>
-                <div class="cbFormGrid">
-                    <label><span>출생/부화일</span><input id="geckoHatchDate" type="date"></label>
-                    <label><span>입양일</span><input id="geckoAcquiredDate" type="date"></label>
-                    <label><span>무게(g)</span><input id="geckoWeight" type="number" min="0" step="0.01"></label>
-                    <label><span>측정일</span><input id="geckoWeightDate" type="date"></label>
-                    <label><span>출처</span><input id="geckoBreeder" type="text" placeholder="브리더 / 입양처"></label>
-                    <label><span>태그</span><input id="geckoTags" type="text" placeholder="관찰, 분양보류"></label>
-                </div>
-            </details>
-
-            <label class="cbWide"><span>메모</span><textarea id="geckoMemo" rows="3" placeholder="먹이, 성향, 관리 메모"></textarea></label>
-            <label class="cbWide"><span>관리자 비밀번호</span><input id="geckoPassword" type="password" autocomplete="current-password"></label>
-
-            <div class="cbSheetActions">
-                <button id="deleteGeckoButton" class="cbButton danger" type="button">삭제</button>
-                <button class="cbButton primary" type="submit">저장</button>
-            </div>
-        </form>
-    </div>
-
-    <div id="eggModal" class="modalOverlay hidden" role="dialog" aria-modal="true" aria-labelledby="eggModalTitle">
-        <form id="eggForm" class="cbSheet cbEggSheet">
-            <button id="closeEggButton" class="modalClose" type="button" aria-label="닫기">×</button>
-            <span class="cbSheetKicker">CLUTCH</span>
-            <h2 id="eggModalTitle">산란 기록</h2>
-
-            <section class="cbFormSection">
-                <h3>개체</h3>
-                <label class="cbWide">
-                    <span>암컷 검색</span>
-                    <input id="eggGeckoSearch" type="search" placeholder="번호, 이름, 위치">
-                </label>
-                <strong id="eggSelectedLabel" class="cbSelectedLabel">개체를 선택하세요</strong>
-                <div id="eggSuggestions" class="cbSuggest"></div>
-            </section>
-
-            <section class="cbFormSection">
-                <h3>산란</h3>
-                <div class="cbFormGrid eggGrid">
-                    <label><span>산란일</span><input id="eggLayDate" type="date"></label>
-                    <label><span>상태</span><select id="eggStatus"><option>보관중</option><option>관찰</option><option>부화</option><option>무정란</option><option>폐기</option></select></label>
-                    <label><span>유정</span><input id="eggFertile" type="number" min="0" max="99" step="1" inputmode="numeric" value="0"></label>
-                    <label><span>무정</span><input id="eggInfertile" type="number" min="0" max="99" step="1" inputmode="numeric" value="0"></label>
-                    <label><span>미확인</span><input id="eggUnknown" type="number" min="0" max="99" step="1" inputmode="numeric" value="0"></label>
-                    <label><span>클러치</span><input id="eggClutch" type="text" placeholder="자동 제안"></label>
-                </div>
-            </section>
-
-            <section class="cbFormSection">
-                <h3>보관</h3>
-                <div class="cbFormGrid">
-                    <label><span>수컷</span><input id="eggMate" type="text" placeholder="페어 수컷"></label>
-                    <label><span>부화/예정일</span><input id="eggHatchDate" type="date"></label>
-                    <label><span>보관 위치</span><input id="eggIncubation" type="text" placeholder="인큐 1 / 박스 A"></label>
-                </div>
-            </section>
-
-            <div class="cbEggTotal"><span>총 알</span><strong id="eggTotal">0개</strong></div>
-            <label class="cbWide"><span>메모</span><textarea id="eggMemo" rows="2" placeholder="알 상태, 보관 위치, 특이사항"></textarea></label>
-            <label class="cbWide"><span>관리자 비밀번호</span><input id="eggPassword" type="password" autocomplete="current-password"></label>
-
-            <div class="cbSheetActions">
-                <button id="deleteEggButton" class="cbButton danger" type="button">기록 삭제</button>
-                <button class="cbButton primary" type="submit">저장</button>
-            </div>
-        </form>
-    </div>
-
-    <div id="importModal" class="modalOverlay hidden" role="dialog" aria-modal="true" aria-labelledby="importModalTitle">
-        <form id="importForm" class="cbSheet">
-            <button id="closeImportButton" class="modalClose" type="button" aria-label="닫기">×</button>
-            <span class="cbSheetKicker">IMPORT</span>
-            <h2 id="importModalTitle">시트 붙여넣기</h2>
-            <label class="cbWide">
-                <span>첫 줄은 헤더</span>
-                <textarea id="importText" rows="10" placeholder="넘버링	이름	성별	모프	위치	상태"></textarea>
-            </label>
-            <label class="cbWide"><span>관리자 비밀번호</span><input id="importPassword" type="password" autocomplete="current-password"></label>
-            <div class="cbSheetActions">
-                <button class="cbButton primary" type="submit">가져오기</button>
-            </div>
-        </form>
-    </div>
 
     <div id="toastHost" class="toastHost" aria-live="polite"></div>
     <script src="./gecko.js"></script>
