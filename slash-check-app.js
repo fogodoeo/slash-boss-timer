@@ -2260,7 +2260,8 @@ async function handleApi(req, res, url) {
 
 async function serveStatic(req, res) {
     const url = new URL(req.url, `http://${req.headers.host}`);
-    const safePath = url.pathname === '/' ? '/index.html' : decodeURIComponent(url.pathname);
+    const routePath = url.pathname === '/gecko' ? '/gecko.html' : url.pathname;
+    const safePath = routePath === '/' ? '/index.html' : decodeURIComponent(routePath);
     const filePath = path.normalize(path.join(PUBLIC_DIR, safePath));
 
     if (!filePath.startsWith(PUBLIC_DIR)) {
