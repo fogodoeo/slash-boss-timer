@@ -5114,6 +5114,56 @@ body {
     color: var(--blue-dark);
 }
 
+.spawnedBossPanel {
+    margin-bottom: 8px;
+    border-color: #bfdbfe;
+    background: linear-gradient(90deg, #eff6ff, #ffffff 64%);
+    padding: 12px;
+}
+
+.spawnedBossHead strong {
+    color: var(--blue-dark);
+    font-size: 17px;
+}
+
+.spawnedBossList {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+}
+
+.spawnedBossList .bossQuickItem {
+    grid-template-columns: 54px minmax(0, 1fr) 104px 72px;
+    min-height: 46px;
+    border-color: #bfdbfe;
+    background: #ffffff;
+    padding: 7px 8px;
+    box-shadow: 0 8px 18px rgba(21, 94, 239, 0.08);
+}
+
+.spawnedBossList .bossQuickItem:hover:not(:disabled) {
+    border-color: #155eef;
+    box-shadow: 0 10px 20px rgba(21, 94, 239, 0.12);
+}
+
+.bossQuickCutLabel {
+    display: grid;
+    place-items: center;
+    justify-self: end;
+    min-width: 64px;
+    height: 30px;
+    border-radius: 7px;
+    background: var(--blue);
+    color: #ffffff;
+    font-size: 12px;
+    font-weight: 950;
+    white-space: nowrap;
+}
+
+.bossQuickItem:disabled .bossQuickCutLabel {
+    background: #cbd5e1;
+    color: #475569;
+}
+
 .sectionTabs {
     display: flex;
     align-items: center;
@@ -5195,6 +5245,21 @@ body {
     height: 34px;
     min-width: 84px;
     padding: 0 12px;
+}
+
+.bossToolbarActions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 6px;
+    min-width: 0;
+}
+
+.bossResetButton {
+    height: 34px;
+    min-width: 86px;
+    padding: 0 10px;
+    white-space: nowrap;
 }
 
 .bossMainPanel.isCollapsed .bossToolbar {
@@ -5555,6 +5620,27 @@ body {
         font-size: 11px;
     }
 
+    .spawnedBossPanel {
+        padding: 9px;
+    }
+
+    .spawnedBossList {
+        grid-template-columns: 1fr;
+        gap: 6px;
+    }
+
+    .spawnedBossList .bossQuickItem {
+        grid-template-columns: 46px minmax(0, 1fr) 80px 62px;
+        min-height: 42px;
+        padding: 6px 7px;
+    }
+
+    .bossQuickCutLabel {
+        min-width: 58px;
+        height: 28px;
+        font-size: 11px;
+    }
+
     .sectionTabs {
         width: 100%;
         overflow-x: auto;
@@ -5581,6 +5667,17 @@ body {
     .bossPage .bossToolbar {
         grid-template-columns: minmax(0, 1fr) auto;
         align-items: center;
+    }
+
+    .bossToolbarActions {
+        gap: 5px;
+    }
+
+    .bossListToggle,
+    .bossResetButton {
+        min-width: 72px;
+        padding: 0 8px;
+        font-size: 12px;
     }
 
     .bossPage .bossSearch {

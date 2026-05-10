@@ -7,9 +7,9 @@ const bossTimeline = document.querySelector('#bossTimeline');
 const bossAlertBanner = document.querySelector('#bossAlertBanner');
 const bossAlertTitle = document.querySelector('#bossAlertTitle');
 const bossAlertMeta = document.querySelector('#bossAlertMeta');
-const bossQuickPanel = document.querySelector('#bossQuickPanel');
-const bossQuickSummary = document.querySelector('#bossQuickSummary');
-const bossQuickList = document.querySelector('#bossQuickList');
+const bossQuickPanel = document.querySelector('#spawnedBossPanel');
+const bossQuickSummary = document.querySelector('#spawnedBossSummary');
+const bossQuickList = document.querySelector('#spawnedBossList');
 const bossMainPanel = document.querySelector('.bossMainPanel');
 const bossSummary = document.querySelector('#bossSummary');
 const bossList = document.querySelector('#bossList');
@@ -944,7 +944,10 @@ function renderLiveParticipation() {
 function renderQuickBosses(timeline, now = getNowMs()) {
     if (!bossQuickPanel || !bossQuickList) return;
 
-    const items = focusBossItems(timeline, now).slice(0, 8);
+    const items = timeline
+        .filter((item) => item.spawnMs <= now)
+        .sort((a, b) => a.spawnMs - b.spawnMs || a.boss.이름.localeCompare(b.boss.이름, 'ko'))
+        .slice(0, 12);
     bossQuickList.replaceChildren();
 
     if (items.length === 0) {
@@ -967,7 +970,7 @@ function renderQuickBosses(timeline, now = getNowMs()) {
         const lock = bossLock(item.boss.이름);
         const lockedByOther = lock && lock.memberName !== selectedMember;
         button.type = 'button';
-        button.className = `bossQuickItem ${item.spawnMs <= now ? 'spawned' : 'upcoming'} ${item.boss.타입 === '고정' ? 'fixedBoss' : 'timeBoss'}`;
+        button.className = `bossQuickItem spawned ${item.boss.타입 === '고정' ? 'fixedBoss' : 'timeBoss'}`;
         button.disabled = Boolean(lockedByOther);
 
         const time = document.createElement('time');
@@ -983,7 +986,11 @@ function renderQuickBosses(timeline, now = getNowMs()) {
         remain.className = 'bossQuickRemain';
         remain.textContent = formatRemainWithSuffix(item.spawnMs, now);
 
-        button.append(time, main, remain);
+        const cutLabel = document.createElement('span');
+        cutLabel.className = 'bossQuickCutLabel';
+        cutLabel.textContent = lockedByOther ? '입력중' : '바로컷';
+
+        button.append(time, main, remain, cutLabel);
         button.addEventListener('click', () => {
             if (lockedByOther) return;
             openCutModal(item.boss, getNowMs());
@@ -1001,15 +1008,16 @@ function renderTimeline() {
     updateBossAlertBanner(timeline, now);
     renderQuickBosses(timeline, now);
     maybeNotifyTimeline(timeline);
+    const scheduleItems = timeline.filter((item) => item.spawnMs > now);
     bossTimeline.replaceChildren();
 
     if (timelineSummary) {
-        timelineSummary.textContent = timeline.length > 0
-            ? `${timeline[0].boss.이름} ${formatRemainWithSuffix(timeline[0].spawnMs, now)}`
+        timelineSummary.textContent = scheduleItems.length > 0
+            ? `${scheduleItems[0].boss.이름} ${formatRemainWithSuffix(scheduleItems[0].spawnMs, now)}`
             : '예정 없음';
     }
 
-    if (timeline.length === 0) {
+    if (scheduleItems.length === 0) {
         bossTimeline.innerHTML = '<div class="empty small">24시간 안에 표시할 보스 일정이 없습니다.</div>';
         return;
     }
@@ -1017,8 +1025,8 @@ function renderTimeline() {
     let previousDateKey = '';
     let firstDateGroup = true;
     let previousSpawnMs = null;
-    for (let index = 0; index < timeline.length; index += 1) {
-        const item = timeline[index];
+    for (let index = 0; index < scheduleItems.length; index += 1) {
+        const item = scheduleItems[index];
         const dateKey = kstDateKey(item.spawnMs);
         if (dateKey !== previousDateKey) {
             const divider = document.createElement('div');
@@ -1033,8 +1041,8 @@ function renderTimeline() {
         const row = timelineItemTemplate.content.firstElementChild.cloneNode(true);
         const stateName = bossStateFromSpawn(item.spawnMs, now);
         const latest = item.record || latestRecordForBoss(item.boss);
-        const previousItem = timeline[index - 1];
-        const nextItem = timeline[index + 1];
+        const previousItem = scheduleItems[index - 1];
+        const nextItem = scheduleItems[index + 1];
         const sameAsPrevious = previousItem && previousItem.spawnMs === item.spawnMs;
         const sameAsNext = nextItem && nextItem.spawnMs === item.spawnMs;
         const sameTimeGroup = sameAsPrevious || sameAsNext;
@@ -1704,7 +1712,7 @@ async function resetTimeBossSpawns() {
     } finally {
         if (resetTimeBossButton) {
             resetTimeBossButton.disabled = false;
-            resetTimeBossButton.textContent = '시간보스 초기화';
+            resetTimeBossButton.textContent = '시간 초기화';
         }
     }
 }

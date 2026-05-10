@@ -55,11 +55,14 @@
                 </section>
 
                 <section class="panel bossTimelinePanel">
-                    <div class="bossTimelineTools" aria-label="보스 일정 도구">
-                        <strong id="timelineSummary" hidden>불러오는 중</strong>
-                        <div class="panelActions">
-                            <button id="resetTimeBossButton" class="copyCommandButton subtle dangerSubtle" type="button">시간보스 초기화</button>
+                    <div id="spawnedBossPanel" class="bossQuickPanel spawnedBossPanel hidden" aria-label="현재 젠중인 보스">
+                        <div class="bossQuickHead spawnedBossHead">
+                            <div>
+                                <span class="label">현재 젠중</span>
+                                <strong id="spawnedBossSummary">컷 가능 0개</strong>
+                            </div>
                         </div>
+                        <div id="spawnedBossList" class="bossQuickList spawnedBossList"></div>
                     </div>
                     <div id="bossTimeline" class="bossTimeline"></div>
                 </section>
@@ -70,7 +73,10 @@
                             <span class="label">보스 목록</span>
                             <strong id="bossSummary">0개</strong>
                         </div>
-                        <button id="toggleBossListButton" class="copyCommandButton subtle bossListToggle" type="button" aria-expanded="false">목록 열기</button>
+                        <div class="bossToolbarActions">
+                            <button id="toggleBossListButton" class="copyCommandButton subtle bossListToggle" type="button" aria-expanded="false">목록 열기</button>
+                            <button id="resetTimeBossButton" class="copyCommandButton subtle dangerSubtle bossResetButton" type="button">시간 초기화</button>
+                        </div>
                         <label class="bossSearch">
                             <span>검색</span>
                             <input id="bossSearchInput" type="search" placeholder="보스명, 애칭, 위치">
