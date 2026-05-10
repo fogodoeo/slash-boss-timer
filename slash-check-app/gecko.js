@@ -49,6 +49,9 @@ const ADMIN_PASSWORD_KEY = 'geckoAdminPassword';
 const MAX_RENDERED_GECKOS = 240;
 const MAX_RENDERED_EGG_GECKOS = 180;
 const ACTIVE_EGG_STATUSES = new Set(['보관중', '관찰']);
+const EGG_NEXT_MIN_DAYS = 30;
+const EGG_NEXT_MAX_DAYS = 45;
+const DAY_MS = 86400000;
 
 let state = { geckos: [], count: 0, updatedAt: null };
 let activeView = 'library';
@@ -105,6 +108,28 @@ function formatFullDate(value) {
     return value || '-';
 }
 
+function parseDateMs(value) {
+    const ms = new Date(`${value || ''}T00:00:00`).getTime();
+    return Number.isFinite(ms) ? ms : null;
+}
+
+function addDays(value, days) {
+    const ms = parseDateMs(value);
+    if (ms === null) return '';
+    const date = new Date(ms + days * DAY_MS);
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+}
+
+function daysFromToday(value) {
+    const ms = parseDateMs(value);
+    if (ms === null) return null;
+    const today = parseDateMs(todayInputValue());
+    return Math.round((ms - today) / DAY_MS);
+}
+
 function formatAge(value) {
     const ms = new Date(value || '').getTime();
     if (!Number.isFinite(ms)) return '-';
@@ -141,6 +166,78 @@ function eggSummary(record) {
 
 function latestEggRecord(gecko) {
     return getEggRecords(gecko)[0] || null;
+}
+
+function eggCycleStats(gecko) {
+    const records = getEggRecords(gecko);
+    const year = todayInputValue().slice(0, 4);
+    const seasonRecords = records.filter((record) => String(record.layDate || '').startsWith(year));
+    const totals = records.reduce((acc, record) => {
+        acc.total += eggTotal(record);
+        acc.fertile += numberValue(record.fertileCount);
+        acc.infertile += numberValue(record.infertileCount);
+        acc.unknown += numberValue(record.unknownCount);
+        if (ACTIVE_EGG_STATUSES.has(record.eggStatus)) acc.active += eggTotal(record);
+        return acc;
+    }, { total: 0, fertile: 0, infertile: 0, unknown: 0, active: 0 });
+
+    const latest = records[0] || null;
+    const nextStart = latest ? addDays(latest.layDate, EGG_NEXT_MIN_DAYS) : '';
+    const nextEnd = latest ? addDays(latest.layDate, EGG_NEXT_MAX_DAYS) : '';
+    const nextStartDiff = daysFromToday(nextStart);
+    const nextEndDiff = daysFromToday(nextEnd);
+    let nextLabel = '기록 없음';
+    let nextTone = 'idle';
+
+    if (latest && nextStartDiff !== null && nextEndDiff !== null) {
+        if (nextEndDiff < 0) {
+            nextLabel = `확인 필요 ${Math.abs(nextEndDiff)}일`;
+            nextTone = 'danger';
+        } else if (nextStartDiff <= 0) {
+            nextLabel = `예상 ${formatDate(nextStart)}~${formatDate(nextEnd)}`;
+            nextTone = 'ready';
+        } else {
+            nextLabel = `${nextStartDiff}일 후 예상`;
+            nextTone = 'wait';
+        }
+    }
+
+    let averageInterval = null;
+    const asc = [...records].reverse().filter((record) => record.layDate);
+    if (asc.length >= 2) {
+        let sum = 0;
+        let count = 0;
+        for (let i = 1; i < asc.length; i += 1) {
+            const prev = parseDateMs(asc[i - 1].layDate);
+            const cur = parseDateMs(asc[i].layDate);
+            if (prev === null || cur === null) continue;
+            sum += Math.round((cur - prev) / DAY_MS);
+            count += 1;
+        }
+        if (count > 0) averageInterval = Math.round(sum / count);
+    }
+
+    return {
+        records,
+        latest,
+        seasonRecords,
+        clutchCount: records.length,
+        seasonClutchCount: seasonRecords.length,
+        ...totals,
+        nextStart,
+        nextEnd,
+        nextLabel,
+        nextTone,
+        averageInterval
+    };
+}
+
+function nextClutchCode(gecko) {
+    if (!gecko) return '';
+    const count = getEggRecords(gecko).length + 1;
+    const base = (gecko.number || gecko.name || 'CL').replace(/\s+/g, '').slice(0, 10);
+    const year = todayInputValue().slice(2, 4);
+    return `${base}-${year}-${String(count).padStart(2, '0')}`;
 }
 
 function isEggCandidate(gecko) {
@@ -197,10 +294,17 @@ function filteredEggGeckos() {
         list = list.filter((gecko) => getEggRecords(gecko).length === 0);
     }
 
+    const tonePriority = { danger: 0, ready: 1, wait: 2, idle: 3 };
     return list.sort((a, b) => {
-        const aLatest = latestEggRecord(a)?.layDate || '';
-        const bLatest = latestEggRecord(b)?.layDate || '';
-        return String(bLatest).localeCompare(String(aLatest))
+        const aStats = eggCycleStats(a);
+        const bStats = eggCycleStats(b);
+        const aNext = daysFromToday(aStats.nextStart) ?? 9999;
+        const bNext = daysFromToday(bStats.nextStart) ?? 9999;
+        const aLatest = aStats.latest?.layDate || '';
+        const bLatest = bStats.latest?.layDate || '';
+        return (tonePriority[aStats.nextTone] ?? 9) - (tonePriority[bStats.nextTone] ?? 9)
+            || aNext - bNext
+            || String(bLatest).localeCompare(String(aLatest))
             || String(a.number || '').localeCompare(String(b.number || ''), 'ko', { numeric: true });
     });
 }
@@ -267,10 +371,11 @@ function renderEggRecordList(gecko, mode = 'detail') {
         return wrap;
     }
 
-    for (const record of records) {
+    for (const [index, record] of records.entries()) {
+        const cycleNo = records.length - index;
         const item = createElement('article', 'eggRecordItem');
         const main = createElement('div');
-        const title = createElement('strong', '', `${formatFullDate(record.layDate)} ${record.clutchCode || ''}`.trim());
+        const title = createElement('strong', '', `${cycleNo}회차 · ${formatFullDate(record.layDate)} ${record.clutchCode || ''}`.trim());
         const meta = createElement('span', '', `${eggSummary(record)} · ${record.eggStatus || '보관중'}`);
         main.append(title, meta);
         if (record.memo) main.append(createElement('p', '', record.memo));
@@ -280,6 +385,30 @@ function renderEggRecordList(gecko, mode = 'detail') {
         item.append(main, button);
         wrap.append(item);
     }
+    return wrap;
+}
+
+function renderEggCycleSummary(gecko) {
+    const stats = eggCycleStats(gecko);
+    const wrap = createElement('div', 'eggCycleSummary');
+    const rows = [
+        ['산란 회차', `${stats.seasonClutchCount}회 / 전체 ${stats.clutchCount}회`],
+        ['총 알', `${stats.total}개 · 보관 ${stats.active}개`],
+        ['유정/무정', `유 ${stats.fertile} · 무 ${stats.infertile} · 미 ${stats.unknown}`],
+        ['다음 예상', stats.nextLabel]
+    ];
+
+    for (const [label, value] of rows) {
+        const item = createElement('article', label === '다음 예상' ? `tone-${stats.nextTone}` : '');
+        item.append(createElement('span', '', label), createElement('strong', '', value));
+        wrap.append(item);
+    }
+
+    if (stats.averageInterval) {
+        const note = createElement('p', 'eggCycleNote', `평균 산란 간격 ${stats.averageInterval}일 · 최근 기록 기준 자동 계산`);
+        wrap.append(note);
+    }
+
     return wrap;
 }
 
@@ -321,29 +450,28 @@ function renderDetail() {
     const tags = createElement('div', 'geckoTagList');
     for (const tag of gecko.tags || []) tags.append(createElement('span', '', tag));
 
-    geckoDetailBody.append(head, grid, memo, renderEggRecordList(gecko));
+    geckoDetailBody.append(head, grid, renderEggCycleSummary(gecko), memo, renderEggRecordList(gecko));
     if (tags.childElementCount > 0) geckoDetailBody.append(tags);
 }
 
 function renderEggDashboard() {
-    const month = currentMonthKey();
+    const year = todayInputValue().slice(0, 4);
     let breederCount = 0;
-    let monthCount = 0;
+    let seasonCount = 0;
     let holdingCount = 0;
     let watchCount = 0;
 
     for (const gecko of state.geckos) {
-        const records = getEggRecords(gecko);
-        if (records.length > 0) breederCount += 1;
-        for (const record of records) {
-            if (String(record.layDate || '').startsWith(month)) monthCount += 1;
-            if (ACTIVE_EGG_STATUSES.has(record.eggStatus)) holdingCount += eggTotal(record);
-            if (record.eggStatus === '관찰') watchCount += 1;
-        }
+        const stats = eggCycleStats(gecko);
+        if (stats.clutchCount > 0) breederCount += 1;
+        seasonCount += stats.seasonRecords.length;
+        holdingCount += stats.active;
+        if (stats.nextTone === 'ready' || stats.nextTone === 'danger') watchCount += 1;
+        watchCount += stats.records.filter((record) => record.eggStatus === '관찰').length;
     }
 
     eggBreederCount.textContent = breederCount;
-    eggMonthCount.textContent = monthCount;
+    eggMonthCount.textContent = seasonCount;
     eggHoldingCount.textContent = holdingCount;
     eggWatchCount.textContent = watchCount;
 }
@@ -364,13 +492,15 @@ function renderEggList() {
 
     for (const gecko of rendered) {
         const latest = latestEggRecord(gecko);
+        const stats = eggCycleStats(gecko);
         const card = eggCardTemplate.content.firstElementChild.cloneNode(true);
         card.classList.toggle('active', gecko.id === selectedEggGeckoId);
+        card.classList.add(`tone-${stats.nextTone}`);
         setText(card, '.eggGeckoTitle', geckoTitle(gecko));
         setText(card, '.eggGeckoMeta', [gecko.location, gecko.morph].filter(Boolean).join(' · ') || '위치/모프 미등록');
         setText(card, '.eggLastLay', latest ? `최근 ${formatDate(latest.layDate)}` : '기록 없음');
-        setText(card, '.eggLastCount', latest ? eggSummary(latest) : '산란 등록 필요');
-        setText(card, '.eggLastStatus', latest?.eggStatus || '대기');
+        setText(card, '.eggLastCount', stats.clutchCount ? `${stats.clutchCount}회 · 총 ${stats.total}알` : '산란 등록 필요');
+        setText(card, '.eggLastStatus', stats.nextLabel);
         setText(card, '.eggCardMemo', latest?.memo || gecko.memo || '');
         card.addEventListener('click', () => selectEggGecko(gecko.id));
         card.querySelector('.eggQuickButton').addEventListener('click', (event) => {
@@ -412,7 +542,7 @@ function renderEggDetail() {
         createElement('span', '', [gecko.location, gecko.morph, gecko.sex].filter(Boolean).join(' · ') || '정보 미등록'),
         addButton
     );
-    eggDetailBody.append(hero, renderEggRecordList(gecko, 'egg'));
+    eggDetailBody.append(hero, renderEggCycleSummary(gecko), renderEggRecordList(gecko, 'egg'));
 }
 
 function render() {
@@ -599,7 +729,7 @@ function openEggForm(gecko = null, record = null) {
     const selected = state.geckos.find((item) => item.id === editingEggGeckoId);
     eggGeckoSearchInput.value = selected ? geckoTitle(selected) : '';
     document.querySelector('#eggLayDateInput').value = record?.layDate || todayInputValue();
-    document.querySelector('#eggClutchInput').value = record?.clutchCode || selected?.clutchCode || '';
+    document.querySelector('#eggClutchInput').value = record?.clutchCode || nextClutchCode(selected);
     document.querySelector('#eggFertileInput').value = record?.fertileCount ?? 0;
     document.querySelector('#eggInfertileInput').value = record?.infertileCount ?? 0;
     document.querySelector('#eggUnknownInput').value = record?.unknownCount ?? 0;
