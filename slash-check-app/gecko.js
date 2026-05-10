@@ -9,6 +9,8 @@ const FEED_ATTENTION_STATUSES = new Set(['안먹음', '탈피중', '기타']);
 const el = {
     modeButtons: $$('[data-mode]'),
     modePanels: $$('[data-mode-panel]'),
+    registerKindButtons: $$('[data-register-kind]'),
+    registerPanels: $$('[data-register-panel]'),
     headerCount: $('#headerCount'),
     headerUpdated: $('#headerUpdated'),
     toastHost: $('#toastHost'),
@@ -82,7 +84,6 @@ const el = {
 };
 
 let state = { geckos: [], count: 0, updatedAt: null };
-let activeMode = 'register';
 let editingGeckoId = '';
 let hatchParentId = '';
 let feedingGeckoId = '';
@@ -101,15 +102,15 @@ async function api(path, options = {}) {
 }
 
 function toast(title, message = '', type = 'success') {
-    const node = document.createElement('div');
-    node.className = `toast ${type === 'error' ? 'error' : 'success'}`;
+    const item = document.createElement('div');
+    item.className = `toast ${type === 'error' ? 'error' : 'success'}`;
     const strong = document.createElement('strong');
-    strong.textContent = title;
     const span = document.createElement('span');
+    strong.textContent = title;
     span.textContent = message;
-    node.append(strong, span);
-    el.toastHost.append(node);
-    setTimeout(() => node.remove(), 2600);
+    item.append(strong, span);
+    el.toastHost.append(item);
+    setTimeout(() => item.remove(), 2600);
 }
 
 function todayValue() {
@@ -121,12 +122,6 @@ function todayValue() {
     ].join('-');
 }
 
-function shortDate(value) {
-    if (!value) return '-';
-    const parts = String(value).split('-');
-    return parts.length === 3 ? `${Number(parts[1])}.${parts[2]}` : value;
-}
-
 function dateMs(value) {
     const ms = new Date(`${value || ''}T00:00:00`).getTime();
     return Number.isFinite(ms) ? ms : null;
@@ -135,7 +130,7 @@ function dateMs(value) {
 function addDays(value, days) {
     const ms = dateMs(value);
     if (ms === null) return '';
-    const date = new Date(ms + days * DAY_MS);
+    const date = new Date(ms + DAY_MS * days);
     return [
         date.getFullYear(),
         String(date.getMonth() + 1).padStart(2, '0'),
@@ -150,6 +145,12 @@ function daysUntil(value) {
     return Math.round((target - today) / DAY_MS);
 }
 
+function shortDate(value) {
+    if (!value) return '-';
+    const parts = String(value).split('-');
+    return parts.length === 3 ? `${Number(parts[1])}.${parts[2]}` : value;
+}
+
 function numberValue(value) {
     const num = Number(value);
     return Number.isFinite(num) && num > 0 ? Math.round(num) : 0;
@@ -160,10 +161,10 @@ function makeId() {
 }
 
 function node(tag, className = '', text = '') {
-    const element = document.createElement(tag);
-    if (className) element.className = className;
-    if (text !== '') element.textContent = text;
-    return element;
+    const item = document.createElement(tag);
+    if (className) item.className = className;
+    if (text !== '') item.textContent = text;
+    return item;
 }
 
 function titleOf(gecko) {
@@ -199,9 +200,9 @@ function eggSummary(record) {
 }
 
 function activeEggCount(gecko) {
-    return recordsOf(gecko).reduce((sum, record) => {
-        return ACTIVE_EGG_STATUSES.has(record.eggStatus) ? sum + eggTotal(record) : sum;
-    }, 0);
+    return recordsOf(gecko).reduce((sum, record) => (
+        ACTIVE_EGG_STATUSES.has(record.eggStatus) ? sum + eggTotal(record) : sum
+    ), 0);
 }
 
 function isBreedingCandidate(gecko) {
@@ -291,26 +292,28 @@ function syncPasswords(value = localStorage.getItem(ADMIN_PASSWORD_KEY) || '') {
 }
 
 function setMode(mode) {
-    activeMode = mode;
     el.modeButtons.forEach((button) => button.classList.toggle('active', button.dataset.mode === mode));
     el.modePanels.forEach((panel) => panel.classList.toggle('hidden', panel.dataset.modePanel !== mode));
+    if (mode === 'search') setTimeout(() => el.searchInput.focus(), 40);
+    if (mode === 'feeding') setTimeout(() => el.feedingGeckoSearch.focus(), 40);
+}
 
-    if (mode === 'search') {
-        setTimeout(() => el.searchInput.focus(), 40);
-    } else if (mode === 'feeding') {
-        setTimeout(() => el.feedingGeckoSearch.focus(), 40);
-    }
+function setRegisterKind(kind) {
+    el.registerKindButtons.forEach((button) => button.classList.toggle('active', button.dataset.registerKind === kind));
+    el.registerPanels.forEach((panel) => panel.classList.toggle('hidden', panel.dataset.registerPanel !== kind));
+    if (kind === 'single') setTimeout(() => el.regNumber.focus(), 40);
+    if (kind === 'hatch') setTimeout(() => el.hatchParentSearch.focus(), 40);
 }
 
 function renderHeader() {
     el.headerCount.textContent = `${state.count || state.geckos.length}마리`;
     if (!state.updatedAt) {
-        el.headerUpdated.textContent = '저장 기록 없음';
+        el.headerUpdated.textContent = '저장 전';
         return;
     }
     const date = new Date(state.updatedAt);
     el.headerUpdated.textContent = Number.isNaN(date.getTime())
-        ? '최근 저장됨'
+        ? '저장됨'
         : `${String(date.getMonth() + 1).padStart(2, '0')}.${String(date.getDate()).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')} 저장`;
 }
 
@@ -331,7 +334,7 @@ function renderSuggestions(input, host, onPick, predicate = null) {
     if (!query) return;
 
     const list = filteredGeckos(query, predicate).slice(0, 10);
-    if (list.length === 0) {
+    if (!list.length) {
         host.append(node('div', 'cgSuggestEmpty', '검색 결과 없음'));
         return;
     }
@@ -340,7 +343,7 @@ function renderSuggestions(input, host, onPick, predicate = null) {
 
 function clearRegisterForm() {
     editingGeckoId = '';
-    el.registerTitle.textContent = '신규 개체';
+    el.registerTitle.textContent = '새 개체 등록';
     el.registerForm.reset();
     el.regSex.value = '미확인';
     el.regStatus.value = '보유';
@@ -350,7 +353,7 @@ function clearRegisterForm() {
 
 function fillRegisterForm(gecko) {
     editingGeckoId = gecko?.id || '';
-    el.registerTitle.textContent = gecko ? `${titleOf(gecko)} 수정` : '신규 개체';
+    el.registerTitle.textContent = gecko ? `${titleOf(gecko)} 수정` : '새 개체 등록';
     el.regNumber.value = gecko?.number || '';
     el.regName.value = gecko?.name || '';
     el.regSex.value = gecko?.sex || '미확인';
@@ -393,15 +396,14 @@ async function saveRegister(event) {
     const adminPassword = passwordValue(el.regPassword);
     const number = el.regNumber.value.trim();
     const existing = geckoById(editingGeckoId) || geckoByNumber(number);
-    const gecko = registerPayload(existing);
 
-    if (!number) return toast('번호가 필요합니다', '개체 번호를 입력하세요.', 'error');
-    if (!adminPassword) return toast('비밀번호가 필요합니다', '관리 비밀번호를 입력하세요.', 'error');
+    if (!number) return toast('번호 필요', '개체 번호를 입력하세요.', 'error');
+    if (!adminPassword) return toast('비밀번호 필요', '관리 비밀번호를 입력하세요.', 'error');
 
     try {
         const data = await api('/api/geckos', {
             method: 'POST',
-            body: JSON.stringify({ adminPassword, gecko })
+            body: JSON.stringify({ adminPassword, gecko: registerPayload(existing) })
         });
         state = data;
         editingGeckoId = data.saved?.id || '';
@@ -427,9 +429,7 @@ function incrementNumber(start, index) {
     if (!text) return '';
     const match = text.match(/^(.*?)(\d+)$/);
     if (!match) return index === 0 ? text : `${text}-${index + 1}`;
-    const prefix = match[1];
-    const digits = match[2];
-    return `${prefix}${String(Number(digits) + index).padStart(digits.length, '0')}`;
+    return `${match[1]}${String(Number(match[2]) + index).padStart(match[2].length, '0')}`;
 }
 
 async function saveHatch(event) {
@@ -440,10 +440,10 @@ async function saveHatch(event) {
     const count = numberValue(el.hatchCount.value);
     const startNumber = el.hatchStartNumber.value.trim();
 
-    if (!parent) return toast('어미 선택 필요', '해칭된 알의 어미 개체를 선택하세요.', 'error');
+    if (!parent) return toast('어미 선택 필요', '어미 개체를 먼저 선택하세요.', 'error');
     if (!startNumber) return toast('시작 번호 필요', '새 개체 시작 번호를 입력하세요.', 'error');
     if (!count) return toast('마릿수 확인', '생성할 마릿수를 입력하세요.', 'error');
-    if (!adminPassword) return toast('비밀번호가 필요합니다', '관리 비밀번호를 입력하세요.', 'error');
+    if (!adminPassword) return toast('비밀번호 필요', '관리 비밀번호를 입력하세요.', 'error');
 
     const geckos = Array.from({ length: count }, (_, index) => ({
         number: incrementNumber(startNumber, index),
@@ -493,7 +493,7 @@ async function saveHatch(event) {
         el.hatchStartNumber.value = '';
         setHatchParent(parentAfter || parent);
         render();
-        toast('해칭 등록 완료', `${count}마리를 생성했습니다.`);
+        toast('해칭 등록 완료', `${count}마리 생성`);
     } catch (err) {
         toast('해칭 등록 실패', err.message, 'error');
     }
@@ -544,8 +544,8 @@ async function importGeckos(event) {
     event.preventDefault();
     const adminPassword = passwordValue(el.importPassword);
     const geckos = parseImportRows(el.importText.value);
-    if (!adminPassword) return toast('비밀번호가 필요합니다', '관리 비밀번호를 입력하세요.', 'error');
-    if (geckos.length === 0) return toast('가져올 데이터 없음', '붙여넣은 표를 확인하세요.', 'error');
+    if (!adminPassword) return toast('비밀번호 필요', '관리 비밀번호를 입력하세요.', 'error');
+    if (!geckos.length) return toast('데이터 없음', '붙여넣은 표를 확인하세요.', 'error');
 
     try {
         state = await api('/api/geckos/import', {
@@ -554,7 +554,7 @@ async function importGeckos(event) {
         });
         el.importText.value = '';
         render();
-        toast('가져오기 완료', `${geckos.length}건을 처리했습니다.`);
+        toast('가져오기 완료', `${geckos.length}건 처리`);
     } catch (err) {
         toast('가져오기 실패', err.message, 'error');
     }
@@ -573,8 +573,8 @@ async function saveFeeding(event) {
     const adminPassword = passwordValue(el.feedingPassword);
     const date = el.feedingDate.value || todayValue();
 
-    if (!gecko) return toast('개체 선택 필요', '피딩 기록을 남길 개체를 선택하세요.', 'error');
-    if (!adminPassword) return toast('비밀번호가 필요합니다', '관리 비밀번호를 입력하세요.', 'error');
+    if (!gecko) return toast('개체 선택 필요', '개체를 먼저 선택하세요.', 'error');
+    if (!adminPassword) return toast('비밀번호 필요', '관리 비밀번호를 입력하세요.', 'error');
 
     const record = {
         id: makeId(),
@@ -631,7 +631,7 @@ function renderTodayFeeding() {
     el.todayFeedingCount.textContent = `${items.length}건`;
     el.todayFeedingList.replaceChildren();
     if (!items.length) {
-        el.todayFeedingList.append(node('div', 'cgEmpty', '오늘 기록한 피딩 이슈가 없습니다.'));
+        el.todayFeedingList.append(node('div', 'cgEmpty', '오늘 기록이 없습니다.'));
         return;
     }
 
@@ -708,10 +708,7 @@ function renderTimeline(records, emptyText) {
     }
     records.forEach((record) => {
         const item = node('article', 'cgTimelineItem');
-        item.append(
-            node('strong', '', record.title),
-            node('span', '', record.meta || '-')
-        );
+        item.append(node('strong', '', record.title), node('span', '', record.meta || '-'));
         if (record.memo) item.append(node('p', '', record.memo));
         wrap.append(item);
     });
@@ -726,7 +723,7 @@ function renderDetail() {
     if (!gecko) {
         el.detailTitle.textContent = '개체를 선택하세요';
         el.detailBody.className = 'cgDetailEmpty';
-        el.detailBody.textContent = '검색 결과에서 개체를 누르면 정보가 표시됩니다.';
+        el.detailBody.textContent = '왼쪽 목록에서 개체를 누르세요.';
         return;
     }
 
@@ -802,7 +799,7 @@ function renderBreeding() {
 
     el.breedingList.replaceChildren();
     if (!list.length) {
-        el.breedingList.append(node('div', 'cgEmpty', '브리딩 개체가 없습니다. 등록모드에서 성별/페어 정보를 먼저 입력하세요.'));
+        el.breedingList.append(node('div', 'cgEmpty', '브리딩 개체가 없습니다.'));
     } else {
         list.forEach((gecko) => el.breedingList.append(breedingCard(gecko)));
     }
@@ -811,7 +808,7 @@ function renderBreeding() {
     el.breedingDetail.replaceChildren();
 
     if (!gecko) {
-        el.breedingTitle.textContent = '브리딩 개체를 선택하세요';
+        el.breedingTitle.textContent = '개체를 선택하세요';
         el.clutchTargetLabel.textContent = '개체 선택 필요';
         return;
     }
@@ -860,8 +857,8 @@ async function saveClutch(event) {
     const adminPassword = passwordValue(el.clutchPassword);
     const record = clutchRecord();
 
-    if (!gecko) return toast('개체 선택 필요', '산란 기록을 남길 개체를 선택하세요.', 'error');
-    if (!adminPassword) return toast('비밀번호가 필요합니다', '관리 비밀번호를 입력하세요.', 'error');
+    if (!gecko) return toast('개체 선택 필요', '산란 개체를 먼저 선택하세요.', 'error');
+    if (!adminPassword) return toast('비밀번호 필요', '관리 비밀번호를 입력하세요.', 'error');
     if (eggTotal(record) === 0) return toast('알 개수 확인', '유정, 무정, 미확인 중 하나는 입력하세요.', 'error');
 
     try {
@@ -917,10 +914,15 @@ el.modeButtons.forEach((button) => {
     button.addEventListener('click', () => setMode(button.dataset.mode));
 });
 
+el.registerKindButtons.forEach((button) => {
+    button.addEventListener('click', () => setRegisterKind(button.dataset.registerKind));
+});
+
 el.registerForm.addEventListener('submit', saveRegister);
 el.registerClearButton.addEventListener('click', clearRegisterForm);
-
 el.hatchForm.addEventListener('submit', saveHatch);
+el.importForm.addEventListener('submit', importGeckos);
+
 el.hatchParentSearch.addEventListener('input', () => {
     hatchParentId = '';
     el.hatchParentLabel.textContent = '어미 개체를 선택하세요';
@@ -929,8 +931,6 @@ el.hatchParentSearch.addEventListener('input', () => {
 el.hatchParentSearch.addEventListener('focus', () => {
     renderSuggestions(el.hatchParentSearch, el.hatchSuggestions, setHatchParent);
 });
-
-el.importForm.addEventListener('submit', importGeckos);
 
 el.feedingForm.addEventListener('submit', saveFeeding);
 el.feedingGeckoSearch.addEventListener('input', () => {
@@ -952,6 +952,7 @@ el.detailEditButton.addEventListener('click', () => {
     if (!gecko) return;
     fillRegisterForm(gecko);
     setMode('register');
+    setRegisterKind('single');
 });
 el.detailClutchButton.addEventListener('click', () => {
     const gecko = geckoById(searchSelectedId);
@@ -972,8 +973,7 @@ $$('[data-admin-password]').forEach((input) => {
 });
 
 document.addEventListener('click', (event) => {
-    const suggest = event.target.closest('.cgSuggest, .cgSearchField');
-    if (suggest) return;
+    if (event.target.closest('.cgSuggest, .cgSearchField')) return;
     $$('.cgSuggest').forEach((host) => host.replaceChildren());
 });
 
