@@ -6452,6 +6452,7 @@ body {
 }
 
 .geckoModalSheet {
+    position: relative;
     width: min(760px, calc(100vw - 28px));
     max-height: min(88vh, 820px);
     overflow-y: auto;
@@ -6459,6 +6460,17 @@ body {
     background: #ffffff;
     padding: 18px;
     box-shadow: var(--shadow-pop);
+}
+
+.geckoModalSheet .modalClose {
+    top: 14px;
+    right: 14px;
+    z-index: 2;
+}
+
+.geckoModalSheet .modalEyebrow,
+.geckoModalSheet h2 {
+    padding-right: 42px;
 }
 
 .geckoFormGrid {
