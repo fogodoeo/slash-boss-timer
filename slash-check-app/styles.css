@@ -5033,9 +5033,10 @@ body {
     background: #f8fafc;
     padding: 6px 8px;
     text-align: left;
+    cursor: pointer;
 }
 
-.bossQuickItem:hover:not(:disabled) {
+.bossQuickItem:hover:not(.locked) {
     border-color: #9db7ff;
     background: #ffffff;
 }
@@ -5070,7 +5071,7 @@ body {
     color: var(--blue);
 }
 
-.bossQuickItem:disabled {
+.bossQuickItem.locked {
     opacity: 0.58;
     cursor: not-allowed;
 }
@@ -5140,7 +5141,7 @@ body {
     box-shadow: 0 8px 18px rgba(21, 94, 239, 0.08);
 }
 
-.spawnedBossList .bossQuickItem:hover:not(:disabled) {
+.spawnedBossList .bossQuickItem:hover:not(.locked) {
     border-color: #155eef;
     box-shadow: 0 10px 20px rgba(21, 94, 239, 0.12);
 }
@@ -5151,17 +5152,22 @@ body {
     justify-self: end;
     min-width: 64px;
     height: 30px;
+    border: 0;
     border-radius: 7px;
     background: var(--blue);
     color: #ffffff;
+    font: inherit;
     font-size: 12px;
     font-weight: 950;
     white-space: nowrap;
+    cursor: pointer;
 }
 
-.bossQuickItem:disabled .bossQuickCutLabel {
+.bossQuickCutLabel:disabled,
+.bossQuickItem.locked .bossQuickCutLabel {
     background: #cbd5e1;
     color: #475569;
+    cursor: not-allowed;
 }
 
 .sectionTabs {
