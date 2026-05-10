@@ -127,6 +127,12 @@ function cleanDate(value) {
 
 function normalizeGeckoStatus(value) {
     const text = cleanText(value, 16);
+    const lower = text.toLowerCase();
+    if (['breeding', 'pairing', 'paired', 'breed'].includes(lower)) return '브리딩';
+    if (['sold', 'out', 'released'].includes(lower)) return '분양';
+    if (['reserved', 'reserve'].includes(lower)) return '예약';
+    if (['dead', 'deceased'].includes(lower)) return '폐사';
+    if (['hold', 'holding', 'owned'].includes(lower)) return '보유';
     return ['보유', '분양', '예약', '폐사', '브리딩'].includes(text) ? text : '보유';
 }
 
@@ -173,6 +179,12 @@ function normalizeGeckoEggCount(value) {
 
 function normalizeGeckoEggStatus(value) {
     const text = cleanText(value, 16);
+    const lower = text.toLowerCase();
+    if (['incubating', 'incubation', 'stored'].includes(lower)) return '보관중';
+    if (['watch', 'watching', 'observe', 'observing'].includes(lower)) return '관찰';
+    if (['hatched', 'hatch'].includes(lower)) return '부화';
+    if (['infertile', 'bad'].includes(lower)) return '무정란';
+    if (['discarded', 'discard', 'trash'].includes(lower)) return '폐기';
     return ['보관중', '관찰', '부화', '무정란', '폐기'].includes(text) ? text : '보관중';
 }
 
@@ -215,6 +227,8 @@ function normalizeGeckoEggRecords(value, existing = null, nowIso = new Date().to
             id: cleanText(record?.id, 80) || randomUUID(),
             layDate,
             clutchCode: cleanText(getGeckoValue(record, ['clutchCode', '클러치'], ''), 40),
+            mateNumber: cleanText(getGeckoValue(record, ['mateNumber', 'pairedWithNumber', 'pairNumber', '수컷', '페어'], ''), 32),
+            incubationLocation: cleanText(getGeckoValue(record, ['incubationLocation', 'incubator', '보관위치', '인큐베이터'], ''), 80),
             fertileCount,
             infertileCount,
             unknownCount,
@@ -261,6 +275,8 @@ function normalizeGecko(value, existing = null) {
         acquiredDate: cleanDate(getGeckoValue(value, ['acquiredDate', '입양일', '입고일'], existing?.acquiredDate || '')),
         fatherNumber: cleanText(getGeckoValue(value, ['fatherNumber', 'father', '부'], existing?.fatherNumber || ''), 32),
         motherNumber: cleanText(getGeckoValue(value, ['motherNumber', 'mother', '모'], existing?.motherNumber || ''), 32),
+        pairedWithNumber: cleanText(getGeckoValue(value, ['pairedWithNumber', 'pairNumber', 'mateNumber', '페어', '수컷'], existing?.pairedWithNumber || ''), 32),
+        pairingDate: cleanDate(getGeckoValue(value, ['pairingDate', 'pairedDate', '합사일', '페어일'], existing?.pairingDate || '')),
         breeder: cleanText(getGeckoValue(value, ['breeder', 'source', '브리더', '출처'], existing?.breeder || ''), 80),
         weight: normalizeGeckoWeight(getGeckoValue(value, ['weight', '무게'], existing?.weight || '')),
         weightDate: cleanDate(getGeckoValue(value, ['weightDate', '측정일'], existing?.weightDate || '')),
