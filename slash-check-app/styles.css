@@ -8562,6 +8562,147 @@ body {
     color: #ffffff;
 }
 
+.cbQuickPanel {
+    margin-top: 10px;
+    border-color: #c7d6ea;
+    background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+}
+
+.cbQuickForm {
+    display: grid;
+    grid-template-columns: minmax(210px, 1.15fr) minmax(160px, 0.8fr) 132px 120px minmax(210px, 1fr) 70px 70px 74px minmax(150px, 0.8fr) minmax(118px, 0.7fr) 96px;
+    gap: 7px;
+    align-items: end;
+}
+
+.cbQuickForm label,
+.cbQuickSearch {
+    position: relative;
+    display: grid;
+    min-width: 0;
+    gap: 5px;
+}
+
+.cbQuickForm label span,
+.cbQuickSearch span {
+    color: #64748b;
+    font-size: 11px;
+    font-weight: 950;
+}
+
+.cbQuickForm input,
+.cbQuickForm select {
+    width: 100%;
+    height: 38px;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    background: #ffffff;
+    color: #0f172a;
+    padding: 0 9px;
+    font-size: 14px;
+    font-weight: 900;
+    outline: none;
+}
+
+.cbQuickForm input:focus,
+.cbQuickForm select:focus {
+    border-color: #8fb0ff;
+    box-shadow: 0 0 0 3px rgba(20, 87, 217, 0.12);
+}
+
+.cbQuickSelected {
+    display: grid;
+    align-items: center;
+    min-width: 0;
+    min-height: 38px;
+    overflow: hidden;
+    border-radius: 8px;
+    background: #eef4ff;
+    color: #1457d9;
+    padding: 0 10px;
+    font-size: 13px;
+    font-weight: 1000;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.cbQuickPresets {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 4px;
+}
+
+.cbQuickPresets button {
+    height: 38px;
+    border: 1px solid #d7e1ee;
+    border-radius: 8px;
+    background: #ffffff;
+    color: #0f172a;
+    padding: 0 6px;
+    font-size: 12px;
+    font-weight: 950;
+}
+
+.cbQuickPresets button:active {
+    border-color: #1457d9;
+    background: #eef4ff;
+    color: #1457d9;
+}
+
+.cbQuickSave {
+    width: 100%;
+    height: 38px;
+}
+
+.cbQuickSuggest {
+    position: absolute;
+    top: calc(100% + 5px);
+    right: 0;
+    left: 0;
+    z-index: 35;
+    display: grid;
+    gap: 4px;
+    max-height: 230px;
+    overflow-y: auto;
+    border-radius: 9px;
+    background: #ffffff;
+    box-shadow: 0 16px 34px rgba(15, 23, 42, 0.18);
+}
+
+.cbQuickSuggest:empty {
+    display: none;
+}
+
+.cbQuickSuggest button {
+    display: grid;
+    gap: 2px;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    background: #ffffff;
+    padding: 8px;
+    text-align: left;
+}
+
+.cbQuickSuggest strong {
+    min-width: 0;
+    overflow: hidden;
+    color: #0f172a;
+    font-size: 13px;
+    font-weight: 1000;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.cbQuickSuggest span {
+    min-width: 0;
+    overflow: hidden;
+    color: #64748b;
+    font-size: 12px;
+    font-weight: 800;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
 .cbOpsGrid {
     display: grid;
     grid-template-columns: minmax(0, 1.1fr) minmax(320px, 0.9fr);
@@ -9213,6 +9354,15 @@ body {
 }
 
 @media (max-width: 1180px) {
+    .cbQuickForm {
+        grid-template-columns: minmax(220px, 1fr) minmax(160px, 0.8fr) 132px 118px repeat(3, 64px) minmax(150px, 0.8fr) minmax(110px, 0.7fr) 92px;
+    }
+
+    .cbQuickPresets {
+        grid-column: 1 / -1;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
     .cbCardList {
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
@@ -9293,6 +9443,39 @@ body {
     .cbTabs button {
         padding: 0 4px;
         font-size: 12px;
+    }
+
+    .cbQuickForm {
+        grid-template-columns: repeat(6, minmax(0, 1fr));
+        gap: 6px;
+    }
+
+    .cbQuickSearch,
+    .cbQuickSelected,
+    .cbQuickPresets,
+    .cbQuickWideField,
+    .cbQuickPassword,
+    .cbQuickSave {
+        grid-column: 1 / -1;
+    }
+
+    .cbQuickHalf {
+        grid-column: span 3;
+    }
+
+    .cbQuickCount {
+        grid-column: span 2;
+    }
+
+    .cbQuickPresets {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .cbQuickForm input,
+    .cbQuickForm select,
+    .cbQuickPresets button,
+    .cbQuickSave {
+        height: 40px;
     }
 
     .cbPanel {

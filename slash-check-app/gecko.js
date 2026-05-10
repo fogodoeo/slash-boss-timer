@@ -4,6 +4,11 @@ const $$ = (selector) => [...document.querySelectorAll(selector)];
 const el = {
     search: $('#searchInput'),
     tabs: $$('[data-view]'),
+    quickForm: $('#quickEggForm'),
+    quickSummary: $('#quickSummary'),
+    quickGeckoSearch: $('#quickGeckoSearch'),
+    quickSuggestions: $('#quickSuggestions'),
+    quickSelectedLabel: $('#quickSelectedLabel'),
     cardList: $('#cardList'),
     actionQueue: $('#actionQueue'),
     recentClutches: $('#recentClutches'),
@@ -64,6 +69,7 @@ let selectedGeckoId = '';
 let editingGeckoId = '';
 let editingEggGeckoId = '';
 let editingEggRecordId = '';
+let quickGeckoId = '';
 
 async function api(path, options = {}) {
     const response = await fetch(path, {
@@ -133,6 +139,10 @@ function numberValue(value) {
 
 function titleOf(gecko) {
     return `${gecko?.number || ''} ${gecko?.name || ''}`.trim() || '이름 없음';
+}
+
+function formNumber(id) {
+    return numberValue($(id).value);
 }
 
 function node(tag, className = '', text = '') {
@@ -354,6 +364,10 @@ function selectedGecko() {
     return state.geckos.find((gecko) => gecko.id === selectedGeckoId) || null;
 }
 
+function quickGecko() {
+    return state.geckos.find((gecko) => gecko.id === quickGeckoId) || null;
+}
+
 function renderMetrics() {
     const breeding = state.geckos.filter(isBreedingCandidate).length;
     const eggs = state.geckos.reduce((sum, gecko) => sum + activeEggTotal(gecko), 0);
@@ -420,6 +434,113 @@ function renderRecent() {
         return;
     }
     records.forEach((item) => el.recentClutches.append(recentNode(item)));
+}
+
+function updateQuickSummary() {
+    const total = formNumber('#quickFertile') + formNumber('#quickInfertile') + formNumber('#quickUnknown');
+    const gecko = quickGecko();
+    el.quickSummary.textContent = gecko ? `총 ${total}알 · ${titleOf(gecko)}` : `총 ${total}알`;
+}
+
+function setQuickSelected(gecko) {
+    quickGeckoId = gecko?.id || '';
+    el.quickSelectedLabel.textContent = gecko ? titleOf(gecko) : '개체를 선택하세요';
+    if (gecko) {
+        $('#quickIncubation').value = activeEggRecords(gecko)[0]?.incubationLocation || $('#quickIncubation').value;
+    }
+    updateQuickSummary();
+}
+
+function quickSuggestionButton(gecko) {
+    const stats = statsOf(gecko);
+    const button = node('button');
+    button.type = 'button';
+    button.append(
+        node('strong', '', titleOf(gecko)),
+        node('span', '', [gecko.location, gecko.morph, stats.nextLabel].filter(Boolean).join(' · ') || '정보 미등록')
+    );
+    button.addEventListener('click', () => {
+        setQuickSelected(gecko);
+        el.quickGeckoSearch.value = titleOf(gecko);
+        el.quickSuggestions.replaceChildren();
+        $('#quickIncubation').focus();
+    });
+    return button;
+}
+
+function renderQuickSuggestions() {
+    const query = el.quickGeckoSearch.value.trim().toLowerCase();
+    el.quickSuggestions.replaceChildren();
+    if (!query) {
+        setQuickSelected(null);
+        return;
+    }
+
+    const matches = state.geckos
+        .filter((gecko) => searchText(gecko).includes(query))
+        .slice(0, 8);
+
+    if (matches.length === 1) setQuickSelected(matches[0]);
+    else setQuickSelected(null);
+    matches.forEach((gecko) => el.quickSuggestions.append(quickSuggestionButton(gecko)));
+}
+
+function quickRecord() {
+    return {
+        layDate: $('#quickLayDate').value || todayValue(),
+        eggStatus: $('#quickEggStatus').value,
+        fertileCount: formNumber('#quickFertile'),
+        infertileCount: formNumber('#quickInfertile'),
+        unknownCount: formNumber('#quickUnknown'),
+        clutchCode: '',
+        mateNumber: quickGecko()?.pairedWithNumber || '',
+        hatchDate: '',
+        incubationLocation: $('#quickIncubation').value.trim(),
+        memo: ''
+    };
+}
+
+async function saveQuickEgg(event) {
+    event.preventDefault();
+    const gecko = quickGecko();
+    const record = quickRecord();
+    const adminPassword = passwordValue('#quickPassword');
+
+    if (!gecko) return toast('개체 선택 필요', '번호나 이름을 입력하고 추천 개체를 선택하세요.', 'error');
+    if (eggTotal(record) === 0) return toast('알 갯수 필요', '유정/무정/미확인 중 하나는 입력하세요.', 'error');
+    if (!adminPassword) return toast('비밀번호 필요', '관리자 비밀번호를 입력하세요.', 'error');
+
+    const savedGecko = {
+        ...gecko,
+        status: gecko.status === '보유' ? '브리딩' : gecko.status,
+        eggRecords: [
+            {
+                ...record,
+                id: globalThis.crypto?.randomUUID?.() || `${Date.now()}`,
+                clutchCode: nextClutchCode(gecko)
+            },
+            ...recordsOf(gecko)
+        ]
+    };
+
+    try {
+        const data = await api('/api/geckos', {
+            method: 'POST',
+            body: JSON.stringify({ adminPassword, gecko: savedGecko })
+        });
+        state = data;
+        selectedGeckoId = data.saved?.id || gecko.id;
+        currentView = 'breeding';
+        $('#quickFertile').value = '2';
+        $('#quickInfertile').value = '0';
+        $('#quickUnknown').value = '0';
+        el.quickGeckoSearch.select();
+        render();
+        setQuickSelected(data.saved);
+        toast('산란 저장 완료', `${titleOf(data.saved)} · ${eggSummary(record)}`);
+    } catch (err) {
+        toast('산란 저장 실패', err.message, 'error');
+    }
 }
 
 function renderCards() {
@@ -922,6 +1043,9 @@ async function load() {
     try {
         state = await api('/api/geckos');
         selectedGeckoId = state.geckos[0]?.id || '';
+        $('#quickLayDate').value = todayValue();
+        $('#quickPassword').value = localStorage.getItem(ADMIN_PASSWORD_KEY) || '';
+        updateQuickSummary();
         render();
     } catch (err) {
         toast('불러오기 실패', err.message, 'error');
@@ -937,6 +1061,24 @@ el.tabs.forEach((tab) => {
     });
 });
 el.search.addEventListener('input', render);
+el.quickForm.addEventListener('submit', saveQuickEgg);
+el.quickGeckoSearch.addEventListener('input', renderQuickSuggestions);
+el.quickGeckoSearch.addEventListener('focus', renderQuickSuggestions);
+['#quickFertile', '#quickInfertile', '#quickUnknown'].forEach((selector) => {
+    const input = $(selector);
+    input.addEventListener('input', updateQuickSummary);
+    input.addEventListener('change', updateQuickSummary);
+});
+$$('[data-preset]').forEach((button) => {
+    button.addEventListener('click', () => {
+        const [fertile, infertile, unknown] = button.dataset.preset.split(',');
+        $('#quickFertile').value = fertile;
+        $('#quickInfertile').value = infertile;
+        $('#quickUnknown').value = unknown;
+        updateQuickSummary();
+        $('#quickIncubation').focus();
+    });
+});
 el.openGeckoButton.addEventListener('click', () => openGeckoModal());
 el.closeGeckoButton.addEventListener('click', closeGeckoModal);
 el.geckoForm.addEventListener('submit', saveGecko);
