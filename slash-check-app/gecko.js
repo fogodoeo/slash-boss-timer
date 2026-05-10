@@ -219,6 +219,9 @@ function createElement(tag, className = '', text = '') {
 
 function renderList() {
     const visible = filteredGeckos();
+    if (activeView === 'library' && geckoSearchInput.value.trim() && visible.length === 1) {
+        selectedGeckoId = visible[0].id;
+    }
     const rendered = visible.slice(0, MAX_RENDERED_GECKOS);
     geckoTotalCount.textContent = `${state.count || state.geckos.length}개체`;
     geckoVisibleCount.textContent = activeView === 'eggs'
@@ -347,6 +350,9 @@ function renderEggDashboard() {
 
 function renderEggList() {
     const visible = filteredEggGeckos();
+    if (activeView === 'eggs' && geckoSearchInput.value.trim() && visible.length === 1) {
+        selectedEggGeckoId = visible[0].id;
+    }
     const rendered = visible.slice(0, MAX_RENDERED_EGG_GECKOS);
     eggResultTitle.textContent = selectedEggFilter === 'all' ? '산란 관리 목록' : `${selectedEggFilterText()} 목록`;
     eggCandidateList.replaceChildren();
@@ -584,7 +590,9 @@ function renderEggSuggestions() {
 }
 
 function openEggForm(gecko = null, record = null) {
-    editingEggGeckoId = gecko?.id || selectedEggGeckoId || selectedGeckoId || '';
+    const searched = geckoSearchInput.value.trim() ? filteredGeckos() : [];
+    const autoGecko = searched.length === 1 ? searched[0] : null;
+    editingEggGeckoId = gecko?.id || autoGecko?.id || selectedEggGeckoId || selectedGeckoId || '';
     editingEggRecordId = record?.id || '';
     eggForm.reset();
     document.querySelector('#eggFormTitle').textContent = record ? '산란 기록 수정' : '산란 등록';

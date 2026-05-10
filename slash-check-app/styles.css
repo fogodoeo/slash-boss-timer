@@ -7205,3 +7205,330 @@ body {
         grid-column: 1 / -1;
     }
 }
+
+/* Gecko simple mode */
+.geckoSimplePage .geckoTopbar {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    border-radius: 10px;
+    padding: 12px;
+}
+
+.geckoSimplePage .geckoTopbar h1 {
+    margin: 2px 0 0;
+}
+
+.geckoSimplePage .pageDesc {
+    display: none;
+}
+
+.geckoSimplePage .geckoTopActions {
+    display: grid;
+    grid-template-columns: auto auto auto;
+    gap: 6px;
+}
+
+.geckoSimplePage .geckoTopActions button {
+    height: 36px;
+    min-width: 0;
+    padding: 0 12px;
+}
+
+.geckoSimplePage .geckoCommandBar {
+    grid-template-columns: minmax(0, 280px) minmax(0, 1fr);
+    margin-bottom: 8px;
+}
+
+.geckoSimplePage .geckoModeTabs {
+    width: 100%;
+    border-radius: 9px;
+}
+
+.geckoSimplePage .geckoModeTabs button {
+    height: 36px;
+}
+
+.geckoSimplePage .geckoSummaryStrip span {
+    min-height: 24px;
+    padding: 5px 9px;
+    font-size: 11px;
+}
+
+.geckoSimplePage .geckoSearchPanel {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: end;
+    gap: 8px;
+    padding: 9px;
+}
+
+.geckoSimplePage .geckoSearchBox {
+    gap: 4px;
+}
+
+.geckoSimplePage .geckoSearchBox input {
+    height: 42px;
+    border-radius: 9px;
+    font-size: 15px;
+}
+
+.geckoFold {
+    position: relative;
+}
+
+.geckoFold summary {
+    display: grid;
+    place-items: center;
+    height: 42px;
+    min-width: 58px;
+    border: 1px solid #cfd8e6;
+    border-radius: 9px;
+    background: #ffffff;
+    color: #334155;
+    padding: 0 12px;
+    font-size: 13px;
+    font-weight: 950;
+    cursor: pointer;
+    list-style: none;
+}
+
+.geckoFold summary::-webkit-details-marker {
+    display: none;
+}
+
+.geckoFold[open] summary {
+    border-color: #111827;
+    background: #111827;
+    color: #ffffff;
+}
+
+.geckoFold .geckoFilters,
+.geckoFold .eggFilters {
+    position: absolute;
+    top: calc(100% + 6px);
+    right: 0;
+    z-index: 12;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(86px, 1fr));
+    min-width: 210px;
+    border: 1px solid #d8e0ec;
+    border-radius: 10px;
+    background: #ffffff;
+    padding: 7px;
+    box-shadow: 0 16px 34px rgba(15, 23, 42, 0.18);
+}
+
+.geckoSimplePage .geckoLayout,
+.geckoSimplePage .eggLayout {
+    grid-template-columns: minmax(0, 1fr) 360px;
+}
+
+.geckoSimplePage .geckoList,
+.geckoSimplePage .eggCandidateList {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
+}
+
+.geckoSimplePage .geckoCard,
+.geckoSimplePage .eggCard {
+    border-radius: 7px;
+    padding: 8px 9px;
+    box-shadow: none;
+}
+
+.geckoSimplePage .geckoNumber {
+    font-size: 15px;
+}
+
+.geckoSimplePage .geckoName,
+.geckoSimplePage .geckoMorph,
+.geckoSimplePage .geckoLocation {
+    font-size: 12px;
+}
+
+.geckoSimplePage .geckoStatus {
+    padding: 3px 6px;
+    font-size: 10px;
+}
+
+.geckoSimplePage .eggDashboard {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 6px;
+    margin-bottom: 8px;
+}
+
+.geckoSimplePage .eggDashboard article {
+    min-height: 46px;
+    border-radius: 7px;
+    padding: 7px 9px;
+    box-shadow: none;
+}
+
+.geckoSimplePage .eggDashboard span {
+    font-size: 10px;
+}
+
+.geckoSimplePage .eggDashboard strong {
+    margin-top: 2px;
+    font-size: 18px;
+}
+
+.geckoSimplePage .eggToolbar {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 8px;
+}
+
+.geckoSimplePage .eggCardTop {
+    grid-template-columns: minmax(0, 1fr) 50px;
+}
+
+.geckoSimplePage .eggCardStats {
+    grid-template-columns: 58px minmax(0, 1fr) 48px;
+    gap: 4px;
+}
+
+.geckoSimplePage .eggCardStats span {
+    padding: 5px 6px;
+    font-size: 11px;
+}
+
+.geckoSimplePage .geckoDetailPanel,
+.geckoSimplePage .eggDetailPanel {
+    position: sticky;
+    top: 72px;
+}
+
+.geckoAdvancedFields {
+    margin: 10px 0;
+}
+
+.geckoAdvancedFields summary {
+    display: inline-grid;
+    place-items: center;
+    min-height: 32px;
+    border: 1px solid #d7e0ec;
+    border-radius: 8px;
+    background: #f8fafc;
+    color: #475569;
+    padding: 0 10px;
+    font-size: 12px;
+    font-weight: 950;
+    cursor: pointer;
+    list-style: none;
+}
+
+.geckoAdvancedFields summary::-webkit-details-marker {
+    display: none;
+}
+
+.geckoAdvancedFields[open] summary {
+    margin-bottom: 8px;
+    background: #111827;
+    color: #ffffff;
+}
+
+.geckoSimplePage .geckoModalSheet {
+    border-radius: 10px;
+}
+
+.geckoSimplePage .geckoFormGrid {
+    gap: 8px;
+}
+
+.geckoSimplePage .geckoFormGrid input,
+.geckoSimplePage .geckoFormGrid select,
+.geckoSimplePage .geckoFormGrid textarea,
+.geckoSimplePage .geckoModalSheet > label input {
+    border-radius: 7px;
+}
+
+.geckoSimplePage .eggTotalPreview {
+    margin: 8px 0;
+}
+
+@media (max-width: 980px) {
+    .geckoSimplePage .geckoTopbar,
+    .geckoSimplePage .geckoCommandBar,
+    .geckoSimplePage .geckoLayout,
+    .geckoSimplePage .eggLayout {
+        grid-template-columns: 1fr;
+    }
+
+    .geckoSimplePage .geckoDetailPanel,
+    .geckoSimplePage .eggDetailPanel {
+        position: static;
+    }
+
+    .geckoSimplePage .geckoList,
+    .geckoSimplePage .eggCandidateList {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 640px) {
+    .geckoSimplePage .geckoTopbar {
+        padding: 10px;
+    }
+
+    .geckoSimplePage .geckoTopActions {
+        grid-template-columns: 58px minmax(0, 1fr) minmax(0, 1fr);
+        width: 100%;
+    }
+
+    .geckoSimplePage .geckoTopActions button {
+        height: 38px;
+        padding: 0 7px;
+        font-size: 12px;
+    }
+
+    .geckoSimplePage .geckoCommandBar {
+        gap: 6px;
+    }
+
+    .geckoSimplePage .geckoSummaryStrip {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 4px;
+    }
+
+    .geckoSimplePage .geckoSummaryStrip span {
+        display: grid;
+        place-items: center;
+        padding: 5px 4px;
+    }
+
+    .geckoSimplePage .geckoSearchPanel {
+        grid-template-columns: minmax(0, 1fr) 58px;
+        padding: 7px 8px;
+    }
+
+    .geckoFold .geckoFilters,
+    .geckoFold .eggFilters {
+        right: 0;
+        left: auto;
+        min-width: min(260px, calc(100vw - 24px));
+    }
+
+    .geckoSimplePage .eggDashboard {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 4px;
+    }
+
+    .geckoSimplePage .eggDashboard article {
+        min-height: 43px;
+        padding: 6px 4px;
+        text-align: center;
+    }
+
+    .geckoSimplePage .eggDashboard span {
+        font-size: 9.5px;
+    }
+
+    .geckoSimplePage .eggDashboard strong {
+        font-size: 17px;
+    }
+
+    .geckoSimplePage .eggFormGrid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
