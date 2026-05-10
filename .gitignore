@@ -4,6 +4,7 @@ node_modules/
 npm-debug.log*
 
 slash-check-state.json
+gecko-state.json
 local-boss-state.json
 cloudflared.log
 data/screenshots/

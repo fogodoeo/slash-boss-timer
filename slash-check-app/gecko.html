@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="ko">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>게코 개체 도서관</title>
+    <link rel="icon" href="./favicon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="./styles.css">
+</head>
+<body class="geckoPage">
+    <main class="shell">
+        <header class="topbar">
+            <div>
+                <span class="eyebrow">크레스티드 게코</span>
+                <h1>개체 도서관</h1>
+                <p class="pageDesc">넘버, 이름, 모프, 위치를 빠르게 찾고 개체별 기록을 확인합니다.</p>
+            </div>
+            <nav class="navTabs" aria-label="페이지 이동">
+                <a href="./">썰자</a>
+                <a href="./boss.html">보스</a>
+                <a class="active" href="./gecko.html">게코</a>
+                <a href="./admin.html">관리</a>
+            </nav>
+            <div class="geckoTopActions">
+                <button id="openImportButton" class="copyCommandButton subtle" type="button">일괄 등록</button>
+                <button id="openGeckoFormButton" class="copyCommandButton" type="button">개체 추가</button>
+            </div>
+        </header>
+
+        <section class="geckoSearchPanel">
+            <label class="geckoSearchBox">
+                <span>개체 검색</span>
+                <input id="geckoSearchInput" type="search" placeholder="CG-0001, 이름, 모프, 위치, 부모 번호">
+            </label>
+            <div class="geckoFilters" aria-label="개체 필터">
+                <button class="active" type="button" data-status="all">전체</button>
+                <button type="button" data-status="보유">보유</button>
+                <button type="button" data-status="브리딩">브리딩</button>
+                <button type="button" data-status="예약">예약</button>
+                <button type="button" data-status="분양">분양</button>
+                <button type="button" data-status="폐사">폐사</button>
+            </div>
+            <div class="geckoSummaryStrip">
+                <span id="geckoTotalCount">0개체</span>
+                <span id="geckoVisibleCount">0건 표시</span>
+                <span id="geckoStorageStatus">불러오는 중</span>
+            </div>
+        </section>
+
+        <section class="geckoLayout">
+            <section class="panel geckoListPanel">
+                <div class="panelHead">
+                    <div>
+                        <span class="label">검색 결과</span>
+                        <strong id="geckoResultTitle">개체 목록</strong>
+                    </div>
+                </div>
+                <div id="geckoList" class="geckoList"></div>
+            </section>
+
+            <aside class="panel geckoDetailPanel">
+                <div class="panelHead">
+                    <div>
+                        <span class="label">선택 개체</span>
+                        <strong id="geckoDetailTitle">개체를 선택하세요</strong>
+                    </div>
+                    <button id="detailEditButton" class="copyCommandButton subtle" type="button" disabled>수정</button>
+                </div>
+                <div id="geckoDetailBody" class="geckoDetailBody">
+                    <div class="empty small">목록에서 개체를 선택하면 위치와 산란 정보가 표시됩니다.</div>
+                </div>
+            </aside>
+        </section>
+    </main>
+
+    <template id="geckoCardTemplate">
+        <article class="geckoCard">
+            <div class="geckoCardMain">
+                <strong class="geckoNumber"></strong>
+                <span class="geckoName"></span>
+            </div>
+            <div class="geckoCardMeta">
+                <span class="geckoMorph"></span>
+                <span class="geckoLocation"></span>
+            </div>
+            <span class="geckoStatus"></span>
+        </article>
+    </template>
+
+    <div id="geckoFormModal" class="modalOverlay hidden" role="dialog" aria-modal="true" aria-labelledby="geckoFormTitle">
+        <form id="geckoForm" class="geckoModalSheet">
+            <button id="closeGeckoFormButton" class="modalClose" type="button" aria-label="닫기">×</button>
+            <span class="modalEyebrow">개체 등록</span>
+            <h2 id="geckoFormTitle">개체 정보</h2>
+            <div class="geckoFormGrid">
+                <label><span>넘버링</span><input id="geckoNumberInput" name="number" type="text" placeholder="CG-0001"></label>
+                <label><span>이름</span><input id="geckoNameInput" name="name" type="text" placeholder="이름"></label>
+                <label><span>성별</span><select id="geckoSexInput" name="sex"><option>미확인</option><option>수</option><option>암</option></select></label>
+                <label><span>상태</span><select id="geckoStatusInput" name="status"><option>보유</option><option>브리딩</option><option>예약</option><option>분양</option><option>폐사</option></select></label>
+                <label><span>모프</span><input id="geckoMorphInput" name="morph" type="text" placeholder="릴리화이트, 할리퀸 등"></label>
+                <label><span>위치</span><input id="geckoLocationInput" name="location" type="text" placeholder="랙 A / 2단 / 03번"></label>
+                <label><span>출생일</span><input id="geckoHatchDateInput" name="hatchDate" type="date"></label>
+                <label><span>입양일</span><input id="geckoAcquiredDateInput" name="acquiredDate" type="date"></label>
+                <label><span>부</span><input id="geckoFatherInput" name="fatherNumber" type="text" placeholder="부 개체 번호"></label>
+                <label><span>모</span><input id="geckoMotherInput" name="motherNumber" type="text" placeholder="모 개체 번호"></label>
+                <label><span>무게(g)</span><input id="geckoWeightInput" name="weight" type="number" min="0" step="0.01" placeholder="32.5"></label>
+                <label><span>측정일</span><input id="geckoWeightDateInput" name="weightDate" type="date"></label>
+                <label><span>산란일</span><input id="geckoLayDateInput" name="layDate" type="date"></label>
+                <label><span>산란수</span><input id="geckoEggCountInput" name="eggCount" type="number" min="0" max="99" step="1" placeholder="2"></label>
+                <label><span>클러치</span><input id="geckoClutchInput" name="clutchCode" type="text" placeholder="A24-01"></label>
+                <label><span>부화/예정일</span><input id="geckoHatchResultInput" name="hatchResultDate" type="date"></label>
+                <label class="wide"><span>산란 메모</span><input id="geckoEggMemoInput" name="eggMemo" type="text" placeholder="무정란, 유정란, 보류 등"></label>
+                <label class="wide"><span>메모</span><textarea id="geckoMemoInput" name="memo" rows="4" placeholder="먹이, 성향, 관리 메모"></textarea></label>
+                <label class="wide"><span>태그</span><input id="geckoTagsInput" name="tags" type="text" placeholder="브리딩, 관찰, 분양보류"></label>
+                <label class="wide"><span>관리자 비밀번호</span><input id="geckoAdminPasswordInput" name="adminPassword" type="password" autocomplete="current-password"></label>
+            </div>
+            <div class="geckoModalActions">
+                <button id="deleteGeckoButton" class="danger" type="button">삭제</button>
+                <button id="saveGeckoButton" class="bossModalPrimary" type="submit">저장</button>
+            </div>
+        </form>
+    </div>
+
+    <div id="geckoImportModal" class="modalOverlay hidden" role="dialog" aria-modal="true" aria-labelledby="geckoImportTitle">
+        <form id="geckoImportForm" class="geckoModalSheet">
+            <button id="closeImportButton" class="modalClose" type="button" aria-label="닫기">×</button>
+            <span class="modalEyebrow">일괄 등록</span>
+            <h2 id="geckoImportTitle">시트 붙여넣기</h2>
+            <label class="geckoImportText">
+                <span>첫 줄은 헤더</span>
+                <textarea id="geckoImportTextInput" rows="10" placeholder="넘버링	이름	성별	모프	위치	출생일	상태"></textarea>
+            </label>
+            <label><span>관리자 비밀번호</span><input id="geckoImportPasswordInput" type="password" autocomplete="current-password"></label>
+            <div class="geckoModalActions">
+                <button class="bossModalPrimary" type="submit">가져오기</button>
+            </div>
+        </form>
+    </div>
+
+    <div id="toastHost" class="toastHost" aria-live="polite"></div>
+    <script src="./gecko.js"></script>
+    <script src="./boss-alert-monitor.js"></script>
+</body>
+</html>

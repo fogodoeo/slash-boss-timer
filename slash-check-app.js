@@ -12,6 +12,7 @@ const DEFAULT_STATE_DIR = IS_RENDER_RUNTIME ? '/var/data' : ROOT;
 const ROOT_STATE_FILE = path.join(ROOT, 'slash-check-state.json');
 const STATE_DIR = process.env.SLASH_CHECK_STATE_DIR || process.env.STATE_DIR || DEFAULT_STATE_DIR;
 const STATE_FILE = process.env.SLASH_CHECK_STATE_FILE || path.join(STATE_DIR, 'slash-check-state.json');
+const GECKO_STATE_FILE = process.env.GECKO_STATE_FILE || path.join(STATE_DIR, 'gecko-state.json');
 const LEGACY_BOSS_STATE_FILE = path.join(ROOT, 'local-boss-state.json');
 
 const mimeTypes = {
@@ -61,6 +62,7 @@ const DEFAULT_BOSS_EVENTS = [
 ];
 
 let state = structuredClone(defaultState);
+let geckoState = { geckos: [], updatedAt: null };
 const RESERVATION_GRACE_MS = 10 * 60 * 1000;
 const CHECK_UNDO_GRACE_MS = 60 * 1000;
 const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
@@ -72,6 +74,7 @@ const MAX_BOSS_AUDIT_LOGS = 500;
 const ADMIN_PASSWORD = process.env.SLASH_CHECK_ADMIN_PASSWORD || process.env.ADMIN_PASSWORD || (IS_RENDER_RUNTIME ? '' : '1234');
 const ADMIN_PASSWORD_CONFIGURED = Boolean(ADMIN_PASSWORD);
 let saveStateQueue = Promise.resolve();
+let saveGeckoStateQueue = Promise.resolve();
 
 function send(res, status, body, type = 'text/plain; charset=utf-8') {
     res.writeHead(status, {
@@ -105,6 +108,117 @@ function parseMembers(value) {
     }
 
     return members;
+}
+
+function cleanDate(value) {
+    const text = String(value || '').trim();
+    if (!text) return '';
+    const normalized = text.replace(/[./]/g, '-');
+    const match = normalized.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+    if (!match) return '';
+    const year = Number(match[1]);
+    const month = Number(match[2]);
+    const day = Number(match[3]);
+    const ms = Date.UTC(year, month - 1, day);
+    const date = new Date(ms);
+    if (date.getUTCFullYear() !== year || date.getUTCMonth() !== month - 1 || date.getUTCDate() !== day) return '';
+    return `${String(year).padStart(4, '0')}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+}
+
+function normalizeGeckoStatus(value) {
+    const text = cleanText(value, 16);
+    return ['보유', '분양', '예약', '폐사', '브리딩'].includes(text) ? text : '보유';
+}
+
+function normalizeGeckoSex(value) {
+    const text = cleanText(value, 16);
+    if (['수', '수컷', 'male', 'M'].includes(text)) return '수';
+    if (['암', '암컷', 'female', 'F'].includes(text)) return '암';
+    return '미확인';
+}
+
+function normalizeGeckoWeight(value) {
+    const num = Number(String(value || '').replace(/[^\d.]/g, ''));
+    if (!Number.isFinite(num) || num <= 0) return null;
+    return Math.round(num * 100) / 100;
+}
+
+function normalizeGeckoTags(value) {
+    const source = Array.isArray(value) ? value : String(value || '').split(/[\n,;#]+/);
+    const seen = new Set();
+    const tags = [];
+    for (const item of source) {
+        const tag = cleanText(item, 24);
+        if (!tag || seen.has(tag)) continue;
+        seen.add(tag);
+        tags.push(tag);
+    }
+    return tags.slice(0, 20);
+}
+
+function getGeckoValue(value, keys, fallback = '') {
+    for (const key of keys) {
+        if (Object.prototype.hasOwnProperty.call(value || {}, key) && value[key] !== undefined) {
+            return value[key];
+        }
+    }
+    return fallback;
+}
+
+function nextGeckoNumber() {
+    let max = 0;
+    for (const gecko of geckoState.geckos || []) {
+        const match = String(gecko.number || '').match(/(\d+)$/);
+        if (!match) continue;
+        max = Math.max(max, Number(match[1]));
+    }
+    return `CG-${String(max + 1).padStart(4, '0')}`;
+}
+
+function normalizeGecko(value, existing = null) {
+    const nowIso = new Date().toISOString();
+    const number = cleanText(getGeckoValue(value, ['number', '넘버', '넘버링'], existing?.number || nextGeckoNumber()), 32);
+    if (!number) return null;
+
+    return {
+        id: cleanText(existing?.id || value?.id, 80) || randomUUID(),
+        number,
+        name: cleanText(getGeckoValue(value, ['name', '이름'], existing?.name || ''), 80),
+        sex: normalizeGeckoSex(getGeckoValue(value, ['sex', '성별'], existing?.sex || '미확인')),
+        status: normalizeGeckoStatus(getGeckoValue(value, ['status', '상태'], existing?.status || '보유')),
+        morph: cleanText(getGeckoValue(value, ['morph', '모프'], existing?.morph || ''), 80),
+        location: cleanText(getGeckoValue(value, ['location', '위치'], existing?.location || ''), 80),
+        hatchDate: cleanDate(getGeckoValue(value, ['hatchDate', 'birthDate', '출생일', '부화일'], existing?.hatchDate || '')),
+        acquiredDate: cleanDate(getGeckoValue(value, ['acquiredDate', '입양일', '입고일'], existing?.acquiredDate || '')),
+        fatherNumber: cleanText(getGeckoValue(value, ['fatherNumber', 'father', '부'], existing?.fatherNumber || ''), 32),
+        motherNumber: cleanText(getGeckoValue(value, ['motherNumber', 'mother', '모'], existing?.motherNumber || ''), 32),
+        breeder: cleanText(getGeckoValue(value, ['breeder', 'source', '브리더', '출처'], existing?.breeder || ''), 80),
+        weight: normalizeGeckoWeight(getGeckoValue(value, ['weight', '무게'], existing?.weight || '')),
+        weightDate: cleanDate(getGeckoValue(value, ['weightDate', '측정일'], existing?.weightDate || '')),
+        clutchCode: cleanText(getGeckoValue(value, ['clutchCode', '클러치'], existing?.clutchCode || ''), 40),
+        layDate: cleanDate(getGeckoValue(value, ['layDate', '산란일'], existing?.layDate || '')),
+        eggCount: Math.max(0, Math.min(99, Math.round(Number(getGeckoValue(value, ['eggCount', '산란수'], existing?.eggCount || 0)) || 0))),
+        hatchResultDate: cleanDate(getGeckoValue(value, ['hatchResultDate', '부화예정일', '부화일'], existing?.hatchResultDate || '')),
+        eggMemo: cleanText(getGeckoValue(value, ['eggMemo', '산란메모'], existing?.eggMemo || ''), 300),
+        memo: cleanText(getGeckoValue(value, ['memo', '메모'], existing?.memo || ''), 1200),
+        tags: normalizeGeckoTags(getGeckoValue(value, ['tags', '태그'], existing?.tags || [])),
+        createdAt: existing?.createdAt || nowIso,
+        updatedAt: existing?.updatedAt || nowIso
+    };
+}
+
+function geckoCompare(a, b) {
+    return String(a.number || '').localeCompare(String(b.number || ''), 'ko', { numeric: true })
+        || String(a.name || '').localeCompare(String(b.name || ''), 'ko');
+}
+
+function publicGeckoState() {
+    return {
+        now: new Date().toISOString(),
+        updatedAt: geckoState.updatedAt || null,
+        count: geckoState.geckos.length,
+        geckos: [...geckoState.geckos].sort(geckoCompare)
+    };
 }
 
 function normalizeCooldown(value) {
@@ -892,7 +1006,7 @@ function readBody(req) {
         let body = '';
         req.on('data', (chunk) => {
             body += chunk;
-            if (body.length > 200000) {
+            if (body.length > 5000000) {
                 req.destroy();
                 reject(new Error('Request body too large'));
             }
@@ -985,6 +1099,44 @@ async function saveState() {
     return saveStateQueue;
 }
 
+async function loadGeckoState() {
+    try {
+        const raw = await fs.readFile(GECKO_STATE_FILE, 'utf8');
+        const parsed = JSON.parse(raw);
+        const seen = new Set();
+        const geckos = [];
+        for (const item of Array.isArray(parsed.geckos) ? parsed.geckos : []) {
+            const gecko = normalizeGecko(item, item);
+            if (!gecko || seen.has(gecko.number)) continue;
+            seen.add(gecko.number);
+            geckos.push(gecko);
+        }
+        geckoState = {
+            geckos,
+            updatedAt: parsed.updatedAt || null
+        };
+    } catch (err) {
+        if (err.code !== 'ENOENT') console.error('[gecko] state load failed:', err);
+        geckoState = { geckos: [], updatedAt: null };
+        await saveGeckoState();
+    }
+}
+
+async function saveGeckoState() {
+    geckoState.updatedAt = new Date().toISOString();
+    const snapshot = JSON.stringify(geckoState, null, 2);
+    const targetDir = path.dirname(GECKO_STATE_FILE);
+    const tempFile = path.join(targetDir, `.gecko-state.${process.pid}.${Date.now()}.${randomUUID()}.tmp`);
+
+    saveGeckoStateQueue = saveGeckoStateQueue.catch(() => {}).then(async () => {
+        await fs.mkdir(targetDir, { recursive: true });
+        await fs.writeFile(tempFile, snapshot, 'utf8');
+        await fs.rename(tempFile, GECKO_STATE_FILE);
+    });
+
+    return saveGeckoStateQueue;
+}
+
 function buildRankings() {
     const counts = new Map();
 
@@ -1039,6 +1191,81 @@ async function handleApi(req, res, url) {
 
     if (url.pathname === '/health' && req.method === 'GET') {
         sendJson(res, 200, { ok: true, now: new Date().toISOString() });
+        return true;
+    }
+
+    if (url.pathname === '/api/geckos' && req.method === 'GET') {
+        sendJson(res, 200, publicGeckoState());
+        return true;
+    }
+
+    if (url.pathname === '/api/geckos' && req.method === 'POST') {
+        const body = await readJson(req);
+        if (rejectInvalidAdmin(res, body.adminPassword)) return true;
+        const input = body.gecko || body;
+        const existing = geckoState.geckos.find((item) => item.id === input.id || item.number === input.number);
+        const gecko = normalizeGecko(input, existing);
+        if (!gecko) {
+            sendJson(res, 400, { error: '개체 번호를 확인하세요.' });
+            return true;
+        }
+        const duplicate = geckoState.geckos.find((item) => item.number === gecko.number && item.id !== gecko.id);
+        if (duplicate) {
+            sendJson(res, 409, { error: `${gecko.number} 번호가 이미 있습니다.` });
+            return true;
+        }
+        gecko.updatedAt = new Date().toISOString();
+        if (existing) {
+            geckoState.geckos = geckoState.geckos.map((item) => item.id === existing.id ? gecko : item);
+        } else {
+            geckoState.geckos.push(gecko);
+        }
+        await saveGeckoState();
+        sendJson(res, 200, { ...publicGeckoState(), saved: gecko });
+        return true;
+    }
+
+    if (url.pathname === '/api/geckos/import' && req.method === 'POST') {
+        const body = await readJson(req);
+        if (rejectInvalidAdmin(res, body.adminPassword)) return true;
+        const items = Array.isArray(body.geckos) ? body.geckos.slice(0, 3000) : [];
+        if (items.length === 0) {
+            sendJson(res, 400, { error: '가져올 개체 데이터가 없습니다.' });
+            return true;
+        }
+        let added = 0;
+        let updated = 0;
+        for (const input of items) {
+            const existing = geckoState.geckos.find((item) => item.id === input.id || item.number === input.number);
+            const gecko = normalizeGecko(input, existing);
+            if (!gecko) continue;
+            gecko.updatedAt = new Date().toISOString();
+            if (existing) {
+                geckoState.geckos = geckoState.geckos.map((item) => item.id === existing.id ? gecko : item);
+                updated += 1;
+            } else if (!geckoState.geckos.some((item) => item.number === gecko.number)) {
+                geckoState.geckos.push(gecko);
+                added += 1;
+            }
+        }
+        await saveGeckoState();
+        sendJson(res, 200, { ...publicGeckoState(), added, updated });
+        return true;
+    }
+
+    if (url.pathname === '/api/geckos' && req.method === 'DELETE') {
+        const body = await readJson(req).catch(() => ({}));
+        const adminPassword = body.adminPassword || url.searchParams.get('adminPassword');
+        if (rejectInvalidAdmin(res, adminPassword)) return true;
+        const id = cleanText(body.id || url.searchParams.get('id'), 80);
+        const before = geckoState.geckos.length;
+        geckoState.geckos = geckoState.geckos.filter((item) => item.id !== id);
+        if (geckoState.geckos.length === before) {
+            sendJson(res, 404, { error: '삭제할 개체를 찾을 수 없습니다.' });
+            return true;
+        }
+        await saveGeckoState();
+        sendJson(res, 200, publicGeckoState());
         return true;
     }
 
@@ -2067,7 +2294,7 @@ const server = http.createServer(async (req, res) => {
     }
 });
 
-loadState().then(() => {
+Promise.all([loadState(), loadGeckoState()]).then(() => {
     server.listen(PORT, HOST, () => {
         console.log(`Slash check app: http://127.0.0.1:${PORT}`);
     });

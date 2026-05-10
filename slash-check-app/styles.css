@@ -6168,10 +6168,416 @@ body {
         font-size: 8.5px;
     }
 
-    .notifyIconButton[data-notify-state="off"]::before {
+.notifyIconButton[data-notify-state="off"]::before {
         left: 10px;
         top: 18px;
         width: 22px;
+    }
+}
+
+.geckoPage .topbar {
+    grid-template-columns: minmax(260px, 1fr) auto auto;
+}
+
+.geckoTopActions {
+    justify-self: end;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.geckoSearchPanel {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 10px;
+    align-items: end;
+    margin-bottom: 12px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: #ffffff;
+    padding: 12px;
+    box-shadow: var(--shadow);
+}
+
+.geckoSearchBox {
+    display: grid;
+    gap: 6px;
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 900;
+}
+
+.geckoSearchBox input {
+    width: 100%;
+    height: 44px;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    background: #ffffff;
+    color: var(--text);
+    padding: 0 14px;
+    font-size: 16px;
+    font-weight: 850;
+    outline: none;
+}
+
+.geckoSearchBox input:focus {
+    border-color: #9db7ff;
+    box-shadow: 0 0 0 3px rgba(21, 94, 239, 0.12);
+}
+
+.geckoFilters {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 5px;
+}
+
+.geckoFilters button {
+    height: 32px;
+    border: 1px solid var(--line);
+    border-radius: 7px;
+    background: var(--soft);
+    color: var(--text-soft);
+    padding: 0 10px;
+    font-size: 12px;
+    font-weight: 900;
+}
+
+.geckoFilters button.active {
+    border-color: var(--dark);
+    background: var(--dark);
+    color: #ffffff;
+}
+
+.geckoSummaryStrip {
+    grid-column: 1 / -1;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.geckoSummaryStrip span {
+    min-height: 26px;
+    border-radius: 999px;
+    background: var(--soft);
+    color: var(--text-soft);
+    padding: 6px 10px;
+    font-size: 12px;
+    font-weight: 850;
+}
+
+.geckoLayout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 390px;
+    gap: 12px;
+    align-items: start;
+}
+
+.geckoListPanel,
+.geckoDetailPanel {
+    min-width: 0;
+}
+
+.geckoList {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+}
+
+.geckoCard {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 6px 10px;
+    align-items: center;
+    min-height: 68px;
+    border: 1px solid #dbe4f0;
+    border-left: 4px solid var(--green);
+    border-radius: 8px;
+    background: #ffffff;
+    padding: 10px;
+    cursor: pointer;
+    box-shadow: var(--shadow);
+}
+
+.geckoCard:hover,
+.geckoCard.active {
+    border-color: #9db7ff;
+    border-left-color: var(--blue);
+    box-shadow: 0 8px 18px rgba(21, 94, 239, 0.08);
+}
+
+.geckoCardMain {
+    display: grid;
+    gap: 2px;
+    min-width: 0;
+}
+
+.geckoNumber {
+    color: var(--text);
+    font-size: 16px;
+    font-weight: 1000;
+    line-height: 1.1;
+}
+
+.geckoName,
+.geckoMorph,
+.geckoLocation {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.geckoName {
+    color: var(--text-soft);
+    font-size: 13px;
+    font-weight: 850;
+}
+
+.geckoCardMeta {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 6px;
+    min-width: 0;
+}
+
+.geckoMorph,
+.geckoLocation {
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 750;
+}
+
+.geckoStatus {
+    justify-self: end;
+    align-self: start;
+    border-radius: 999px;
+    background: var(--blue-soft);
+    color: var(--blue-dark);
+    padding: 5px 8px;
+    font-size: 11px;
+    font-weight: 950;
+}
+
+.geckoDetailBody {
+    display: grid;
+    gap: 10px;
+}
+
+.geckoDetailHero {
+    display: grid;
+    gap: 4px;
+    border-bottom: 1px solid var(--line-soft);
+    padding-bottom: 10px;
+}
+
+.geckoDetailHero strong {
+    color: var(--text);
+    font-size: 20px;
+    font-weight: 1000;
+}
+
+.geckoDetailHero span {
+    color: var(--muted);
+    font-size: 13px;
+    font-weight: 850;
+}
+
+.geckoDetailGrid {
+    display: grid;
+    gap: 6px;
+}
+
+.geckoDetailRow {
+    display: grid;
+    grid-template-columns: 76px minmax(0, 1fr);
+    gap: 8px;
+    align-items: baseline;
+    min-height: 30px;
+    border-bottom: 1px solid var(--line-soft);
+    padding-bottom: 6px;
+}
+
+.geckoDetailRow span {
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 850;
+}
+
+.geckoDetailRow strong {
+    min-width: 0;
+    color: var(--text);
+    font-size: 13px;
+    font-weight: 900;
+    overflow-wrap: anywhere;
+}
+
+.geckoMemoBlock {
+    display: grid;
+    gap: 6px;
+    border-radius: 8px;
+    background: var(--soft);
+    padding: 10px;
+}
+
+.geckoMemoBlock span {
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 900;
+}
+
+.geckoMemoBlock p {
+    margin: 0;
+    color: var(--text-soft);
+    font-size: 13px;
+    font-weight: 750;
+    line-height: 1.45;
+    white-space: pre-wrap;
+}
+
+.geckoTagList {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+}
+
+.geckoTagList span {
+    border-radius: 999px;
+    background: #eef2f7;
+    color: var(--text-soft);
+    padding: 5px 8px;
+    font-size: 11px;
+    font-weight: 900;
+}
+
+.geckoModalSheet {
+    width: min(760px, calc(100vw - 28px));
+    max-height: min(88vh, 820px);
+    overflow-y: auto;
+    border-radius: 12px;
+    background: #ffffff;
+    padding: 18px;
+    box-shadow: var(--shadow-pop);
+}
+
+.geckoFormGrid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+}
+
+.geckoFormGrid label,
+.geckoImportText {
+    display: grid;
+    gap: 6px;
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 900;
+}
+
+.geckoFormGrid label.wide,
+.geckoImportText {
+    grid-column: 1 / -1;
+}
+
+.geckoFormGrid input,
+.geckoFormGrid select,
+.geckoFormGrid textarea,
+.geckoImportText textarea,
+.geckoModalSheet > label input {
+    width: 100%;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    background: #ffffff;
+    color: var(--text);
+    padding: 0 10px;
+    outline: none;
+}
+
+.geckoFormGrid input,
+.geckoFormGrid select,
+.geckoModalSheet > label input {
+    height: 38px;
+}
+
+.geckoFormGrid textarea,
+.geckoImportText textarea {
+    min-height: 92px;
+    padding: 10px;
+    resize: vertical;
+}
+
+.geckoModalActions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 14px;
+}
+
+.geckoModalActions .danger {
+    min-height: 38px;
+    border: 1px solid #fecaca;
+    border-radius: 8px;
+    background: #ffffff;
+    color: var(--red);
+    padding: 0 12px;
+    font-weight: 950;
+}
+
+@media (max-width: 980px) {
+    .geckoPage .topbar,
+    .geckoSearchPanel,
+    .geckoLayout {
+        grid-template-columns: 1fr;
+    }
+
+    .geckoTopActions,
+    .geckoFilters {
+        justify-content: stretch;
+    }
+
+    .geckoTopActions button,
+    .geckoFilters button {
+        flex: 1 1 0;
+    }
+
+    .geckoList {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 640px) {
+    .geckoSearchPanel {
+        position: sticky;
+        top: 0;
+        z-index: 5;
+        margin-left: -8px;
+        margin-right: -8px;
+        border-radius: 0 0 10px 10px;
+    }
+
+    .geckoSearchBox input {
+        height: 42px;
+        font-size: 15px;
+    }
+
+    .geckoCard {
+        min-height: 62px;
+        padding: 9px;
+    }
+
+    .geckoCardMeta {
+        grid-template-columns: 1fr;
+        gap: 3px;
+    }
+
+    .geckoFormGrid {
+        grid-template-columns: 1fr;
+    }
+
+    .geckoModalSheet {
+        width: calc(100vw - 18px);
+        padding: 14px;
     }
 }
 
