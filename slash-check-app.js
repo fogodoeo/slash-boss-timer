@@ -46,6 +46,20 @@ const defaultState = {
     bosses: []
 };
 
+const DEFAULT_BOSS_EVENTS = [
+    {
+        이름: '거점 점령전',
+        애칭: '거점',
+        위치: '격주 점령전',
+        타입: '이벤트',
+        시간: '20:00',
+        기준일: '2026-05-10',
+        반복: '격주',
+        간격일: 14,
+        점수: 0
+    }
+];
+
 let state = structuredClone(defaultState);
 const RESERVATION_GRACE_MS = 10 * 60 * 1000;
 const CHECK_UNDO_GRACE_MS = 60 * 1000;
@@ -100,7 +114,9 @@ function normalizeCooldown(value) {
 }
 
 function normalizeBossType(value) {
-    return String(value || '') === '고정' ? '고정' : '시간';
+    const type = String(value || '').trim();
+    if (type === '고정' || type === '이벤트') return type;
+    return '시간';
 }
 
 function normalizeBossCooldown(value) {
@@ -149,6 +165,25 @@ function normalizeBossNextSpawnAt(value) {
     return new Date(ms).toISOString();
 }
 
+function normalizeBossEventStartDate(value) {
+    const text = String(value || '').trim();
+    const match = text.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (!match) return null;
+    const year = Number(match[1]);
+    const month = Number(match[2]);
+    const day = Number(match[3]);
+    const ms = Date.UTC(year, month - 1, day);
+    const check = new Date(ms);
+    if (check.getUTCFullYear() !== year || check.getUTCMonth() !== month - 1 || check.getUTCDate() !== day) return null;
+    return `${match[1]}-${match[2]}-${match[3]}`;
+}
+
+function normalizeBossIntervalDays(value) {
+    const num = Number(value);
+    if (!Number.isFinite(num)) return 14;
+    return Math.max(1, Math.min(365, Math.round(num)));
+}
+
 function normalizeBoss(value) {
     const name = cleanText(value?.이름 || value?.name, 40);
     if (!name) return null;
@@ -168,6 +203,17 @@ function normalizeBoss(value) {
         if (!time || days.length === 0) return null;
         boss.시간 = time;
         boss.요일 = days;
+        return boss;
+    }
+
+    if (type === '이벤트') {
+        const time = normalizeBossScheduleTime(value?.시간 || value?.time);
+        const startDate = normalizeBossEventStartDate(value?.기준일 || value?.startDate || value?.baseDate);
+        if (!time || !startDate) return null;
+        boss.시간 = time;
+        boss.기준일 = startDate;
+        boss.반복 = '격주';
+        boss.간격일 = normalizeBossIntervalDays(value?.간격일 ?? value?.intervalDays ?? 14);
         return boss;
     }
 
@@ -195,6 +241,19 @@ function normalizeBosses(value) {
     }
 
     return bosses;
+}
+
+function ensureDefaultBossEvents(bosses) {
+    const next = Array.isArray(bosses) ? [...bosses] : [];
+    const names = new Set(next.map((boss) => boss.이름));
+    for (const event of DEFAULT_BOSS_EVENTS) {
+        if (names.has(event.이름)) continue;
+        const normalized = normalizeBoss(event);
+        if (!normalized) continue;
+        next.push(normalized);
+        names.add(normalized.이름);
+    }
+    return next;
 }
 
 function normalizeBossCutTime(value) {
@@ -260,6 +319,27 @@ function fixedBossNextSpawnAt(boss, fromMs = Date.now()) {
     return null;
 }
 
+function eventBaseSpawnMs(boss) {
+    const date = String(boss?.기준일 || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    const [hour, minute] = String(boss?.시간 || '').split(':').map(Number);
+    if (!date || !Number.isFinite(hour) || !Number.isFinite(minute)) return null;
+    const year = Number(date[1]);
+    const month = Number(date[2]);
+    const day = Number(date[3]);
+    return Date.UTC(year, month - 1, day, hour, minute) - KST_OFFSET_MS;
+}
+
+function eventBossNextSpawnAt(boss, fromMs = Date.now()) {
+    const baseMs = eventBaseSpawnMs(boss);
+    if (!Number.isFinite(baseMs)) return null;
+    const intervalMs = normalizeBossIntervalDays(boss?.간격일 || 14) * DAY_MS;
+    let candidate = baseMs;
+    if (candidate <= fromMs) {
+        candidate += Math.ceil((fromMs - candidate + 1) / intervalMs) * intervalMs;
+    }
+    return new Date(candidate).toISOString();
+}
+
 function calcBossNextSpawnAt(boss, cutAtIso) {
     const cutMs = new Date(cutAtIso).getTime();
     if (!Number.isFinite(cutMs)) return null;
@@ -271,6 +351,7 @@ function calcBossNextSpawnAt(boss, cutAtIso) {
     }
 
     if (boss?.타입 === '고정') return fixedBossNextSpawnAt(boss, cutMs);
+    if (boss?.타입 === '이벤트') return eventBossNextSpawnAt(boss, cutMs);
     return null;
 }
 
@@ -575,11 +656,11 @@ function isCheckLog(log) {
 
 async function readBosses() {
     if (Array.isArray(state.bosses) && state.bosses.length > 0) {
-        return state.bosses;
+        return ensureDefaultBossEvents(state.bosses);
     }
 
     const raw = await fs.readFile(path.join(ROOT, 'bosses.json'), 'utf8');
-    return normalizeBosses(JSON.parse(raw));
+    return ensureDefaultBossEvents(normalizeBosses(JSON.parse(raw)));
 }
 
 async function hydrateBossCutState() {
@@ -859,12 +940,15 @@ async function loadState() {
             bossAuditLogs: normalizeBossAuditLogs(parsed.bossAuditLogs),
             bosses: normalizeBosses(parsed.bosses)
         };
+        const bossCountBeforeDefaults = state.bosses.length;
+        state.bosses = ensureDefaultBossEvents(state.bosses);
+        const bossDefaultsChanged = state.bosses.length !== bossCountBeforeDefaults;
         state.zones = state.zones.map((zone) => ({
             ...zone,
             reservations: Array.isArray(zone.reservations) ? zone.reservations : []
         }));
         const changed = await hydrateBossCutState();
-        if (changed) await saveState();
+        if (changed || bossDefaultsChanged) await saveState();
     } catch (err) {
         if (err.code !== 'ENOENT') console.error('[slash-check] state load failed:', err);
         state = structuredClone(defaultState);
@@ -872,6 +956,7 @@ async function loadState() {
         state.bossCutRecords = [];
         state.bossCutLocks = {};
         state.bossAuditLogs = [];
+        state.bosses = ensureDefaultBossEvents(state.bosses);
         await hydrateBossCutState();
         await saveState();
     }
@@ -1042,6 +1127,11 @@ async function handleApi(req, res, url) {
         const boss = bosses.find((item) => item.이름 === bossName || item.애칭 === bossName);
         if (!boss) {
             sendJson(res, 404, { error: '보스 정보를 찾을 수 없습니다.' });
+            return true;
+        }
+
+        if (boss.타입 === '이벤트') {
+            sendJson(res, 400, { error: '이벤트 일정은 컷 처리 대상이 아닙니다.' });
             return true;
         }
 

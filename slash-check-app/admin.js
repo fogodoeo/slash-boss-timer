@@ -127,6 +127,18 @@ function formatBossNextSpawnInput(value) {
     return `${String(kst.getUTCMonth() + 1).padStart(2, '0')}-${String(kst.getUTCDate()).padStart(2, '0')} ${String(kst.getUTCHours()).padStart(2, '0')}:${String(kst.getUTCMinutes()).padStart(2, '0')}`;
 }
 
+function normalizeBossEventStartDate(value) {
+    const text = String(value || '').trim();
+    const match = text.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (!match) return null;
+    const year = Number(match[1]);
+    const month = Number(match[2]);
+    const day = Number(match[3]);
+    const date = new Date(Date.UTC(year, month - 1, day));
+    if (date.getUTCFullYear() !== year || date.getUTCMonth() !== month - 1 || date.getUTCDate() !== day) return null;
+    return text;
+}
+
 function normalizeBossDays(value) {
     const valid = ['월', '화', '수', '목', '금', '토', '일'];
     const seen = new Set();
@@ -153,7 +165,7 @@ function normalizeBossDraft(raw) {
     const name = cleanText(raw.name, 40);
     if (!name) return null;
 
-    const type = raw.type === '고정' ? '고정' : '시간';
+    const type = raw.type === '고정' || raw.type === '이벤트' ? raw.type : '시간';
     const boss = {
         이름: name,
         애칭: cleanText(raw.alias, 40),
@@ -168,6 +180,17 @@ function normalizeBossDraft(raw) {
         if (!time || days.length === 0) return null;
         boss.시간 = time;
         boss.요일 = days;
+        return boss;
+    }
+
+    if (type === '이벤트') {
+        const time = normalizeBossTime(raw.time);
+        const startDate = normalizeBossEventStartDate(raw.nextSpawnAt || raw.startDate);
+        if (!time || !startDate) return null;
+        boss.시간 = time;
+        boss.기준일 = startDate;
+        boss.반복 = '격주';
+        boss.간격일 = 14;
         return boss;
     }
 
@@ -189,6 +212,9 @@ function bossIdentity(boss) {
         타입: boss.타입,
         쿨타임: boss.쿨타임 || null,
         nextSpawnAt: boss.nextSpawnAt || '',
+        기준일: boss.기준일 || '',
+        반복: boss.반복 || '',
+        간격일: boss.간격일 || null,
         시간: boss.시간 || '',
         요일: boss.요일 || [],
         점수: boss.점수 || 0
@@ -699,12 +725,19 @@ function renderMembers() {
 }
 
 function updateBossRowMode(row) {
-    const isFixed = row.querySelector('.bossManageType').value === '고정';
+    const type = row.querySelector('.bossManageType').value;
+    const isFixed = type === '고정';
+    const isEvent = type === '이벤트';
     row.classList.toggle('isFixedBoss', isFixed);
-    row.querySelector('.bossManageCooldown').disabled = isFixed;
+    row.classList.toggle('isEventBoss', isEvent);
+    row.querySelector('.bossManageCooldown').disabled = isFixed || isEvent;
     row.querySelector('.bossManageNextSpawn').disabled = isFixed;
-    row.querySelector('.bossManageTime').disabled = !isFixed;
+    row.querySelector('.bossManageTime').disabled = !isFixed && !isEvent;
     row.querySelector('.bossManageDays').disabled = !isFixed;
+    row.querySelector('.bossManageNextSpawn').placeholder = isEvent ? '기준일' : '다음젠';
+    row.querySelector('.bossManageNextSpawn').title = isEvent
+        ? '격주 이벤트 기준일입니다. 예: 2026-05-10'
+        : '시간보스만 사용합니다. 예: 05-09 18:20';
 }
 
 function createBossManageRow(boss) {
@@ -735,10 +768,10 @@ function createBossManageRow(boss) {
 
     const typeSelect = document.createElement('select');
     typeSelect.className = 'bossManageType';
-    for (const value of ['시간', '고정']) {
+    for (const value of ['시간', '고정', '이벤트']) {
         const option = document.createElement('option');
         option.value = value;
-        option.textContent = value === '시간' ? '시간' : '고정';
+        option.textContent = value;
         option.selected = boss.타입 === value;
         typeSelect.append(option);
     }
@@ -755,7 +788,7 @@ function createBossManageRow(boss) {
     const nextSpawnInput = document.createElement('input');
     nextSpawnInput.className = 'bossManageNextSpawn';
     nextSpawnInput.type = 'text';
-    nextSpawnInput.value = formatBossNextSpawnInput(boss.nextSpawnAt);
+    nextSpawnInput.value = boss.타입 === '이벤트' ? boss.기준일 || '2026-05-10' : formatBossNextSpawnInput(boss.nextSpawnAt);
     nextSpawnInput.placeholder = '다음젠';
     nextSpawnInput.title = '시간보스만 사용합니다. 예: 05-09 18:20';
 
@@ -769,7 +802,7 @@ function createBossManageRow(boss) {
     const daysInput = document.createElement('input');
     daysInput.className = 'bossManageDays';
     daysInput.type = 'text';
-    daysInput.value = (boss.요일 || []).join(',');
+    daysInput.value = boss.타입 === '이벤트' ? '격주' : (boss.요일 || []).join(',');
     daysInput.placeholder = '월,금';
 
     const scoreInput = document.createElement('input');
@@ -892,6 +925,7 @@ bossForm.addEventListener('submit', (event) => {
         location: '',
         type: bossTypeInput.value,
         cooldown: 24,
+        nextSpawnAt: bossTypeInput.value === '이벤트' ? '2026-05-10' : '',
         time: '20:00',
         days: '토',
         score: 0

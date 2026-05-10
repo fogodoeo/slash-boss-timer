@@ -5498,9 +5498,34 @@ body {
     background: #ffffff;
 }
 
+.bossPage .timelineItem.eventBoss {
+    background: linear-gradient(90deg, #f7f7f8, #ffffff 62%);
+}
+
+.bossPage .timelineItem.eventBoss .timelineTime,
+.bossPage .timelineItem.eventBoss .timelineBossName,
+.bossPage .timelineItem.eventBoss .timelineRemain {
+    color: var(--dark);
+    font-weight: 1000;
+}
+
+.bossPage .timelineItem.eventBoss .timelineMeta {
+    color: var(--text-soft);
+    font-weight: 850;
+}
+
+.bossPage .timelineItem.eventBoss.notCuttable {
+    cursor: default;
+}
+
 .bossPage .bossCard.fixedBoss:not(.soon):not(.spawned) {
     border-left-color: #111827;
     background: #f8fafc;
+}
+
+.bossPage .bossCard.eventBoss {
+    border-left-color: var(--dark);
+    background: #ffffff;
 }
 
 .bossPage .timelineItem.fixedBoss:not(.soon):not(.spawned) .timelineTime {

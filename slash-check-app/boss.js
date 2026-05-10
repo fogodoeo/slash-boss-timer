@@ -655,6 +655,44 @@ function nextFixedSpawnAfterMs(boss, afterMs) {
     return null;
 }
 
+function bossTypeClass(boss) {
+    if (boss?.타입 === '고정') return 'fixedBoss';
+    if (boss?.타입 === '이벤트') return 'eventBoss';
+    return 'timeBoss';
+}
+
+function eventBaseSpawnMs(boss) {
+    const date = String(boss?.기준일 || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    const [hour, minute] = String(boss?.시간 || '').split(':').map(Number);
+    if (!date || !Number.isFinite(hour) || !Number.isFinite(minute)) return null;
+    return Date.UTC(Number(date[1]), Number(date[2]) - 1, Number(date[3]), hour, minute) - KST_OFFSET_MS;
+}
+
+function eventIntervalMs(boss) {
+    const days = Number(boss?.간격일 || 14);
+    return Math.max(1, Number.isFinite(days) ? Math.round(days) : 14) * DAY_MS;
+}
+
+function eventSpawnOccurrences(boss, startMs, endMs) {
+    const baseMs = eventBaseSpawnMs(boss);
+    if (!Number.isFinite(baseMs)) return [];
+    const intervalMs = eventIntervalMs(boss);
+    let candidate = baseMs;
+    if (candidate < startMs) {
+        candidate += Math.ceil((startMs - candidate) / intervalMs) * intervalMs;
+    }
+    const items = [];
+    while (candidate <= endMs) {
+        items.push(candidate);
+        candidate += intervalMs;
+    }
+    return items;
+}
+
+function nextEventSpawnMs(boss, fromMs = getNowMs()) {
+    return eventSpawnOccurrences(boss, fromMs + 1, fromMs + 60 * DAY_MS)[0] || null;
+}
+
 function bossNextSpawnMs(boss) {
     const latest = latestRecordForBoss(boss);
     const manualMs = manualNextSpawnMs(boss, latest);
@@ -668,6 +706,7 @@ function bossNextSpawnMs(boss) {
         if (Number.isFinite(ms)) return ms;
     }
     if (boss.타입 === '고정') return nextFixedSpawnMs(boss);
+    if (boss.타입 === '이벤트') return nextEventSpawnMs(boss);
     return null;
 }
 
@@ -727,6 +766,13 @@ function buildTimeline() {
                 if (fixedSpawnCoveredByLatestCut(latest, spawnMs)) continue;
                 const item = { boss, spawnMs, source: 'fixed' };
                 if (spawnMs <= end && (spawnMs >= floor || isUncutPendingBossItem(item, now))) items.push(item);
+            }
+            continue;
+        }
+
+        if (boss.타입 === '이벤트') {
+            for (const spawnMs of eventSpawnOccurrences(boss, now, end)) {
+                items.push({ boss, spawnMs, source: 'event' });
             }
             continue;
         }
@@ -987,7 +1033,7 @@ function renderQuickBosses(timeline, now = getNowMs()) {
     if (!bossQuickPanel || !bossQuickList) return;
 
     const items = timeline
-        .filter((item) => item.spawnMs <= now)
+        .filter((item) => item.spawnMs <= now && item.boss.타입 !== '이벤트')
         .sort((a, b) => a.spawnMs - b.spawnMs || a.boss.이름.localeCompare(b.boss.이름, 'ko'))
         .slice(0, 12);
     bossQuickList.replaceChildren();
@@ -1012,7 +1058,7 @@ function renderQuickBosses(timeline, now = getNowMs()) {
         const lock = bossLock(item.boss.이름);
         const lockedByOther = lock && lock.memberName !== selectedMember;
         const isSubmitting = quickCutSubmittingBosses.has(item.boss.이름);
-        card.className = `bossQuickItem spawned ${item.boss.타입 === '고정' ? 'fixedBoss' : 'timeBoss'}`;
+        card.className = `bossQuickItem spawned ${bossTypeClass(item.boss)}`;
         card.classList.toggle('locked', Boolean(lockedByOther));
 
         const time = document.createElement('time');
@@ -1095,7 +1141,7 @@ function renderTimeline() {
         const sameAsNext = nextItem && nextItem.spawnMs === item.spawnMs;
         const sameTimeGroup = sameAsPrevious || sameAsNext;
         const newTimeSlot = previousSpawnMs !== null && item.spawnMs !== previousSpawnMs;
-        row.classList.add(stateName, item.boss.타입 === '고정' ? 'fixedBoss' : 'timeBoss');
+        row.classList.add(stateName, bossTypeClass(item.boss));
         row.classList.toggle('newTimeSlot', newTimeSlot);
         row.classList.toggle('sameTimeGroup', sameTimeGroup);
         row.classList.toggle('sameTimeStart', sameTimeGroup && !sameAsPrevious);
@@ -1128,8 +1174,16 @@ function renderTimeline() {
             row.classList.add('locked');
             timelineMeta.textContent += ` · ${lock.memberName}`;
         }
+        if (item.boss.타입 === '이벤트') {
+            timelineMeta.textContent = `${displayBossLocation(item.boss.위치)} · ${item.boss.반복 || '격주'} 일정`;
+            row.classList.add('notCuttable');
+        }
         row.addEventListener('click', (event) => {
             if (isBossCardControl(event.target)) return;
+            if (item.boss.타입 === '이벤트') {
+                showToast('일정 이벤트', '컷 처리 없이 일정표에만 표시됩니다.');
+                return;
+            }
             if (lock && lock.memberName !== selectedMember) showToast('컷 입력 중', `${lock.memberName} 님이 먼저 열었습니다.`, 'error');
             else openCutModal(item.boss, getNowMs());
         });
@@ -1174,13 +1228,13 @@ function renderBosses() {
         const nextMs = bossNextSpawnMs(boss);
         const spawnState = bossStateFromSpawn(nextMs, now);
         const card = bossCardTemplate.content.firstElementChild.cloneNode(true);
-        card.classList.add(spawnState, boss.타입 === '고정' ? 'fixedBoss' : 'timeBoss');
+        card.classList.add(spawnState, bossTypeClass(boss));
 
         card.querySelector('.bossName').textContent = boss.이름;
         card.querySelector('.bossLocation').textContent = displayBossLocation(boss.위치);
         const typeBadge = card.querySelector('.bossTypeBadge');
-        typeBadge.textContent = boss.타입 === '고정' ? '고정' : '';
-        typeBadge.hidden = boss.타입 !== '고정';
+        typeBadge.textContent = boss.타입 === '이벤트' ? '이벤트' : boss.타입 === '고정' ? '고정' : '';
+        typeBadge.hidden = boss.타입 === '시간';
         card.querySelector('.bossCutText').textContent = nextMs
             ? `${formatSpawnTimeForList(nextMs, now)} · ${formatRemain(nextMs, now)}`
             : boss.타입 === '시간' ? '컷 대기' : '일정 없음';
@@ -1188,7 +1242,9 @@ function renderBosses() {
             ? `최근 컷 ${formatKstDateTime(record.cutAt)}`
             : boss.타입 === '시간'
                 ? ''
-                : `${(boss.요일 || []).join(', ')} ${boss.시간 || ''}`;
+                : boss.타입 === '이벤트'
+                    ? `${boss.반복 || '격주'} · ${boss.기준일 || ''} 기준 · ${boss.시간 || ''}`
+                    : `${(boss.요일 || []).join(', ')} ${boss.시간 || ''}`;
         const metaEl = card.querySelector('.bossMeta');
         metaEl.textContent = metaText;
         metaEl.hidden = !metaText;
@@ -1204,21 +1260,29 @@ function renderBosses() {
 
         const cutButton = card.querySelector('.bossCutButton');
         const lock = bossLock(boss.이름);
+        if (boss.타입 === '이벤트') {
+            cutButton.disabled = true;
+            cutButton.textContent = '일정';
+        }
         if (lock && lock.memberName !== selectedMember) {
             cutButton.disabled = true;
             cutButton.textContent = '입력중';
             reporterEl.textContent = `${lock.memberName} 컷 입력 중`;
             reporterEl.hidden = false;
         }
-        cutButton.addEventListener('click', () => openCutModal(boss, getNowMs()));
+        cutButton.addEventListener('click', () => {
+            if (boss.타입 === '이벤트') return;
+            openCutModal(boss, getNowMs());
+        });
 
         const joinButton = card.querySelector('.bossJoinButton');
-        joinButton.disabled = !participationOpen;
+        joinButton.disabled = boss.타입 === '이벤트' || !participationOpen;
         joinButton.textContent = participationOpen ? '참여' : record?.requiresParticipation ? '마감' : '-';
         joinButton.addEventListener('click', () => openJoinModal(record));
 
         card.addEventListener('click', (event) => {
             if (isBossCardControl(event.target)) return;
+            if (boss.타입 === '이벤트') return;
             if (record?.id) openParticipantModal(record);
             else openCutModal(boss, getNowMs());
         });
