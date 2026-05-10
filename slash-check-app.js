@@ -248,6 +248,32 @@ function normalizeGeckoEggRecords(value, existing = null, nowIso = new Date().to
     )).sort((a, b) => String(b.layDate || '').localeCompare(String(a.layDate || '')));
 }
 
+function normalizeGeckoActivityRecords(value, existing = null, nowIso = new Date().toISOString()) {
+    const explicit = getGeckoValue(value, ['activityRecords', '작업기록'], null);
+    const records = Array.isArray(explicit)
+        ? explicit
+        : Array.isArray(existing?.activityRecords)
+            ? existing.activityRecords
+            : [];
+
+    return records.map((record) => {
+        const type = cleanText(getGeckoValue(record, ['type', '작업'], ''), 24);
+        const date = cleanDate(getGeckoValue(record, ['date', '작업일'], '')) || cleanDate(record?.createdAt) || cleanDate(nowIso);
+        return {
+            id: cleanText(record?.id, 80) || randomUUID(),
+            type,
+            date,
+            status: cleanText(getGeckoValue(record, ['status', '상태'], ''), 40),
+            weight: normalizeGeckoWeight(getGeckoValue(record, ['weight', '무게'], '')),
+            location: cleanText(getGeckoValue(record, ['location', '위치'], ''), 80),
+            memo: cleanText(getGeckoValue(record, ['memo', '메모'], ''), 500),
+            createdAt: cleanText(record?.createdAt, 40) || nowIso,
+            updatedAt: cleanText(record?.updatedAt, 40) || nowIso
+        };
+    }).filter((record) => record.type || record.status || record.weight || record.memo)
+        .sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')));
+}
+
 function nextGeckoNumber() {
     let max = 0;
     for (const gecko of geckoState.geckos || []) {
@@ -288,6 +314,7 @@ function normalizeGecko(value, existing = null) {
         memo: cleanText(getGeckoValue(value, ['memo', '메모'], existing?.memo || ''), 1200),
         tags: normalizeGeckoTags(getGeckoValue(value, ['tags', '태그'], existing?.tags || [])),
         eggRecords: normalizeGeckoEggRecords(value, existing, nowIso),
+        activityRecords: normalizeGeckoActivityRecords(value, existing, nowIso),
         createdAt: existing?.createdAt || nowIso,
         updatedAt: existing?.updatedAt || nowIso
     };

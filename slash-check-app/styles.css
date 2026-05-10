@@ -8568,6 +8568,30 @@ body {
     background: #ffffff;
 }
 
+.cbModeTabs {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 6px;
+    margin-bottom: 10px;
+}
+
+.cbModeTabs button {
+    min-height: 38px;
+    border: 1px solid #d7e1ee;
+    border-radius: 8px;
+    background: #f8fafc;
+    color: #334155;
+    padding: 0 8px;
+    font-size: 13px;
+    font-weight: 1000;
+}
+
+.cbModeTabs button.active {
+    border-color: #111827;
+    background: #111827;
+    color: #ffffff;
+}
+
 .cbQuickForm {
     display: grid;
     grid-template-columns: minmax(260px, 1fr) minmax(360px, 1.25fr) minmax(240px, 0.85fr);
@@ -8703,6 +8727,12 @@ body {
     border-color: #1457d9;
     background: #eef4ff;
     color: #1457d9;
+}
+
+.cbQuickPresets button.active {
+    border-color: #1457d9;
+    background: #1457d9;
+    color: #ffffff;
 }
 
 .cbQuickSave {
@@ -9499,6 +9529,10 @@ body {
     .cbTabs button {
         padding: 0 4px;
         font-size: 12px;
+    }
+
+    .cbModeTabs {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
     .cbQuickForm {

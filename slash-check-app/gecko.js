@@ -9,6 +9,22 @@ const el = {
     quickGeckoSearch: $('#quickGeckoSearch'),
     quickSuggestions: $('#quickSuggestions'),
     quickSelectedLabel: $('#quickSelectedLabel'),
+    entryModeTitle: $('#entryModeTitle'),
+    entryModeHint: $('#entryModeHint'),
+    entryModeButtons: $$('[data-entry-mode]'),
+    modePanels: $$('[data-mode-panel]'),
+    feedingForm: $('#feedingForm'),
+    feedingGeckoSearch: $('#feedingGeckoSearch'),
+    feedingSuggestions: $('#feedingSuggestions'),
+    feedingSelectedLabel: $('#feedingSelectedLabel'),
+    weightForm: $('#weightForm'),
+    weightGeckoSearch: $('#weightGeckoSearch'),
+    weightSuggestions: $('#weightSuggestions'),
+    weightSelectedLabel: $('#weightSelectedLabel'),
+    hatchForm: $('#hatchForm'),
+    hatchGeckoSearch: $('#hatchGeckoSearch'),
+    hatchSuggestions: $('#hatchSuggestions'),
+    hatchSelectedLabel: $('#hatchSelectedLabel'),
     cardList: $('#cardList'),
     actionQueue: $('#actionQueue'),
     recentClutches: $('#recentClutches'),
@@ -70,6 +86,18 @@ let editingGeckoId = '';
 let editingEggGeckoId = '';
 let editingEggRecordId = '';
 let quickGeckoId = '';
+let entryMode = 'clutch';
+let feedingGeckoId = '';
+let feedingStatus = '급여완료';
+let weightGeckoId = '';
+let hatchGeckoId = '';
+
+const ENTRY_MODES = {
+    clutch: ['산란 입력', '개체 선택 후 유정/무정만 누르면 저장됩니다.'],
+    feeding: ['피딩·이상 체크', '위치를 유지하고 개체만 넘기며 급여/이상 상태를 저장합니다.'],
+    weight: ['무게 입력', '개체를 고르고 무게만 입력한 뒤 다음 개체로 넘어갑니다.'],
+    hatch: ['해칭 정리', '부모를 고르고 새끼 번호를 시작값부터 자동 생성합니다.']
+};
 
 async function api(path, options = {}) {
     const response = await fetch(path, {
@@ -160,6 +188,11 @@ function setText(root, selector, value) {
 function recordsOf(gecko) {
     return [...(Array.isArray(gecko?.eggRecords) ? gecko.eggRecords : [])]
         .sort((a, b) => String(b.layDate || '').localeCompare(String(a.layDate || '')));
+}
+
+function activitiesOf(gecko) {
+    return [...(Array.isArray(gecko?.activityRecords) ? gecko.activityRecords : [])]
+        .sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')));
 }
 
 function eggTotal(record) {
@@ -265,7 +298,8 @@ function needsAttention(gecko) {
     const stats = statsOf(gecko);
     return ['danger', 'ready', 'empty'].includes(stats.tone)
         || stats.watchRecords > 0
-        || activeEggRecords(gecko).some((record) => (daysSince(record.layDate) || 0) >= INCUBATION_WATCH_DAY);
+        || activeEggRecords(gecko).some((record) => (daysSince(record.layDate) || 0) >= INCUBATION_WATCH_DAY)
+        || activitiesOf(gecko).some((record) => ['거부', '이상'].includes(record.status));
 }
 
 function searchText(gecko) {
@@ -276,6 +310,13 @@ function searchText(gecko) {
         record.incubationLocation,
         record.eggStatus,
         record.memo
+    ].join(' ')).join(' ');
+    const activityText = activitiesOf(gecko).map((record) => [
+        record.type,
+        record.status,
+        record.location,
+        record.memo,
+        record.weight
     ].join(' ')).join(' ');
     return [
         gecko.number,
@@ -290,7 +331,8 @@ function searchText(gecko) {
         gecko.breeder,
         gecko.memo,
         ...(gecko.tags || []),
-        recordText
+        recordText,
+        activityText
     ].join(' ').toLowerCase();
 }
 
@@ -366,6 +408,18 @@ function selectedGecko() {
 
 function quickGecko() {
     return state.geckos.find((gecko) => gecko.id === quickGeckoId) || null;
+}
+
+function feedingGecko() {
+    return state.geckos.find((gecko) => gecko.id === feedingGeckoId) || null;
+}
+
+function weightGecko() {
+    return state.geckos.find((gecko) => gecko.id === weightGeckoId) || null;
+}
+
+function hatchGecko() {
+    return state.geckos.find((gecko) => gecko.id === hatchGeckoId) || null;
 }
 
 function renderMetrics() {
@@ -543,6 +597,235 @@ async function saveQuickEgg(event) {
     }
 }
 
+function setEntryMode(mode) {
+    entryMode = ENTRY_MODES[mode] ? mode : 'clutch';
+    const [title, hint] = ENTRY_MODES[entryMode];
+    el.entryModeTitle.textContent = title;
+    el.entryModeHint.textContent = hint;
+    el.entryModeButtons.forEach((button) => button.classList.toggle('active', button.dataset.entryMode === entryMode));
+    el.modePanels.forEach((panel) => panel.classList.toggle('hidden', panel.dataset.modePanel !== entryMode));
+}
+
+function suggestionMatches(query, location = '') {
+    const normalizedQuery = query.trim().toLowerCase();
+    const normalizedLocation = location.trim().toLowerCase();
+    return state.geckos
+        .filter((gecko) => (!normalizedQuery || searchText(gecko).includes(normalizedQuery))
+            && (!normalizedLocation || String(gecko.location || '').toLowerCase().includes(normalizedLocation)))
+        .slice(0, 10);
+}
+
+function modeSuggestionButton(gecko, onSelect) {
+    const stats = statsOf(gecko);
+    const button = node('button');
+    button.type = 'button';
+    button.append(
+        node('strong', '', titleOf(gecko)),
+        node('span', '', [gecko.location, gecko.morph, stats.nextLabel].filter(Boolean).join(' · ') || '정보 미등록')
+    );
+    button.addEventListener('click', () => onSelect(gecko));
+    return button;
+}
+
+function renderModeSuggestions(kind) {
+    const config = {
+        feeding: {
+            input: el.feedingGeckoSearch,
+            host: el.feedingSuggestions,
+            location: $('#feedingLocation').value,
+            set: setFeedingSelected
+        },
+        weight: {
+            input: el.weightGeckoSearch,
+            host: el.weightSuggestions,
+            location: '',
+            set: setWeightSelected
+        },
+        hatch: {
+            input: el.hatchGeckoSearch,
+            host: el.hatchSuggestions,
+            location: '',
+            set: setHatchSelected
+        }
+    }[kind];
+    if (!config) return;
+
+    config.host.replaceChildren();
+    const matches = suggestionMatches(config.input.value, config.location);
+    if (matches.length === 1 && config.input.value.trim()) config.set(matches[0]);
+    if (!config.input.value.trim() && !config.location.trim()) return;
+    matches.forEach((gecko) => config.host.append(modeSuggestionButton(gecko, (selected) => {
+        config.set(selected);
+        config.input.value = titleOf(selected);
+        config.host.replaceChildren();
+    })));
+}
+
+function setFeedingSelected(gecko) {
+    feedingGeckoId = gecko?.id || '';
+    el.feedingSelectedLabel.textContent = gecko ? titleOf(gecko) : '개체를 선택하세요';
+}
+
+function setWeightSelected(gecko) {
+    weightGeckoId = gecko?.id || '';
+    el.weightSelectedLabel.textContent = gecko ? titleOf(gecko) : '개체를 선택하세요';
+}
+
+function setHatchSelected(gecko) {
+    hatchGeckoId = gecko?.id || '';
+    el.hatchSelectedLabel.textContent = gecko ? titleOf(gecko) : '개체를 선택하세요';
+    if (gecko && !$('#hatchStartNumber').value.trim()) {
+        $('#hatchStartNumber').value = `${gecko.number || 'H'}-01`;
+    }
+}
+
+function activityRecord(type, date, status, extra = {}) {
+    return {
+        id: globalThis.crypto?.randomUUID?.() || `${Date.now()}`,
+        type,
+        date: date || todayValue(),
+        status,
+        ...extra
+    };
+}
+
+async function saveGeckoUpdate(gecko, adminPassword, successTitle, successMessage = '') {
+    const data = await api('/api/geckos', {
+        method: 'POST',
+        body: JSON.stringify({ adminPassword, gecko })
+    });
+    state = data;
+    selectedGeckoId = data.saved?.id || gecko.id;
+    render();
+    toast(successTitle, successMessage || titleOf(data.saved));
+    return data.saved;
+}
+
+async function saveFeeding(event) {
+    event.preventDefault();
+    const gecko = feedingGecko();
+    const adminPassword = passwordValue('#feedingPassword');
+    if (!gecko) return toast('개체 선택 필요', '피딩 기록할 개체를 선택하세요.', 'error');
+    if (!adminPassword) return toast('비밀번호 필요', '관리자 비밀번호를 입력하세요.', 'error');
+
+    const memo = $('#feedingMemo').value.trim();
+    const record = activityRecord('피딩', $('#feedingDate').value, feedingStatus, {
+        location: $('#feedingLocation').value.trim() || gecko.location || '',
+        memo
+    });
+    const tags = new Set(gecko.tags || []);
+    if (['거부', '이상'].includes(feedingStatus)) tags.add('확인필요');
+
+    try {
+        const saved = await saveGeckoUpdate({
+            ...gecko,
+            tags: [...tags],
+            activityRecords: [record, ...activitiesOf(gecko)]
+        }, adminPassword, '피딩 기록 완료', `${titleOf(gecko)} · ${feedingStatus}`);
+        setFeedingSelected(null);
+        el.feedingGeckoSearch.value = '';
+        $('#feedingMemo').value = '';
+        el.feedingGeckoSearch.focus();
+        selectedGeckoId = saved.id;
+        render();
+    } catch (err) {
+        toast('피딩 저장 실패', err.message, 'error');
+    }
+}
+
+async function saveWeight(event) {
+    event.preventDefault();
+    const gecko = weightGecko();
+    const adminPassword = passwordValue('#weightPassword');
+    const weight = $('#weightValue').value;
+    if (!gecko) return toast('개체 선택 필요', '무게 기록할 개체를 선택하세요.', 'error');
+    if (!Number(weight)) return toast('무게 필요', '무게를 입력하세요.', 'error');
+    if (!adminPassword) return toast('비밀번호 필요', '관리자 비밀번호를 입력하세요.', 'error');
+
+    const date = $('#weightDate').value || todayValue();
+    const record = activityRecord('무게', date, '측정', {
+        weight,
+        memo: $('#weightMemo').value.trim()
+    });
+
+    try {
+        const saved = await saveGeckoUpdate({
+            ...gecko,
+            weight,
+            weightDate: date,
+            activityRecords: [record, ...activitiesOf(gecko)]
+        }, adminPassword, '무게 저장 완료', `${titleOf(gecko)} · ${weight}g`);
+        setWeightSelected(null);
+        el.weightGeckoSearch.value = '';
+        $('#weightValue').value = '';
+        $('#weightMemo').value = '';
+        el.weightGeckoSearch.focus();
+        selectedGeckoId = saved.id;
+        render();
+    } catch (err) {
+        toast('무게 저장 실패', err.message, 'error');
+    }
+}
+
+function hatchNumbers(start, count) {
+    const match = String(start || '').trim().match(/^(.*?)(\d+)$/);
+    if (!match) return Array.from({ length: count }, (_, index) => `${start || 'H'}-${String(index + 1).padStart(2, '0')}`);
+    const prefix = match[1];
+    const first = Number(match[2]);
+    const width = match[2].length;
+    return Array.from({ length: count }, (_, index) => `${prefix}${String(first + index).padStart(width, '0')}`);
+}
+
+async function saveHatch(event) {
+    event.preventDefault();
+    const mother = hatchGecko();
+    const adminPassword = passwordValue('#hatchPassword');
+    const count = Math.max(1, Math.min(20, formNumber('#hatchCount') || 1));
+    const hatchDateValue = $('#hatchDate').value || todayValue();
+    const startNumber = $('#hatchStartNumber').value.trim();
+    if (!mother) return toast('부모 선택 필요', '해칭한 클러치의 암컷을 선택하세요.', 'error');
+    if (!startNumber) return toast('번호 필요', '새끼 번호 시작값을 입력하세요.', 'error');
+    if (!adminPassword) return toast('비밀번호 필요', '관리자 비밀번호를 입력하세요.', 'error');
+
+    const numbers = hatchNumbers(startNumber, count);
+    const babies = numbers.map((number, index) => ({
+        number,
+        name: '',
+        sex: '미확인',
+        status: '보유',
+        location: $('#hatchLocation').value.trim(),
+        hatchDate: hatchDateValue,
+        motherNumber: mother.number,
+        fatherNumber: mother.pairedWithNumber || '',
+        breeder: `해칭 ${titleOf(mother)}`,
+        tags: ['해칭'],
+        memo: `${titleOf(mother)} 해칭 ${index + 1}/${count}`
+    }));
+
+    try {
+        const imported = await api('/api/geckos/import', {
+            method: 'POST',
+            body: JSON.stringify({ adminPassword, geckos: babies })
+        });
+        const record = activityRecord('해칭', hatchDateValue, `${count}마리`, {
+            memo: numbers.join(', ')
+        });
+        state = imported;
+        const refreshedMother = state.geckos.find((item) => item.id === mother.id || item.number === mother.number) || mother;
+        await saveGeckoUpdate({
+            ...refreshedMother,
+            activityRecords: [record, ...activitiesOf(refreshedMother)]
+        }, adminPassword, '해칭 정리 완료', `${count}마리 생성 · ${numbers[0]}부터`);
+        selectedGeckoId = state.geckos.find((item) => item.number === numbers[0])?.id || selectedGeckoId;
+        $('#hatchStartNumber').value = '';
+        $('#hatchCount').value = '1';
+        el.hatchGeckoSearch.select();
+        render();
+    } catch (err) {
+        toast('해칭 저장 실패', err.message, 'error');
+    }
+}
+
 function renderCards() {
     const list = visibleGeckos();
     if (el.search.value.trim() && list.length === 1) selectedGeckoId = list[0].id;
@@ -622,6 +905,31 @@ function renderTimeline(gecko) {
     return wrap;
 }
 
+function renderActivities(gecko) {
+    const records = activitiesOf(gecko).slice(0, 8);
+    const wrap = node('div', 'cbTimeline cbActivityList');
+    if (records.length === 0) {
+        wrap.append(node('div', 'cbEmpty compact', '피딩, 무게, 해칭 기록이 없습니다.'));
+        return wrap;
+    }
+
+    for (const record of records) {
+        const item = node('article', 'cbTimelineItem');
+        const main = node('div');
+        main.append(
+            node('strong', '', `${fullDate(record.date)} · ${record.type || '작업'} ${record.status || ''}`.trim()),
+            node('span', '', [
+                record.weight ? `${record.weight}g` : '',
+                record.location || '',
+                record.memo || ''
+            ].filter(Boolean).join(' · ') || '-')
+        );
+        item.append(main, node('span', '', ''));
+        wrap.append(item);
+    }
+    return wrap;
+}
+
 function renderDetail() {
     const gecko = selectedGecko();
     el.detailBody.replaceChildren();
@@ -681,6 +989,10 @@ function renderDetail() {
         memo.append(node('span', '', '메모'), node('p', '', gecko.memo));
         el.detailBody.append(memo);
     }
+
+    const activityHead = node('div', 'cbTimelineHead');
+    activityHead.append(node('strong', '', '작업 기록'), node('span', '', `${activitiesOf(gecko).length}건`));
+    el.detailBody.append(activityHead, renderActivities(gecko));
 
     const timelineHead = node('div', 'cbTimelineHead');
     timelineHead.append(node('strong', '', '산란 기록'), node('span', '', `${stats.records.length}건`));
@@ -765,7 +1077,8 @@ async function saveGecko(event) {
         breeder: $('#geckoBreeder').value.trim(),
         tags: $('#geckoTags').value.trim(),
         memo: $('#geckoMemo').value.trim(),
-        eggRecords: existing?.eggRecords || []
+        eggRecords: existing?.eggRecords || [],
+        activityRecords: existing?.activityRecords || []
     };
 
     try {
@@ -1045,8 +1358,15 @@ async function load() {
         selectedGeckoId = state.geckos[0]?.id || '';
         $('#quickLayDate').value = todayValue();
         $('#quickPassword').value = localStorage.getItem(ADMIN_PASSWORD_KEY) || '';
+        $('#feedingDate').value = todayValue();
+        $('#feedingPassword').value = localStorage.getItem(ADMIN_PASSWORD_KEY) || '';
+        $('#weightDate').value = todayValue();
+        $('#weightPassword').value = localStorage.getItem(ADMIN_PASSWORD_KEY) || '';
+        $('#hatchDate').value = todayValue();
+        $('#hatchPassword').value = localStorage.getItem(ADMIN_PASSWORD_KEY) || '';
         updateQuickSummary();
         render();
+        setEntryMode(entryMode);
     } catch (err) {
         toast('불러오기 실패', err.message, 'error');
     }
@@ -1061,6 +1381,9 @@ el.tabs.forEach((tab) => {
     });
 });
 el.search.addEventListener('input', render);
+el.entryModeButtons.forEach((button) => {
+    button.addEventListener('click', () => setEntryMode(button.dataset.entryMode));
+});
 el.quickForm.addEventListener('submit', saveQuickEgg);
 el.quickGeckoSearch.addEventListener('input', renderQuickSuggestions);
 el.quickGeckoSearch.addEventListener('focus', renderQuickSuggestions);
@@ -1079,6 +1402,25 @@ $$('[data-preset]').forEach((button) => {
         $('#quickIncubation').focus();
     });
 });
+el.feedingForm.addEventListener('submit', saveFeeding);
+el.feedingGeckoSearch.addEventListener('input', () => renderModeSuggestions('feeding'));
+el.feedingGeckoSearch.addEventListener('focus', () => renderModeSuggestions('feeding'));
+$('#feedingLocation').addEventListener('input', () => renderModeSuggestions('feeding'));
+$$('[data-feed-status]').forEach((button) => {
+    button.addEventListener('click', () => {
+        feedingStatus = button.dataset.feedStatus;
+        $$('[data-feed-status]').forEach((item) => item.classList.toggle('active', item === button));
+        if (feedingStatus === '급여완료') $('#feedingMemo').value = '';
+        else $('#feedingMemo').focus();
+    });
+});
+$$('[data-feed-status]')[0]?.classList.add('active');
+el.weightForm.addEventListener('submit', saveWeight);
+el.weightGeckoSearch.addEventListener('input', () => renderModeSuggestions('weight'));
+el.weightGeckoSearch.addEventListener('focus', () => renderModeSuggestions('weight'));
+el.hatchForm.addEventListener('submit', saveHatch);
+el.hatchGeckoSearch.addEventListener('input', () => renderModeSuggestions('hatch'));
+el.hatchGeckoSearch.addEventListener('focus', () => renderModeSuggestions('hatch'));
 el.openGeckoButton.addEventListener('click', () => openGeckoModal());
 el.closeGeckoButton.addEventListener('click', closeGeckoModal);
 el.geckoForm.addEventListener('submit', saveGecko);
