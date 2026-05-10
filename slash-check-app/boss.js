@@ -982,15 +982,11 @@ function renderQuickBosses(timeline, now = getNowMs()) {
         const location = document.createElement('span');
         location.textContent = lockedByOther ? `${lock.memberName} 입력중` : displayBossLocation(item.boss.위치);
         main.append(name, location);
-        const remain = document.createElement('span');
-        remain.className = 'bossQuickRemain';
-        remain.textContent = formatRemainWithSuffix(item.spawnMs, now);
-
         const cutLabel = document.createElement('span');
         cutLabel.className = 'bossQuickCutLabel';
         cutLabel.textContent = lockedByOther ? '입력중' : '바로컷';
 
-        button.append(time, main, remain, cutLabel);
+        button.append(time, main, cutLabel);
         button.addEventListener('click', () => {
             if (lockedByOther) return;
             openCutModal(item.boss, getNowMs());

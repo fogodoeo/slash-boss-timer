@@ -5132,7 +5132,7 @@ body {
 }
 
 .spawnedBossList .bossQuickItem {
-    grid-template-columns: 54px minmax(0, 1fr) 104px 72px;
+    grid-template-columns: 54px minmax(0, 1fr) 72px;
     min-height: 46px;
     border-color: #bfdbfe;
     background: #ffffff;
@@ -5630,7 +5630,7 @@ body {
     }
 
     .spawnedBossList .bossQuickItem {
-        grid-template-columns: 46px minmax(0, 1fr) 80px 62px;
+        grid-template-columns: 46px minmax(0, 1fr) 62px;
         min-height: 42px;
         padding: 6px 7px;
     }
