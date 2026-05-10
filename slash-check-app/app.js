@@ -691,11 +691,12 @@ function renderZones() {
         const reservationRemain = activeReservation?.expiresAt
             ? formatRemain(new Date(activeReservation.expiresAt).getTime() - now)
             : null;
-        const hasMeta = Boolean(zone.lastBy || reservations.length > 0);
+        const hasMeta = Boolean(zone.lastBy || reservations.length > 0 || canUndoCheck);
 
         card.classList.toggle('hasMeta', hasMeta);
         card.classList.toggle('isInProgress', inProgress);
         card.classList.toggle('isTappable', canUseCardCheck);
+        card.classList.toggle('hasUndo', canUndoCheck);
         if (canUseCardCheck) {
             card.tabIndex = 0;
             card.setAttribute('role', 'button');
@@ -704,9 +705,13 @@ function renderZones() {
 
         if (shouldAlertReservationReady(zone, activeReservation, locked)) notifyReservationReady(zone);
 
-        card.querySelector('.reservationText').textContent = reservations.length > 0
-            ? `예약 ${activeReservation.memberName} · ${reservationRemain}`
-            : '';
+        const reservationText = card.querySelector('.reservationText');
+        reservationText.textContent = canUndoCheck
+            ? `되돌리기 ${undoRemainText} 남음`
+            : reservations.length > 0
+                ? `예약 ${activeReservation.memberName} · ${reservationRemain}`
+                : '';
+        reservationText.classList.toggle('isUndoTimer', canUndoCheck);
 
         const reserveButton = card.querySelector('.reserveButton');
         reserveButton.textContent = reservedByMe ? '예약 취소' : reservedByOther ? '진행중' : '예약';
@@ -715,7 +720,18 @@ function renderZones() {
         reserveButton.addEventListener('click', () => toggleReservation(zone));
 
         const button = card.querySelector('.checkButton');
-        button.textContent = canUndoCheck ? `되돌리기 ${undoRemainText}` : locked ? formatCountdown(remain) : reservedByOther ? '예약자 전용' : '완료';
+        button.replaceChildren();
+        if (canUndoCheck) {
+            const undoLabel = document.createElement('span');
+            undoLabel.className = 'undoActionText';
+            undoLabel.textContent = '되돌리기';
+            const undoTime = document.createElement('span');
+            undoTime.className = 'undoActionTime';
+            undoTime.textContent = undoRemainText;
+            button.append(undoLabel, undoTime);
+        } else {
+            button.textContent = locked ? formatCountdown(remain) : reservedByOther ? '예약자 전용' : '완료';
+        }
         button.classList.toggle('isCooldown', locked && !canUndoCheck);
         button.classList.toggle('isUndo', canUndoCheck);
         button.setAttribute('aria-label', canUndoCheck ? `${zone.name} 완료 취소 ${undoRemainText} 남음` : locked ? `${zone.name} ${formatCountdown(remain)} 남음` : `${zone.name} 완료`);
