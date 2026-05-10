@@ -6635,3 +6635,561 @@ body {
         font-size: 11px;
     }
 }
+
+/* Gecko standalone app refresh */
+.geckoShell {
+    max-width: 1380px;
+}
+
+.geckoTopbar {
+    margin-bottom: 10px;
+}
+
+.geckoCommandBar {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 10px;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.geckoModeTabs {
+    display: inline-grid;
+    grid-template-columns: repeat(2, minmax(92px, 1fr));
+    gap: 4px;
+    border: 1px solid #d8e0ec;
+    border-radius: 10px;
+    background: #eef3f8;
+    padding: 4px;
+}
+
+.geckoModeTabs button {
+    height: 38px;
+    border: 0;
+    border-radius: 7px;
+    background: transparent;
+    color: #536275;
+    padding: 0 14px;
+    font-size: 13px;
+    font-weight: 950;
+}
+
+.geckoModeTabs button.active {
+    background: #111827;
+    color: #ffffff;
+    box-shadow: 0 6px 14px rgba(17, 24, 39, 0.16);
+}
+
+.geckoSummaryStrip {
+    justify-content: flex-end;
+}
+
+.geckoSearchPanel {
+    position: sticky;
+    top: 0;
+    z-index: 6;
+    grid-template-columns: minmax(0, 1fr) auto;
+    margin-bottom: 10px;
+    border-radius: 10px;
+    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+}
+
+.geckoSearchBox input {
+    height: 46px;
+    border-color: #cfd8e6;
+    font-weight: 900;
+}
+
+.geckoFilters {
+    align-self: end;
+}
+
+.geckoFilters button,
+.eggFilters button {
+    white-space: nowrap;
+}
+
+.geckoLayout,
+.eggLayout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 420px;
+    gap: 10px;
+    align-items: start;
+}
+
+.geckoList,
+.eggCandidateList {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 7px;
+}
+
+.geckoCard,
+.eggCard {
+    min-height: 0;
+    border: 1px solid #dbe4f0;
+    border-radius: 8px;
+    background: #ffffff;
+    padding: 10px;
+    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.04);
+}
+
+.geckoCard {
+    grid-template-columns: minmax(0, 1fr) auto;
+    border-left: 3px solid #16a34a;
+}
+
+.geckoCard:hover,
+.geckoCard.active,
+.eggCard:hover,
+.eggCard.active {
+    border-color: #86a9f7;
+    box-shadow: 0 8px 18px rgba(21, 94, 239, 0.09);
+}
+
+.geckoCardMeta {
+    gap: 4px 8px;
+}
+
+.geckoStatus {
+    padding: 4px 7px;
+}
+
+.geckoPanelActions {
+    display: flex;
+    gap: 6px;
+}
+
+.geckoPanelActions button {
+    min-width: 58px;
+}
+
+.eggDashboard {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 8px;
+    margin-bottom: 10px;
+}
+
+.eggDashboard article {
+    min-height: 64px;
+    border: 1px solid #dce5f0;
+    border-radius: 8px;
+    background: #ffffff;
+    padding: 10px;
+    box-shadow: var(--shadow);
+}
+
+.eggDashboard span {
+    display: block;
+    color: #6b7788;
+    font-size: 12px;
+    font-weight: 900;
+}
+
+.eggDashboard strong {
+    display: block;
+    margin-top: 4px;
+    color: #0f172a;
+    font-size: 24px;
+    font-weight: 1000;
+    line-height: 1;
+}
+
+.eggToolbar {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.eggFilters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+}
+
+.eggFilters button {
+    height: 32px;
+    border: 1px solid var(--line);
+    border-radius: 7px;
+    background: var(--soft);
+    color: var(--text-soft);
+    padding: 0 10px;
+    font-size: 12px;
+    font-weight: 900;
+}
+
+.eggFilters button.active {
+    border-color: #111827;
+    background: #111827;
+    color: #ffffff;
+}
+
+.eggCard {
+    display: grid;
+    gap: 8px;
+    cursor: pointer;
+}
+
+.eggCardTop {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 56px;
+    gap: 8px;
+    align-items: center;
+}
+
+.eggCardTop strong,
+.eggDetailHero strong,
+.eggRecordItem strong {
+    display: block;
+    min-width: 0;
+    overflow: hidden;
+    color: #0f172a;
+    font-size: 15px;
+    font-weight: 1000;
+    line-height: 1.15;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.eggCardTop span,
+.eggDetailHero span,
+.eggRecordItem span {
+    display: block;
+    min-width: 0;
+    overflow: hidden;
+    color: #6b7788;
+    font-size: 12px;
+    font-weight: 800;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.eggQuickButton,
+.eggRecordEdit {
+    height: 31px;
+    border: 1px solid #cfd8e6;
+    border-radius: 7px;
+    background: #ffffff;
+    color: #155eef;
+    padding: 0 8px;
+    font-size: 12px;
+    font-weight: 950;
+}
+
+.eggCardStats {
+    display: grid;
+    grid-template-columns: 76px minmax(0, 1fr) 58px;
+    gap: 6px;
+    align-items: center;
+}
+
+.eggCardStats span {
+    min-width: 0;
+    overflow: hidden;
+    border-radius: 7px;
+    background: #f4f7fb;
+    color: #334155;
+    padding: 6px 7px;
+    font-size: 12px;
+    font-weight: 900;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.eggCardStats span:last-child {
+    color: #155eef;
+    text-align: center;
+}
+
+.eggCardMemo {
+    min-height: 16px;
+    margin: 0;
+    overflow: hidden;
+    color: #7a8696;
+    font-size: 12px;
+    font-weight: 760;
+    line-height: 1.35;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.eggDetailBody {
+    display: grid;
+    gap: 10px;
+}
+
+.eggDetailHero {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 4px 8px;
+    align-items: center;
+    border-bottom: 1px solid var(--line-soft);
+    padding-bottom: 10px;
+}
+
+.eggDetailHero span {
+    grid-column: 1;
+}
+
+.eggDetailHero button {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+    min-width: 84px;
+}
+
+.eggRecordList {
+    display: grid;
+    gap: 7px;
+}
+
+.eggRecordItem {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 54px;
+    gap: 8px;
+    align-items: center;
+    border: 1px solid #e0e7f0;
+    border-radius: 8px;
+    background: #ffffff;
+    padding: 9px;
+}
+
+.eggRecordItem p {
+    margin: 5px 0 0;
+    overflow-wrap: anywhere;
+    color: #64748b;
+    font-size: 12px;
+    font-weight: 750;
+    line-height: 1.35;
+}
+
+.eggPickBox {
+    display: grid;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.eggPickBox label {
+    display: grid;
+    gap: 6px;
+    color: #64748b;
+    font-size: 12px;
+    font-weight: 900;
+}
+
+.eggPickBox input {
+    width: 100%;
+    height: 42px;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    padding: 0 11px;
+    color: #0f172a;
+    font-size: 15px;
+    font-weight: 900;
+    outline: none;
+}
+
+#eggSelectedGeckoLabel {
+    border-radius: 8px;
+    background: #eef4ff;
+    color: #155eef;
+    padding: 9px 10px;
+    font-size: 14px;
+    font-weight: 1000;
+}
+
+.eggGeckoSuggestions {
+    display: grid;
+    gap: 5px;
+}
+
+.eggGeckoSuggestions button {
+    display: grid;
+    gap: 2px;
+    border: 1px solid #dbe4f0;
+    border-radius: 8px;
+    background: #ffffff;
+    padding: 9px;
+    text-align: left;
+}
+
+.eggGeckoSuggestions strong {
+    color: #111827;
+    font-size: 13px;
+    font-weight: 1000;
+}
+
+.eggGeckoSuggestions span {
+    color: #64748b;
+    font-size: 12px;
+    font-weight: 800;
+}
+
+.eggTotalPreview {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-radius: 8px;
+    background: #f8fafc;
+    padding: 10px;
+    margin-top: 10px;
+}
+
+.eggTotalPreview span {
+    color: #64748b;
+    font-size: 12px;
+    font-weight: 900;
+}
+
+.eggTotalPreview strong {
+    color: #111827;
+    font-size: 18px;
+    font-weight: 1000;
+}
+
+.eggModalSheet {
+    width: min(680px, calc(100vw - 28px));
+}
+
+.hidden {
+    display: none !important;
+}
+
+@media (max-width: 980px) {
+    .geckoCommandBar,
+    .geckoSearchPanel,
+    .geckoLayout,
+    .eggLayout,
+    .eggToolbar {
+        grid-template-columns: 1fr;
+    }
+
+    .geckoSummaryStrip {
+        justify-content: flex-start;
+    }
+
+    .geckoList,
+    .eggCandidateList {
+        grid-template-columns: 1fr;
+    }
+
+    .eggDashboard {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 640px) {
+    .geckoShell {
+        padding-left: 8px;
+        padding-right: 8px;
+    }
+
+    .geckoTopbar {
+        gap: 10px;
+        margin-bottom: 8px;
+    }
+
+    .geckoTopActions {
+        width: 100%;
+    }
+
+    .geckoTopActions button {
+        height: 38px;
+        min-width: 0;
+    }
+
+    .geckoCommandBar {
+        gap: 7px;
+    }
+
+    .geckoModeTabs {
+        width: 100%;
+    }
+
+    .geckoSearchPanel {
+        margin-left: -8px;
+        margin-right: -8px;
+        padding: 8px;
+    }
+
+    .geckoFilters,
+    .eggFilters {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .geckoFilters button,
+    .eggFilters button {
+        height: 34px;
+        padding: 0 4px;
+        font-size: 12px;
+    }
+
+    .geckoSummaryStrip span {
+        min-height: 24px;
+        padding: 5px 8px;
+        font-size: 11px;
+    }
+
+    .eggDashboard {
+        gap: 6px;
+    }
+
+    .eggDashboard article {
+        min-height: 56px;
+        padding: 8px;
+    }
+
+    .eggDashboard strong {
+        font-size: 21px;
+    }
+
+    .eggToolbar #openEggFormButton {
+        width: 100%;
+        height: 40px;
+    }
+
+    .geckoCard,
+    .eggCard {
+        padding: 9px;
+    }
+
+    .eggCardStats {
+        grid-template-columns: 66px minmax(0, 1fr) 52px;
+        gap: 5px;
+    }
+
+    .eggCardStats span {
+        padding: 5px 6px;
+        font-size: 11px;
+    }
+
+    .geckoPanelActions button {
+        min-width: 52px;
+        height: 32px;
+        padding: 0 8px;
+    }
+
+    .eggRecordItem {
+        grid-template-columns: minmax(0, 1fr) 50px;
+        padding: 8px;
+    }
+
+    .geckoModalSheet,
+    .eggModalSheet {
+        width: calc(100vw - 14px);
+        max-height: calc(100vh - 18px);
+        padding: 13px;
+    }
+
+    .eggFormGrid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px;
+    }
+
+    .eggFormGrid label.wide {
+        grid-column: 1 / -1;
+    }
+}

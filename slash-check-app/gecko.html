@@ -3,17 +3,17 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>게코 개체 도서관</title>
+    <title>게코 개체 관리</title>
     <link rel="icon" href="./favicon.svg" type="image/svg+xml">
     <link rel="stylesheet" href="./styles.css">
 </head>
 <body class="geckoPage">
-    <main class="shell">
-        <header class="topbar">
+    <main class="shell geckoShell">
+        <header class="topbar geckoTopbar">
             <div>
                 <span class="eyebrow">크레스티드 게코</span>
-                <h1>개체 도서관</h1>
-                <p class="pageDesc">넘버, 이름, 모프, 위치를 빠르게 찾고 개체별 기록을 확인합니다.</p>
+                <h1>개체 관리</h1>
+                <p class="pageDesc">개체 위치, 산란 기록, 브리딩 상태를 모바일에서도 빠르게 찾고 수정합니다.</p>
             </div>
             <div class="geckoTopActions">
                 <button id="openImportButton" class="copyCommandButton subtle" type="button">일괄 등록</button>
@@ -21,10 +21,22 @@
             </div>
         </header>
 
+        <section class="geckoCommandBar">
+            <div class="geckoModeTabs" aria-label="게코 관리 화면">
+                <button class="active" type="button" data-view="library">개체</button>
+                <button type="button" data-view="eggs">산란 관리</button>
+            </div>
+            <div class="geckoSummaryStrip">
+                <span id="geckoTotalCount">0개체</span>
+                <span id="geckoVisibleCount">0건 표시</span>
+                <span id="geckoStorageStatus">불러오는 중</span>
+            </div>
+        </section>
+
         <section class="geckoSearchPanel">
             <label class="geckoSearchBox">
-                <span>개체 검색</span>
-                <input id="geckoSearchInput" type="search" placeholder="CG-0001, 이름, 모프, 위치, 부모 번호">
+                <span>빠른 검색</span>
+                <input id="geckoSearchInput" type="search" placeholder="넘버, 이름, 모프, 위치, 부모번호, 메모">
             </label>
             <div class="geckoFilters" aria-label="개체 필터">
                 <button class="active" type="button" data-status="all">전체</button>
@@ -34,36 +46,91 @@
                 <button type="button" data-status="분양">분양</button>
                 <button type="button" data-status="폐사">폐사</button>
             </div>
-            <div class="geckoSummaryStrip">
-                <span id="geckoTotalCount">0개체</span>
-                <span id="geckoVisibleCount">0건 표시</span>
-                <span id="geckoStorageStatus">불러오는 중</span>
-            </div>
         </section>
 
-        <section class="geckoLayout">
-            <section class="panel geckoListPanel">
-                <div class="panelHead">
-                    <div>
-                        <span class="label">검색 결과</span>
-                        <strong id="geckoResultTitle">개체 목록</strong>
+        <section id="libraryView" class="geckoView">
+            <section class="geckoLayout">
+                <section class="panel geckoListPanel">
+                    <div class="panelHead">
+                        <div>
+                            <span class="label">개체 목록</span>
+                            <strong id="geckoResultTitle">전체 개체</strong>
+                        </div>
                     </div>
-                </div>
-                <div id="geckoList" class="geckoList"></div>
+                    <div id="geckoList" class="geckoList"></div>
+                </section>
+
+                <aside class="panel geckoDetailPanel">
+                    <div class="panelHead">
+                        <div>
+                            <span class="label">선택 개체</span>
+                            <strong id="geckoDetailTitle">개체를 선택하세요</strong>
+                        </div>
+                        <div class="geckoPanelActions">
+                            <button id="detailEggButton" class="copyCommandButton subtle" type="button" disabled>산란</button>
+                            <button id="detailEditButton" class="copyCommandButton subtle" type="button" disabled>수정</button>
+                        </div>
+                    </div>
+                    <div id="geckoDetailBody" class="geckoDetailBody">
+                        <div class="empty small">목록에서 개체를 선택하면 위치, 산란, 부모 정보가 표시됩니다.</div>
+                    </div>
+                </aside>
+            </section>
+        </section>
+
+        <section id="eggView" class="geckoView hidden">
+            <section class="eggDashboard">
+                <article>
+                    <span>산란 기록 개체</span>
+                    <strong id="eggBreederCount">0</strong>
+                </article>
+                <article>
+                    <span>이번달 산란</span>
+                    <strong id="eggMonthCount">0</strong>
+                </article>
+                <article>
+                    <span>보관중 알</span>
+                    <strong id="eggHoldingCount">0</strong>
+                </article>
+                <article>
+                    <span>체크 필요</span>
+                    <strong id="eggWatchCount">0</strong>
+                </article>
             </section>
 
-            <aside class="panel geckoDetailPanel">
-                <div class="panelHead">
-                    <div>
-                        <span class="label">선택 개체</span>
-                        <strong id="geckoDetailTitle">개체를 선택하세요</strong>
+            <section class="eggToolbar">
+                <div class="eggFilters" aria-label="산란 필터">
+                    <button class="active" type="button" data-egg-filter="all">전체</button>
+                    <button type="button" data-egg-filter="active">보관중</button>
+                    <button type="button" data-egg-filter="month">이번달</button>
+                    <button type="button" data-egg-filter="empty">기록 없음</button>
+                </div>
+                <button id="openEggFormButton" class="copyCommandButton" type="button">산란 등록</button>
+            </section>
+
+            <section class="eggLayout">
+                <section class="panel eggListPanel">
+                    <div class="panelHead">
+                        <div>
+                            <span class="label">산란 개체</span>
+                            <strong id="eggResultTitle">산란 관리 목록</strong>
+                        </div>
                     </div>
-                    <button id="detailEditButton" class="copyCommandButton subtle" type="button" disabled>수정</button>
-                </div>
-                <div id="geckoDetailBody" class="geckoDetailBody">
-                    <div class="empty small">목록에서 개체를 선택하면 위치와 산란 정보가 표시됩니다.</div>
-                </div>
-            </aside>
+                    <div id="eggCandidateList" class="eggCandidateList"></div>
+                </section>
+
+                <aside class="panel eggDetailPanel">
+                    <div class="panelHead">
+                        <div>
+                            <span class="label">산란 기록</span>
+                            <strong id="eggDetailTitle">개체를 선택하세요</strong>
+                        </div>
+                    </div>
+                    <div id="eggDetailBody" class="eggDetailBody">
+                        <div class="empty small">산란 개체를 누르면 최근 기록과 수정 버튼이 표시됩니다.</div>
+                    </div>
+                </aside>
+            </section>
         </section>
     </main>
 
@@ -78,6 +145,24 @@
                 <span class="geckoLocation"></span>
             </div>
             <span class="geckoStatus"></span>
+        </article>
+    </template>
+
+    <template id="eggCardTemplate">
+        <article class="eggCard">
+            <div class="eggCardTop">
+                <div>
+                    <strong class="eggGeckoTitle"></strong>
+                    <span class="eggGeckoMeta"></span>
+                </div>
+                <button class="eggQuickButton" type="button">등록</button>
+            </div>
+            <div class="eggCardStats">
+                <span class="eggLastLay"></span>
+                <span class="eggLastCount"></span>
+                <span class="eggLastStatus"></span>
+            </div>
+            <p class="eggCardMemo"></p>
         </article>
     </template>
 
@@ -99,11 +184,8 @@
                 <label><span>모</span><input id="geckoMotherInput" name="motherNumber" type="text" placeholder="모 개체 번호"></label>
                 <label><span>무게(g)</span><input id="geckoWeightInput" name="weight" type="number" min="0" step="0.01" placeholder="32.5"></label>
                 <label><span>측정일</span><input id="geckoWeightDateInput" name="weightDate" type="date"></label>
-                <label><span>산란일</span><input id="geckoLayDateInput" name="layDate" type="date"></label>
-                <label><span>산란수</span><input id="geckoEggCountInput" name="eggCount" type="number" min="0" max="99" step="1" placeholder="2"></label>
+                <label><span>출처</span><input id="geckoBreederInput" name="breeder" type="text" placeholder="브리더 / 입양처"></label>
                 <label><span>클러치</span><input id="geckoClutchInput" name="clutchCode" type="text" placeholder="A24-01"></label>
-                <label><span>부화/예정일</span><input id="geckoHatchResultInput" name="hatchResultDate" type="date"></label>
-                <label class="wide"><span>산란 메모</span><input id="geckoEggMemoInput" name="eggMemo" type="text" placeholder="무정란, 유정란, 보류 등"></label>
                 <label class="wide"><span>메모</span><textarea id="geckoMemoInput" name="memo" rows="4" placeholder="먹이, 성향, 관리 메모"></textarea></label>
                 <label class="wide"><span>태그</span><input id="geckoTagsInput" name="tags" type="text" placeholder="브리딩, 관찰, 분양보류"></label>
                 <label class="wide"><span>관리자 비밀번호</span><input id="geckoAdminPasswordInput" name="adminPassword" type="password" autocomplete="current-password"></label>
@@ -111,6 +193,41 @@
             <div class="geckoModalActions">
                 <button id="deleteGeckoButton" class="danger" type="button">삭제</button>
                 <button id="saveGeckoButton" class="bossModalPrimary" type="submit">저장</button>
+            </div>
+        </form>
+    </div>
+
+    <div id="eggFormModal" class="modalOverlay hidden" role="dialog" aria-modal="true" aria-labelledby="eggFormTitle">
+        <form id="eggForm" class="geckoModalSheet eggModalSheet">
+            <button id="closeEggFormButton" class="modalClose" type="button" aria-label="닫기">×</button>
+            <span class="modalEyebrow">산란 관리</span>
+            <h2 id="eggFormTitle">산란 기록</h2>
+            <div class="eggPickBox">
+                <label>
+                    <span>산란 개체</span>
+                    <input id="eggGeckoSearchInput" type="search" placeholder="이름, 번호, 위치로 검색">
+                </label>
+                <strong id="eggSelectedGeckoLabel">개체를 선택하세요</strong>
+                <div id="eggGeckoSuggestions" class="eggGeckoSuggestions"></div>
+            </div>
+            <div class="geckoFormGrid eggFormGrid">
+                <label><span>산란일</span><input id="eggLayDateInput" name="layDate" type="date"></label>
+                <label><span>클러치</span><input id="eggClutchInput" name="clutchCode" type="text" placeholder="A24-01"></label>
+                <label><span>유정란</span><input id="eggFertileInput" name="fertileCount" type="number" min="0" max="99" step="1" inputmode="numeric" value="0"></label>
+                <label><span>무정란</span><input id="eggInfertileInput" name="infertileCount" type="number" min="0" max="99" step="1" inputmode="numeric" value="0"></label>
+                <label><span>미확인</span><input id="eggUnknownInput" name="unknownCount" type="number" min="0" max="99" step="1" inputmode="numeric" value="0"></label>
+                <label><span>알 상태</span><select id="eggStatusInput" name="eggStatus"><option>보관중</option><option>관찰</option><option>부화</option><option>무정란</option><option>폐기</option></select></label>
+                <label><span>부화/예정일</span><input id="eggHatchDateInput" name="hatchDate" type="date"></label>
+                <label><span>관리자 비밀번호</span><input id="eggAdminPasswordInput" name="adminPassword" type="password" autocomplete="current-password"></label>
+                <label class="wide"><span>메모</span><textarea id="eggMemoInput" name="memo" rows="3" placeholder="상태, 보관 위치, 특이사항"></textarea></label>
+            </div>
+            <div class="eggTotalPreview">
+                <span>총 알</span>
+                <strong id="eggTotalPreview">0개</strong>
+            </div>
+            <div class="geckoModalActions">
+                <button id="deleteEggRecordButton" class="danger" type="button" hidden>기록 삭제</button>
+                <button class="bossModalPrimary" type="submit">산란 저장</button>
             </div>
         </form>
     </div>
@@ -133,6 +250,5 @@
 
     <div id="toastHost" class="toastHost" aria-live="polite"></div>
     <script src="./gecko.js"></script>
-    <script src="./boss-alert-monitor.js"></script>
 </body>
 </html>

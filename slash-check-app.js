@@ -165,6 +165,75 @@ function getGeckoValue(value, keys, fallback = '') {
     return fallback;
 }
 
+function normalizeGeckoEggCount(value) {
+    const num = Number(value);
+    if (!Number.isFinite(num)) return 0;
+    return Math.max(0, Math.min(99, Math.round(num)));
+}
+
+function normalizeGeckoEggStatus(value) {
+    const text = cleanText(value, 16);
+    return ['보관중', '관찰', '부화', '무정란', '폐기'].includes(text) ? text : '보관중';
+}
+
+function normalizeGeckoEggRecords(value, existing = null, nowIso = new Date().toISOString()) {
+    const explicit = getGeckoValue(value, ['eggRecords', '산란기록'], null);
+    let records = Array.isArray(explicit)
+        ? explicit
+        : Array.isArray(existing?.eggRecords)
+            ? existing.eggRecords
+            : [];
+
+    const hasLegacyEgg =
+        getGeckoValue(value, ['layDate', '산란일'], '') ||
+        getGeckoValue(value, ['eggCount', '산란수'], '') ||
+        getGeckoValue(value, ['fertileCount', '유정란'], '') ||
+        getGeckoValue(value, ['infertileCount', '무정란'], '') ||
+        getGeckoValue(value, ['unknownCount', '미확인'], '') ||
+        getGeckoValue(value, ['eggMemo', '산란메모'], '');
+
+    if (!Array.isArray(explicit) && records.length === 0 && hasLegacyEgg) {
+        records = [{
+            layDate: getGeckoValue(value, ['layDate', '산란일'], ''),
+            clutchCode: getGeckoValue(value, ['clutchCode', '클러치'], ''),
+            fertileCount: getGeckoValue(value, ['fertileCount', '유정란'], 0),
+            infertileCount: getGeckoValue(value, ['infertileCount', '무정란'], 0),
+            unknownCount: getGeckoValue(value, ['eggCount', '산란수'], 0),
+            eggStatus: getGeckoValue(value, ['eggStatus', '알상태'], '보관중'),
+            hatchDate: getGeckoValue(value, ['hatchResultDate', '부화예정일', '부화일'], ''),
+            memo: getGeckoValue(value, ['eggMemo', '산란메모'], '')
+        }];
+    }
+
+    return records.map((record) => {
+        const layDate = cleanDate(getGeckoValue(record, ['layDate', '산란일'], ''));
+        const fertileCount = normalizeGeckoEggCount(getGeckoValue(record, ['fertileCount', '유정란'], 0));
+        const infertileCount = normalizeGeckoEggCount(getGeckoValue(record, ['infertileCount', '무정란'], 0));
+        const unknownCount = normalizeGeckoEggCount(getGeckoValue(record, ['unknownCount', '미확인', 'eggCount', '산란수'], 0));
+        const hatchDate = cleanDate(getGeckoValue(record, ['hatchDate', 'hatchResultDate', '부화예정일', '부화일'], ''));
+        return {
+            id: cleanText(record?.id, 80) || randomUUID(),
+            layDate,
+            clutchCode: cleanText(getGeckoValue(record, ['clutchCode', '클러치'], ''), 40),
+            fertileCount,
+            infertileCount,
+            unknownCount,
+            eggStatus: normalizeGeckoEggStatus(getGeckoValue(record, ['eggStatus', 'status', '알상태'], '보관중')),
+            hatchDate,
+            memo: cleanText(getGeckoValue(record, ['memo', '메모'], ''), 400),
+            createdAt: cleanText(record?.createdAt, 40) || nowIso,
+            updatedAt: cleanText(record?.updatedAt, 40) || nowIso
+        };
+    }).filter((record) => (
+        record.layDate ||
+        record.clutchCode ||
+        record.fertileCount ||
+        record.infertileCount ||
+        record.unknownCount ||
+        record.memo
+    )).sort((a, b) => String(b.layDate || '').localeCompare(String(a.layDate || '')));
+}
+
 function nextGeckoNumber() {
     let max = 0;
     for (const gecko of geckoState.geckos || []) {
@@ -202,6 +271,7 @@ function normalizeGecko(value, existing = null) {
         eggMemo: cleanText(getGeckoValue(value, ['eggMemo', '산란메모'], existing?.eggMemo || ''), 300),
         memo: cleanText(getGeckoValue(value, ['memo', '메모'], existing?.memo || ''), 1200),
         tags: normalizeGeckoTags(getGeckoValue(value, ['tags', '태그'], existing?.tags || [])),
+        eggRecords: normalizeGeckoEggRecords(value, existing, nowIso),
         createdAt: existing?.createdAt || nowIso,
         updatedAt: existing?.updatedAt || nowIso
     };
