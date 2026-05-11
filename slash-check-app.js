@@ -62,7 +62,7 @@ const DEFAULT_BOSS_EVENTS = [
 ];
 
 let state = structuredClone(defaultState);
-let geckoState = { geckos: [], updatedAt: null };
+let geckoState = { geckos: [], logs: [], updatedAt: null };
 const RESERVATION_GRACE_MS = 10 * 60 * 1000;
 const CHECK_UNDO_GRACE_MS = 60 * 1000;
 const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
@@ -71,6 +71,7 @@ const BOSS_PARTICIPATION_WINDOW_MS = 10 * 60 * 1000;
 const BOSS_CUT_LOCK_MS = 90 * 1000;
 const MAX_BOSS_CUT_RECORDS = 300;
 const MAX_BOSS_AUDIT_LOGS = 500;
+const MAX_GECKO_AUDIT_LOGS = 500;
 const ADMIN_PASSWORD = process.env.SLASH_CHECK_ADMIN_PASSWORD || process.env.ADMIN_PASSWORD || (IS_RENDER_RUNTIME ? '' : '1234');
 const ADMIN_PASSWORD_CONFIGURED = Boolean(ADMIN_PASSWORD);
 let saveStateQueue = Promise.resolve();
@@ -140,7 +141,7 @@ function normalizeGeckoSex(value) {
     const text = cleanText(value, 16);
     if (['수', '수컷', 'male', 'M'].includes(text)) return '수';
     if (['암', '암컷', 'female', 'F'].includes(text)) return '암';
-    return '미확인';
+    return '미구분';
 }
 
 function normalizeGeckoWeight(value) {
@@ -235,6 +236,7 @@ function normalizeGeckoEggRecords(value, existing = null, nowIso = new Date().to
             eggStatus: normalizeGeckoEggStatus(getGeckoValue(record, ['eggStatus', 'status', '알상태'], '보관중')),
             hatchDate,
             memo: cleanText(getGeckoValue(record, ['memo', '메모'], ''), 400),
+            actor: cleanText(getGeckoValue(record, ['actor', '작성자', '수정자'], ''), 60),
             createdAt: cleanText(record?.createdAt, 40) || nowIso,
             updatedAt: cleanText(record?.updatedAt, 40) || nowIso
         };
@@ -267,6 +269,7 @@ function normalizeGeckoActivityRecords(value, existing = null, nowIso = new Date
             weight: normalizeGeckoWeight(getGeckoValue(record, ['weight', '무게'], '')),
             location: cleanText(getGeckoValue(record, ['location', '위치'], ''), 80),
             memo: cleanText(getGeckoValue(record, ['memo', '메모'], ''), 500),
+            actor: cleanText(getGeckoValue(record, ['actor', '작성자', '수정자'], ''), 60),
             createdAt: cleanText(record?.createdAt, 40) || nowIso,
             updatedAt: cleanText(record?.updatedAt, 40) || nowIso
         };
@@ -315,6 +318,8 @@ function normalizeGecko(value, existing = null) {
         tags: normalizeGeckoTags(getGeckoValue(value, ['tags', '태그'], existing?.tags || [])),
         eggRecords: normalizeGeckoEggRecords(value, existing, nowIso),
         activityRecords: normalizeGeckoActivityRecords(value, existing, nowIso),
+        createdBy: cleanText(getGeckoValue(value, ['createdBy', '등록자'], existing?.createdBy || ''), 60),
+        updatedBy: cleanText(getGeckoValue(value, ['updatedBy', '수정자'], existing?.updatedBy || ''), 60),
         createdAt: existing?.createdAt || nowIso,
         updatedAt: existing?.updatedAt || nowIso
     };
@@ -325,12 +330,127 @@ function geckoCompare(a, b) {
         || String(a.name || '').localeCompare(String(b.name || ''), 'ko');
 }
 
+function geckoActorFrom(value) {
+    return cleanText(value?.actor || value?.userName || value?.nickname || value?.updatedBy || value?.createdBy, 60) || '이름없음';
+}
+
+function normalizeGeckoLogs(value) {
+    const items = Array.isArray(value) ? value : [];
+    return items.map((log) => ({
+        id: cleanText(log?.id, 80) || randomUUID(),
+        at: cleanText(log?.at, 40) || new Date().toISOString(),
+        actor: cleanText(log?.actor, 60) || '이름없음',
+        action: cleanText(log?.action, 40) || '변경',
+        target: cleanText(log?.target, 80),
+        targetId: cleanText(log?.targetId, 80),
+        detail: cleanText(log?.detail, 240)
+    })).filter((log) => log.action || log.target || log.detail)
+        .sort((a, b) => String(b.at || '').localeCompare(String(a.at || '')))
+        .slice(0, MAX_GECKO_AUDIT_LOGS);
+}
+
+function addGeckoLog({ actor, action, target, targetId, detail }) {
+    geckoState.logs = normalizeGeckoLogs([
+        {
+            id: randomUUID(),
+            at: new Date().toISOString(),
+            actor: actor || '이름없음',
+            action,
+            target,
+            targetId,
+            detail
+        },
+        ...(geckoState.logs || [])
+    ]);
+}
+
+function createExampleGeckoState() {
+    const nowIso = new Date().toISOString();
+    const examples = [
+        {
+            number: 'EX-F-001',
+            name: '달콩',
+            sex: '암',
+            location: '브리딩 랙 A-1',
+            morph: '릴리화이트',
+            pairedWithNumber: 'EX-M-001',
+            pairingDate: cleanDate(nowIso.slice(0, 10)),
+            memo: '예시 암컷입니다. 실제 사용 전 수정하거나 삭제해도 됩니다.',
+            createdBy: '예시',
+            updatedBy: '예시',
+            eggRecords: [
+                {
+                    layDate: cleanDate(nowIso.slice(0, 10)),
+                    fertileCount: 2,
+                    infertileCount: 0,
+                    unknownCount: 0,
+                    eggStatus: '보관중',
+                    incubationLocation: '인큐 1',
+                    mateNumber: 'EX-M-001',
+                    memo: '유정 2개 예시',
+                    actor: '예시',
+                    createdAt: nowIso,
+                    updatedAt: nowIso
+                }
+            ],
+            activityRecords: [
+                {
+                    type: '상태메모',
+                    date: cleanDate(nowIso.slice(0, 10)),
+                    status: '안먹음',
+                    memo: '예시 메모입니다. 클릭해서 수정하거나 삭제할 수 있습니다.',
+                    actor: '예시',
+                    createdAt: nowIso,
+                    updatedAt: nowIso
+                }
+            ]
+        },
+        {
+            number: 'EX-M-001',
+            name: '모카',
+            sex: '수',
+            location: '브리딩 랙 A-1',
+            morph: '할리퀸',
+            memo: '페어 수컷 예시',
+            createdBy: '예시',
+            updatedBy: '예시'
+        },
+        {
+            number: 'EX-B-001',
+            name: '베이비01',
+            sex: '미구분',
+            location: '베이비 랙 1',
+            morph: '미확인',
+            motherNumber: 'EX-F-001',
+            fatherNumber: 'EX-M-001',
+            memo: '해칭 개체를 연속 등록할 때의 예시',
+            createdBy: '예시',
+            updatedBy: '예시'
+        }
+    ];
+
+    return {
+        geckos: examples.map((item) => normalizeGecko(item, item)).filter(Boolean),
+        logs: normalizeGeckoLogs([
+            {
+                at: nowIso,
+                actor: '예시',
+                action: '예시 데이터 생성',
+                target: 'CrestBase',
+                detail: '처음 화면 확인용 예시 3건을 넣었습니다.'
+            }
+        ]),
+        updatedAt: nowIso
+    };
+}
+
 function publicGeckoState() {
     return {
         now: new Date().toISOString(),
         updatedAt: geckoState.updatedAt || null,
         count: geckoState.geckos.length,
-        geckos: [...geckoState.geckos].sort(geckoCompare)
+        geckos: [...geckoState.geckos].sort(geckoCompare),
+        logs: normalizeGeckoLogs(geckoState.logs).slice(0, 200)
     };
 }
 
@@ -1226,22 +1346,23 @@ async function loadGeckoState() {
         }
         geckoState = {
             geckos,
+            logs: normalizeGeckoLogs(parsed.logs),
             updatedAt: parsed.updatedAt || null
         };
     } catch (err) {
         if (err.code !== 'ENOENT') console.error('[gecko] state load failed:', err);
-        geckoState = { geckos: [], updatedAt: null };
+        geckoState = createExampleGeckoState();
         await saveGeckoState();
     }
 }
 
 async function saveGeckoState() {
     geckoState.updatedAt = new Date().toISOString();
-    const snapshot = JSON.stringify(geckoState, null, 2);
     const targetDir = path.dirname(GECKO_STATE_FILE);
-    const tempFile = path.join(targetDir, `.gecko-state.${process.pid}.${Date.now()}.${randomUUID()}.tmp`);
 
     saveGeckoStateQueue = saveGeckoStateQueue.catch(() => {}).then(async () => {
+        const snapshot = JSON.stringify(geckoState, null, 2);
+        const tempFile = path.join(targetDir, `.gecko-state.${process.pid}.${Date.now()}.${randomUUID()}.tmp`);
         await fs.mkdir(targetDir, { recursive: true });
         await fs.writeFile(tempFile, snapshot, 'utf8');
         await fs.rename(tempFile, GECKO_STATE_FILE);
@@ -1316,6 +1437,7 @@ async function handleApi(req, res, url) {
         const body = await readJson(req);
         if (rejectInvalidAdmin(res, body.adminPassword)) return true;
         const input = body.gecko || body;
+        const actor = geckoActorFrom(body);
         const existing = geckoState.geckos.find((item) => item.id === input.id || item.number === input.number);
         const gecko = normalizeGecko(input, existing);
         if (!gecko) {
@@ -1328,11 +1450,20 @@ async function handleApi(req, res, url) {
             return true;
         }
         gecko.updatedAt = new Date().toISOString();
+        gecko.updatedBy = actor;
+        if (!existing) gecko.createdBy = actor;
         if (existing) {
             geckoState.geckos = geckoState.geckos.map((item) => item.id === existing.id ? gecko : item);
         } else {
             geckoState.geckos.push(gecko);
         }
+        addGeckoLog({
+            actor,
+            action: cleanText(body.action, 40) || (existing ? '개체 수정' : '개체 등록'),
+            target: `${gecko.number} ${gecko.name}`.trim(),
+            targetId: gecko.id,
+            detail: cleanText(body.detail, 240)
+        });
         await saveGeckoState();
         sendJson(res, 200, { ...publicGeckoState(), saved: gecko });
         return true;
@@ -1341,6 +1472,7 @@ async function handleApi(req, res, url) {
     if (url.pathname === '/api/geckos/import' && req.method === 'POST') {
         const body = await readJson(req);
         if (rejectInvalidAdmin(res, body.adminPassword)) return true;
+        const actor = geckoActorFrom(body);
         const items = Array.isArray(body.geckos) ? body.geckos.slice(0, 3000) : [];
         if (items.length === 0) {
             sendJson(res, 400, { error: '가져올 개체 데이터가 없습니다.' });
@@ -1353,14 +1485,22 @@ async function handleApi(req, res, url) {
             const gecko = normalizeGecko(input, existing);
             if (!gecko) continue;
             gecko.updatedAt = new Date().toISOString();
+            gecko.updatedBy = actor;
             if (existing) {
                 geckoState.geckos = geckoState.geckos.map((item) => item.id === existing.id ? gecko : item);
                 updated += 1;
             } else if (!geckoState.geckos.some((item) => item.number === gecko.number)) {
+                gecko.createdBy = actor;
                 geckoState.geckos.push(gecko);
                 added += 1;
             }
         }
+        addGeckoLog({
+            actor,
+            action: '개체 일괄 등록',
+            target: '개체 목록',
+            detail: `추가 ${added}건 / 수정 ${updated}건`
+        });
         await saveGeckoState();
         sendJson(res, 200, { ...publicGeckoState(), added, updated });
         return true;
@@ -1370,13 +1510,21 @@ async function handleApi(req, res, url) {
         const body = await readJson(req).catch(() => ({}));
         const adminPassword = body.adminPassword || url.searchParams.get('adminPassword');
         if (rejectInvalidAdmin(res, adminPassword)) return true;
+        const actor = geckoActorFrom(body);
         const id = cleanText(body.id || url.searchParams.get('id'), 80);
+        const deleted = geckoState.geckos.find((item) => item.id === id);
         const before = geckoState.geckos.length;
         geckoState.geckos = geckoState.geckos.filter((item) => item.id !== id);
         if (geckoState.geckos.length === before) {
             sendJson(res, 404, { error: '삭제할 개체를 찾을 수 없습니다.' });
             return true;
         }
+        addGeckoLog({
+            actor,
+            action: '개체 삭제',
+            target: deleted ? `${deleted.number} ${deleted.name}`.trim() : id,
+            targetId: id
+        });
         await saveGeckoState();
         sendJson(res, 200, publicGeckoState());
         return true;

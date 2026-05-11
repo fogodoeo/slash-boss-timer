@@ -10725,6 +10725,12 @@ body {
     font-family: Pretendard, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
+.geckoSimplePage *,
+.geckoSimplePage *::before,
+.geckoSimplePage *::after {
+    box-sizing: border-box;
+}
+
 .gxShell {
     width: min(100% - 24px, 1180px);
     margin: 0 auto;
@@ -11420,5 +11426,480 @@ body {
 
     .gxTable {
         min-width: 620px;
+    }
+}
+
+/* CrestBase simple workflow refresh */
+.gxHeaderActions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+}
+
+.gxBrand h1 {
+    margin: 2px 0 0;
+    color: #07111f;
+    font-size: 25px;
+    font-weight: 1000;
+    line-height: 1;
+}
+
+.gxEyebrow,
+.gxPanelHead span,
+.gxImportBox span,
+.gxField > span,
+.gxLogTop span {
+    color: #64748b;
+    font-size: 12px;
+    font-weight: 900;
+}
+
+.gxUserButton,
+.gxGhostLink,
+.gxSoftButton,
+.gxDangerButton,
+.gxMiniButton,
+.gxMiniDanger {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 38px;
+    border: 1px solid #cbd8e6;
+    border-radius: 8px;
+    background: #ffffff;
+    color: #0f172a;
+    cursor: pointer;
+    padding: 0 12px;
+    text-decoration: none;
+    font-size: 13px;
+    font-weight: 1000;
+}
+
+.gxUserButton {
+    border-color: #111827;
+    background: #111827;
+    color: #ffffff;
+}
+
+.gxUserButton.isMissing {
+    border-color: #ffb4b4;
+    background: #fff2f2;
+    color: #b91c1c;
+}
+
+.gxGhostLink,
+.gxSoftButton {
+    background: #f8fafc;
+}
+
+.gxDangerButton,
+.gxMiniDanger {
+    border-color: #ffd1d1;
+    background: #fff5f5;
+    color: #c51f1f;
+}
+
+.gxSummary {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    margin: 10px 0;
+}
+
+.gxSummary article {
+    border: 1px solid #d9e3ee;
+    border-radius: 8px;
+    background: #ffffff;
+    padding: 11px 12px;
+}
+
+.gxSummary span {
+    display: block;
+    color: #64748b;
+    font-size: 12px;
+    font-weight: 900;
+}
+
+.gxSummary strong {
+    display: block;
+    margin-top: 4px;
+    color: #0f172a;
+    font-size: 20px;
+    font-weight: 1000;
+}
+
+.gxModeBar {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+    margin-bottom: 10px;
+}
+
+.gxModeBar button {
+    min-height: 46px;
+    border: 1px solid #cbd8e6;
+    border-radius: 8px;
+    background: #ffffff;
+    color: #334155;
+    cursor: pointer;
+    font-size: 15px;
+    font-weight: 1000;
+}
+
+.gxModeBar button.active {
+    border-color: #111827;
+    background: #111827;
+    color: #ffffff;
+}
+
+.gxPanelHead {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.gxPanelHead h2 {
+    margin: 2px 0 4px;
+    color: #0f172a;
+    font-size: 20px;
+    font-weight: 1000;
+}
+
+.gxPanelHead p,
+.gxImportBox p {
+    margin: 0;
+    color: #64748b;
+    font-size: 13px;
+    font-weight: 800;
+}
+
+.gxForm,
+.gxImportBox,
+.gxActivityForm,
+.gxDetailBody,
+.gxLogList {
+    display: grid;
+    gap: 10px;
+}
+
+.gxSexPicker,
+.gxEggPresets,
+.gxCountGrid {
+    display: grid;
+    gap: 7px;
+}
+
+.gxSexPicker {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.gxEggPresets {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.gxCountGrid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.gxSexPicker button,
+.gxEggPresets button {
+    min-height: 42px;
+    border: 1px solid #cbd8e6;
+    border-radius: 8px;
+    background: #ffffff;
+    color: #0f172a;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 1000;
+}
+
+.gxSexPicker button.active,
+.gxEggPresets button.active {
+    border-color: #111827;
+    background: #111827;
+    color: #ffffff;
+}
+
+.gxField {
+    display: grid;
+    gap: 5px;
+    min-width: 0;
+}
+
+.gxFieldStrong input {
+    height: 52px;
+    font-size: 18px;
+}
+
+.gxToggle,
+.gxSelectedBox,
+.gxHint {
+    border: 1px solid #d9e3ee;
+    border-radius: 8px;
+    background: #f8fbff;
+    padding: 10px 11px;
+}
+
+.gxToggle {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    color: #0f172a;
+    font-size: 13px;
+    font-weight: 1000;
+}
+
+.gxToggle input {
+    width: 17px;
+    height: 17px;
+    accent-color: #1d5bd8;
+}
+
+.gxSelectedBox {
+    display: grid;
+    gap: 3px;
+    background: #eef4ff;
+}
+
+.gxSelectedBox strong {
+    color: #1457d9;
+    font-size: 15px;
+    font-weight: 1000;
+}
+
+.gxSelectedBox span {
+    color: #64748b;
+    font-size: 12px;
+    font-weight: 850;
+}
+
+.gxSubmitRow {
+    display: flex;
+    align-items: end;
+    justify-content: flex-end;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.gxPassword {
+    width: min(100%, 240px);
+    margin-right: auto;
+}
+
+.gxImportBox {
+    margin-top: 12px;
+    border: 1px solid #d9e3ee;
+    border-radius: 8px;
+    background: #fbfdff;
+    padding: 12px;
+}
+
+.gxDetailCard {
+    position: sticky;
+    top: 10px;
+    min-width: 0;
+    border: 1px solid #d9e3ee;
+    border-radius: 8px;
+    background: #ffffff;
+    padding: 12px;
+}
+
+.gxDetailHead h3 {
+    margin: 0;
+    color: #0f172a;
+    font-size: 18px;
+    font-weight: 1000;
+}
+
+.gxDetailHead > div {
+    display: flex;
+    gap: 6px;
+}
+
+.gxActivityForm {
+    margin-top: 12px;
+    border-top: 1px solid #e3ebf4;
+    padding-top: 12px;
+}
+
+.gxActivityForm h4 {
+    margin: 0;
+    color: #0f172a;
+    font-size: 14px;
+    font-weight: 1000;
+}
+
+.gxTimelineAction {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: start;
+    gap: 8px;
+}
+
+.gxTimelineMain {
+    display: grid;
+    gap: 3px;
+    min-width: 0;
+}
+
+.gxMiniActions {
+    display: flex;
+    gap: 5px;
+}
+
+.gxMiniButton,
+.gxMiniDanger {
+    min-height: 30px;
+    padding: 0 9px;
+    font-size: 12px;
+}
+
+.gxLogItem {
+    border: 1px solid #d9e3ee;
+    border-radius: 8px;
+    background: #ffffff;
+    padding: 12px;
+}
+
+.gxLogTop {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.gxLogTop strong {
+    color: #0f172a;
+    font-size: 15px;
+    font-weight: 1000;
+}
+
+.gxLogTarget {
+    margin-top: 6px;
+    color: #1457d9;
+    font-size: 14px;
+    font-weight: 1000;
+}
+
+.gxLogItem p {
+    margin: 5px 0 0;
+    color: #64748b;
+    font-size: 13px;
+    font-weight: 850;
+}
+
+.gxModal {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    display: none;
+    place-items: center;
+    background: rgba(15, 23, 42, 0.42);
+    padding: 18px;
+}
+
+.gxModal.open {
+    display: grid;
+}
+
+.gxModalCard {
+    position: relative;
+    display: grid;
+    gap: 10px;
+    width: min(360px, calc(100vw - 24px));
+    max-width: calc(100vw - 24px);
+    border-radius: 10px;
+    background: #ffffff;
+    padding: 18px;
+    box-shadow: 0 22px 70px rgba(15, 23, 42, 0.24);
+}
+
+.gxModalCard h2 {
+    margin: 0;
+    color: #0f172a;
+    font-size: 22px;
+    font-weight: 1000;
+}
+
+.gxModalCard p {
+    margin: 0;
+    color: #64748b;
+    font-size: 13px;
+    font-weight: 850;
+}
+
+.gxModalClose {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    width: 34px;
+    height: 34px;
+    border: 0;
+    border-radius: 8px;
+    background: #f1f5f9;
+    color: #0f172a;
+    cursor: pointer;
+    font-size: 20px;
+    font-weight: 900;
+}
+
+@media (max-width: 900px) {
+    .gxDetailCard {
+        position: static;
+    }
+}
+
+@media (max-width: 640px) {
+    .gxShell {
+        width: min(100% - 10px, 1180px);
+    }
+
+    .gxHeader {
+        align-items: stretch;
+    }
+
+    .gxHeader,
+    .gxPanelHead,
+    .gxSubmitRow {
+        display: grid;
+    }
+
+    .gxHeaderActions {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        justify-content: stretch;
+    }
+
+    .gxSummary,
+    .gxModeBar,
+    .gxFieldGrid,
+    .gxCountGrid,
+    .gxManageTools {
+        grid-template-columns: 1fr;
+    }
+
+    .gxEggPresets {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .gxPassword {
+        width: 100%;
+    }
+
+    .gxSubmitRow > button,
+    .gxSubmitRow .gxPrimaryButton,
+    .gxSubmitRow .gxSoftButton {
+        width: 100%;
+    }
+
+    .gxTimelineAction {
+        grid-template-columns: 1fr;
+    }
+
+    .gxMiniActions {
+        justify-content: flex-end;
     }
 }
