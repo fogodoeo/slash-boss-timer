@@ -804,6 +804,61 @@ function calcBossNextSpawnAt(boss, cutAtIso) {
     return null;
 }
 
+function isMayElevenMistimedMissCut(record) {
+    if (!record || record.status === 'canceled' || !record.timeUncertain || record.timeValue !== '1349') return false;
+    const cutMs = new Date(record.cutAt || '').getTime();
+    if (!Number.isFinite(cutMs)) return false;
+    const kst = kstDate(cutMs);
+    return kst.getUTCFullYear() === 2026
+        && kst.getUTCMonth() === 4
+        && kst.getUTCDate() === 11
+        && kst.getUTCHours() === 13
+        && kst.getUTCMinutes() === 49;
+}
+
+function repairMayElevenMistimedMissCuts(records, bosses) {
+    let changed = false;
+    const activeByBoss = new Map();
+
+    for (const record of records) {
+        if (record.status === 'canceled') continue;
+        if (!activeByBoss.has(record.bossName)) activeByBoss.set(record.bossName, []);
+        activeByBoss.get(record.bossName).push(record);
+    }
+
+    for (const list of activeByBoss.values()) {
+        list.sort((a, b) => new Date(a.cutAt) - new Date(b.cutAt));
+    }
+
+    for (const record of records) {
+        if (!isMayElevenMistimedMissCut(record)) continue;
+        const boss = bosses.find((item) => item.이름 === record.bossName || item.애칭 === record.bossName);
+        if (!boss || boss.타입 !== '시간') continue;
+
+        const recordCutMs = new Date(record.cutAt).getTime();
+        const previous = (activeByBoss.get(record.bossName) || [])
+            .filter((item) => item.id !== record.id && new Date(item.cutAt).getTime() < recordCutMs)
+            .sort((a, b) => new Date(b.cutAt) - new Date(a.cutAt))[0];
+        const spawnMs = new Date(previous?.nextSpawnAt || boss.nextSpawnAt || '').getTime();
+        if (!Number.isFinite(spawnMs)) continue;
+
+        const correctedCutAt = new Date(spawnMs + 60 * 1000).toISOString();
+        const correctedTimeValue = formatCommandTimeFromIso(correctedCutAt);
+        const correctedNextSpawnAt = calcBossNextSpawnAt(boss, correctedCutAt);
+        if (!correctedTimeValue || !correctedNextSpawnAt || record.cutAt === correctedCutAt) continue;
+
+        record.cutAt = correctedCutAt;
+        record.timeValue = correctedTimeValue;
+        record.nextSpawnAt = correctedNextSpawnAt;
+        record.updatedAt = new Date().toISOString();
+        record.editedBy = 'system';
+        record.timeUncertain = true;
+        changed = true;
+    }
+
+    return changed;
+}
+
 function hashParticipantPassword(value) {
     const password = String(value || '').trim();
     if (!password) return '';
@@ -1192,6 +1247,8 @@ async function hydrateBossCutState() {
             changed = true;
         }
     }
+
+    if (repairMayElevenMistimedMissCuts(normalizedRecords, bosses)) changed = true;
 
     state.bossCutRecords = normalizedRecords
         .sort((a, b) => new Date(b.updatedAt || b.cutAt) - new Date(a.updatedAt || a.cutAt))

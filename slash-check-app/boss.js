@@ -996,7 +996,8 @@ async function quickCutBoss(boss, options = {}) {
     }
 
     const now = getNowMs();
-    const cutMs = now + (Number(options.offsetMinutes || 0) * 60000);
+    const baseMs = Number.isFinite(options.baseMs) ? options.baseMs : now;
+    const cutMs = baseMs + (Number(options.offsetMinutes || 0) * 60000);
     const timeValue = timeInputValueFromMs(cutMs);
     const timeUncertain = Boolean(options.timeUncertain);
     quickCutSubmittingBosses.add(boss.이름);
@@ -1079,7 +1080,7 @@ function renderQuickBosses(timeline, now = getNowMs()) {
         missButton.className = 'bossQuickCutLabel bossQuickMissLabel';
         missButton.disabled = Boolean(lockedByOther || isSubmitting);
         missButton.textContent = lockedByOther ? '-' : isSubmitting ? '...' : '멍';
-        missButton.title = '현재 시간 +1분으로 불확실 컷';
+        missButton.title = '젠 시간 +1분으로 불확실 컷';
         const actions = document.createElement('span');
         actions.className = 'bossQuickActions';
         actions.append(missButton, quickButton);
@@ -1095,7 +1096,7 @@ function renderQuickBosses(timeline, now = getNowMs()) {
                 showToast('컷 입력 중', `${lock.memberName} 님이 먼저 열었습니다.`, 'error');
                 return;
             }
-            quickCutBoss(item.boss, { offsetMinutes: 1, timeUncertain: true });
+            quickCutBoss(item.boss, { baseMs: item.spawnMs, offsetMinutes: 1, timeUncertain: true });
         });
         quickButton.addEventListener('click', (event) => {
             event.stopPropagation();
