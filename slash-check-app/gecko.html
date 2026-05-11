@@ -35,7 +35,6 @@
 
         <nav class="gxModeBar" aria-label="작업 모드">
             <button type="button" class="active" data-gx-mode="register">등록</button>
-            <button type="button" data-gx-mode="clutch">산란</button>
             <button type="button" data-gx-mode="manage">관리</button>
         </nav>
 
@@ -43,8 +42,8 @@
             <div class="gxPanelHead">
                 <div>
                     <span>REGISTER</span>
-                    <h2>연속 등록</h2>
-                    <p>기본값은 미구분입니다. 비슷한 이름은 끝번호만 자동으로 이어집니다.</p>
+                    <h2>개체 등록</h2>
+                    <p>처음 들인 개체나 해칭 개체를 빠르게 추가합니다. 산란·메이팅 이력은 관리에서 다룹니다.</p>
                 </div>
                 <button id="seedExamplesButton" type="button" class="gxSoftButton">예시 넣기</button>
             </div>
@@ -55,9 +54,8 @@
                     <div class="gxRegisterKinds">
                         <button type="button" class="active" data-register-kind="general">일반</button>
                         <button type="button" data-register-kind="hatch">해칭</button>
-                        <button type="button" data-register-kind="breeding">브리딩</button>
                     </div>
-                    <p id="registerKindHint">이름만 넣어도 저장됩니다. 위치와 모프는 필요할 때만 채우세요.</p>
+                    <p id="registerKindHint">일반 개체는 이름만 넣어도 저장됩니다. 위치와 모프는 필요할 때만 채우세요.</p>
                 </div>
 
                 <div class="gxSexPicker">
@@ -134,89 +132,12 @@
             </form>
         </section>
 
-        <section id="clutchPanel" class="gxPanel hidden" data-gx-panel="clutch">
-            <div class="gxPanelHead">
-                <div>
-                    <span>CLUTCH</span>
-                    <h2>산란 기록</h2>
-                    <p>암컷을 고르면 페어 수컷이 자동으로 들어갑니다. 자주 쓰는 조합은 버튼 하나로 끝냅니다.</p>
-                </div>
-                <button id="cancelEggEditButton" type="button" class="gxSoftButton hidden">수정 취소</button>
-            </div>
-
-            <form id="clutchForm" class="gxForm">
-                <div class="gxFlowBlock">
-                    <span>산란 후보</span>
-                    <div id="clutchQuickList" class="gxQuickList"></div>
-                </div>
-
-                <label class="gxField gxSearchField">
-                    <span>암컷 찾기</span>
-                    <input id="clutchFemaleSearch" type="text" autocomplete="off" placeholder="이름이나 번호 일부만 입력">
-                    <div id="clutchFemaleSuggest" class="gxSuggest"></div>
-                </label>
-
-                <div class="gxSelectedBox">
-                    <strong id="clutchFemaleLabel">암컷을 선택하세요</strong>
-                    <span id="clutchPairHint">개체 정보에 페어 수컷이 있으면 자동 연결됩니다.</span>
-                </div>
-
-                <div class="gxFieldGrid">
-                    <label class="gxField">
-                        <span>산란일</span>
-                        <input id="clutchLayDate" type="date">
-                    </label>
-                    <label class="gxField">
-                        <span>페어 수컷</span>
-                        <input id="clutchMate" type="text" placeholder="자동 또는 직접 입력">
-                    </label>
-                    <label class="gxField">
-                        <span>보관 위치</span>
-                        <input id="clutchIncubation" type="text" placeholder="예: 인큐 1">
-                    </label>
-                </div>
-
-                <div class="gxEggPresets">
-                    <button type="button" data-egg-preset="2,0,0">유2</button>
-                    <button type="button" data-egg-preset="1,1,0">유1 무1</button>
-                    <button type="button" data-egg-preset="0,2,0">무2</button>
-                    <button type="button" data-egg-preset="0,0,1">미확인</button>
-                </div>
-
-                <div class="gxCountGrid">
-                    <label class="gxField">
-                        <span>유정</span>
-                        <input id="clutchFertile" type="number" min="0" max="99" value="2" inputmode="numeric">
-                    </label>
-                    <label class="gxField">
-                        <span>무정</span>
-                        <input id="clutchInfertile" type="number" min="0" max="99" value="0" inputmode="numeric">
-                    </label>
-                    <label class="gxField">
-                        <span>미확인</span>
-                        <input id="clutchUnknown" type="number" min="0" max="99" value="0" inputmode="numeric">
-                    </label>
-                </div>
-
-                <label class="gxField">
-                    <span>메모</span>
-                    <textarea id="clutchMemo" rows="3" placeholder="알 상태, 특이사항"></textarea>
-                </label>
-
-                <div id="clutchPreview" class="gxHint">오늘 산란 · 유정 2 / 무정 0 / 미확인 0</div>
-
-                <div class="gxSubmitRow">
-                    <button id="clutchSubmitButton" type="submit" class="gxPrimaryButton">산란 저장</button>
-                </div>
-            </form>
-        </section>
-
         <section id="managePanel" class="gxPanel hidden" data-gx-panel="manage">
             <div class="gxPanelHead">
                 <div>
                     <span>MANAGE</span>
                     <h2>개체 관리</h2>
-                    <p>검색해서 누르면 오른쪽에서 바로 확인하고, 산란/메모 기록도 수정할 수 있습니다.</p>
+                    <p>개체를 선택한 뒤 메이팅, 산란, 먹이·탈피 기록을 한곳에서 관리합니다.</p>
                 </div>
             </div>
 
@@ -261,6 +182,83 @@
                         </div>
                     </div>
                     <div id="detailBody" class="gxEmpty">표에서 개체를 누르면 정보가 표시됩니다.</div>
+
+                    <form id="pairForm" class="gxInlineForm hidden">
+                        <h4>메이팅 정보</h4>
+                        <div class="gxFieldGrid">
+                            <label class="gxField">
+                                <span>페어 수컷</span>
+                                <input id="pairManageMate" type="text" placeholder="예: M-001">
+                            </label>
+                            <label class="gxField">
+                                <span>페어일</span>
+                                <input id="pairManageDate" type="date">
+                            </label>
+                        </div>
+                        <div class="gxSubmitRow">
+                            <button id="pairClearButton" type="button" class="gxSoftButton">비우기</button>
+                            <button type="submit" class="gxPrimaryButton">메이팅 저장</button>
+                        </div>
+                    </form>
+
+                    <form id="clutchForm" class="gxInlineForm gxClutchInlineForm hidden">
+                        <div class="gxInlineHead">
+                            <div>
+                                <h4 id="clutchFormTitle">산란 정보</h4>
+                                <p id="clutchFemaleLabel">개체를 선택하세요</p>
+                                <p id="clutchPairHint">메이팅 정보가 있으면 페어 수컷이 자동으로 들어갑니다.</p>
+                            </div>
+                            <button id="cancelEggEditButton" type="button" class="gxSoftButton hidden">수정 취소</button>
+                        </div>
+
+                        <div class="gxFieldGrid">
+                            <label class="gxField">
+                                <span>산란일</span>
+                                <input id="clutchLayDate" type="date">
+                            </label>
+                            <label class="gxField">
+                                <span>페어 수컷</span>
+                                <input id="clutchMate" type="text" placeholder="자동 또는 직접 입력">
+                            </label>
+                            <label class="gxField">
+                                <span>보관 위치</span>
+                                <input id="clutchIncubation" type="text" placeholder="예: 인큐 1">
+                            </label>
+                        </div>
+
+                        <div class="gxEggPresets">
+                            <button type="button" data-egg-preset="2,0,0">유2</button>
+                            <button type="button" data-egg-preset="1,1,0">유1 무1</button>
+                            <button type="button" data-egg-preset="0,2,0">무2</button>
+                            <button type="button" data-egg-preset="0,0,1">미확인</button>
+                        </div>
+
+                        <div class="gxCountGrid">
+                            <label class="gxField">
+                                <span>유정</span>
+                                <input id="clutchFertile" type="number" min="0" max="99" value="2" inputmode="numeric">
+                            </label>
+                            <label class="gxField">
+                                <span>무정</span>
+                                <input id="clutchInfertile" type="number" min="0" max="99" value="0" inputmode="numeric">
+                            </label>
+                            <label class="gxField">
+                                <span>미확인</span>
+                                <input id="clutchUnknown" type="number" min="0" max="99" value="0" inputmode="numeric">
+                            </label>
+                        </div>
+
+                        <label class="gxField">
+                            <span>메모</span>
+                            <textarea id="clutchMemo" rows="3" placeholder="알 상태, 특이사항"></textarea>
+                        </label>
+
+                        <div id="clutchPreview" class="gxHint">오늘 산란 · 유정 2 / 무정 0 / 미확인 0</div>
+
+                        <div class="gxSubmitRow">
+                            <button id="clutchSubmitButton" type="submit" class="gxPrimaryButton">산란 저장</button>
+                        </div>
+                    </form>
 
                     <form id="activityForm" class="gxActivityForm hidden">
                         <h4 id="activityTitle">상태 메모</h4>

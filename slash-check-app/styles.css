@@ -11616,7 +11616,7 @@ body {
     bottom: max(10px, env(safe-area-inset-bottom));
     transform: translateX(-50%);
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 8px;
     width: min(520px, calc(100% - 18px));
     max-width: calc(100vw - 18px);
@@ -11674,6 +11674,7 @@ body {
 
 .gxForm,
 .gxImportBox,
+.gxInlineForm,
 .gxActivityForm,
 .gxDetailBody,
 .gxLogList {
@@ -11716,7 +11717,7 @@ body {
 }
 
 .gxRegisterKinds {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     min-width: 0;
     max-width: 100%;
 }
@@ -11911,17 +11912,33 @@ body {
     gap: 6px;
 }
 
+.gxInlineForm,
 .gxActivityForm {
     margin-top: 12px;
     border-top: 1px solid #e3ebf4;
     padding-top: 12px;
 }
 
+.gxInlineForm h4,
 .gxActivityForm h4 {
     margin: 0;
     color: #0f172a;
     font-size: 14px;
     font-weight: 1000;
+}
+
+.gxInlineHead {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.gxInlineHead p {
+    margin: 3px 0 0;
+    color: #64748b;
+    font-size: 12px;
+    font-weight: 850;
 }
 
 .gxTimelineAction {

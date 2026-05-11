@@ -43,6 +43,7 @@ const el = {
     clutchFemaleSearch: $('#clutchFemaleSearch'),
     clutchFemaleSuggest: $('#clutchFemaleSuggest'),
     clutchQuickList: $('#clutchQuickList'),
+    clutchFormTitle: $('#clutchFormTitle'),
     clutchFemaleLabel: $('#clutchFemaleLabel'),
     clutchPairHint: $('#clutchPairHint'),
     clutchLayDate: $('#clutchLayDate'),
@@ -67,6 +68,10 @@ const el = {
     clutchSelectedButton: $('#clutchSelectedButton'),
     editSelectedButton: $('#editSelectedButton'),
     deleteSelectedButton: $('#deleteSelectedButton'),
+    pairForm: $('#pairForm'),
+    pairManageMate: $('#pairManageMate'),
+    pairManageDate: $('#pairManageDate'),
+    pairClearButton: $('#pairClearButton'),
     activityForm: $('#activityForm'),
     activityTitle: $('#activityTitle'),
     activityStatusButtons: $$('[data-activity-status]'),
@@ -250,10 +255,10 @@ function incrementTrailingText(start, step = 1) {
 }
 
 function setMode(mode) {
+    if (mode === 'clutch') mode = 'manage';
     el.modeButtons.forEach((button) => button.classList.toggle('active', button.dataset.gxMode === mode));
     el.modePanels.forEach((panel) => panel.classList.toggle('hidden', panel.dataset.gxPanel !== mode));
     if (mode === 'register') setTimeout(() => el.regName.focus(), 40);
-    if (mode === 'clutch') setTimeout(() => el.clutchFemaleSearch.focus(), 40);
     if (mode === 'manage') setTimeout(() => el.manageSearch.focus(), 40);
 }
 
@@ -263,19 +268,16 @@ function setSex(value) {
 }
 
 function setRegisterKind(kind) {
-    registerKind = kind || 'general';
+    registerKind = kind === 'hatch' ? 'hatch' : 'general';
     el.registerKindButtons.forEach((button) => button.classList.toggle('active', button.dataset.registerKind === registerKind));
     el.parentFields.forEach((field) => field.classList.toggle('hidden', registerKind !== 'hatch'));
-    el.pairFields.forEach((field) => field.classList.toggle('hidden', registerKind !== 'breeding'));
+    el.pairFields.forEach((field) => field.classList.add('hidden'));
 
     if (registerKind === 'hatch') {
         setSex('미구분');
         el.registerKindHint.textContent = '해칭 개체는 어미/아비가 핵심입니다. 위치와 모프는 공통값으로 계속 이어가면 편합니다.';
-    } else if (registerKind === 'breeding') {
-        setSex('암컷');
-        el.registerKindHint.textContent = '산란 개체는 페어 수컷을 같이 넣어두면 산란 기록 때 자동으로 연결됩니다.';
     } else {
-        el.registerKindHint.textContent = '이름만 넣어도 저장됩니다. 위치와 모프는 필요할 때만 채우세요.';
+        el.registerKindHint.textContent = '일반 개체는 이름만 넣어도 저장됩니다. 위치와 모프는 필요할 때만 채우세요.';
     }
 }
 
@@ -612,6 +614,7 @@ function suggestButton(gecko, onPick) {
 }
 
 function renderFemaleSuggestions() {
+    if (!el.clutchFemaleSearch || !el.clutchFemaleSuggest) return;
     const query = el.clutchFemaleSearch.value.trim().toLowerCase();
     el.clutchFemaleSuggest.replaceChildren();
     if (!query) return;
@@ -638,6 +641,7 @@ function clutchCandidates() {
 }
 
 function renderClutchQuickList() {
+    if (!el.clutchQuickList) return;
     el.clutchQuickList.replaceChildren();
     const list = clutchCandidates();
     if (!list.length) {
@@ -662,13 +666,13 @@ function renderClutchQuickList() {
 
 function setClutchFemale(gecko) {
     selectedFemaleId = gecko?.id || '';
-    el.clutchFemaleSearch.value = gecko ? titleOf(gecko) : '';
-    el.clutchFemaleLabel.textContent = gecko ? titleOf(gecko) : '암컷을 선택하세요';
+    if (el.clutchFemaleSearch) el.clutchFemaleSearch.value = gecko ? titleOf(gecko) : '';
+    el.clutchFemaleLabel.textContent = gecko ? `${titleOf(gecko)} 산란 입력` : '개체를 선택하세요';
     el.clutchMate.value = gecko?.pairedWithNumber || '';
     el.clutchPairHint.textContent = gecko?.pairedWithNumber
         ? `페어 수컷 ${gecko.pairedWithNumber} 자동 연결`
-        : '페어 수컷이 없으면 직접 입력하세요.';
-    el.clutchFemaleSuggest.replaceChildren();
+        : '메이팅 정보가 없으면 페어 수컷을 직접 입력하세요.';
+    if (el.clutchFemaleSuggest) el.clutchFemaleSuggest.replaceChildren();
     renderClutchQuickList();
 }
 
@@ -686,6 +690,17 @@ function updateClutchPreview() {
     el.clutchPreview.textContent = `${date} 산란 · 유정 ${numberValue(el.clutchFertile.value)} / 무정 ${numberValue(el.clutchInfertile.value)} / 미확인 ${numberValue(el.clutchUnknown.value)}`;
 }
 
+function resetClutchInputs(gecko = geckoById(selectedFemaleId)) {
+    el.clutchLayDate.value = todayValue();
+    el.clutchFertile.value = '2';
+    el.clutchInfertile.value = '0';
+    el.clutchUnknown.value = '0';
+    el.clutchIncubation.value = '';
+    el.clutchMate.value = gecko?.pairedWithNumber || '';
+    el.clutchMemo.value = '';
+    updateClutchPreview();
+}
+
 function clutchRecord(existing = null) {
     const now = new Date().toISOString();
     return {
@@ -696,7 +711,7 @@ function clutchRecord(existing = null) {
         infertileCount: numberValue(el.clutchInfertile.value),
         unknownCount: numberValue(el.clutchUnknown.value),
         incubationLocation: el.clutchIncubation.value.trim(),
-        mateNumber: el.clutchMate.value.trim(),
+        mateNumber: el.clutchMate.value.trim() || el.pairManageMate.value.trim(),
         memo: el.clutchMemo.value.trim(),
         actor: currentActor(),
         createdAt: existing?.createdAt || now,
@@ -708,6 +723,8 @@ function clearEggEdit() {
     editingEggId = '';
     el.cancelEggEditButton.classList.add('hidden');
     el.clutchSubmitButton.textContent = '산란 저장';
+    if (el.clutchFormTitle) el.clutchFormTitle.textContent = '산란 정보';
+    resetClutchInputs(geckoById(selectedFemaleId));
 }
 
 async function saveClutch(event) {
@@ -728,7 +745,8 @@ async function saveClutch(event) {
         const data = await saveGecko({
             ...gecko,
             sex: displaySex(gecko) === '미구분' ? '암' : gecko.sex,
-            pairedWithNumber: gecko.pairedWithNumber || record.mateNumber,
+            pairedWithNumber: record.mateNumber || gecko.pairedWithNumber,
+            pairingDate: gecko.pairingDate || el.pairManageDate.value,
             eggRecords: nextRecords
         }, {
             action: editingEggId ? '산란 기록 수정' : '산란 기록',
@@ -737,15 +755,16 @@ async function saveClutch(event) {
         if (!data) return;
         state = data;
         selectedGeckoId = data.saved?.id || selectedGeckoId;
-        setClutchFemale(null);
-        el.clutchFertile.value = '2';
-        el.clutchInfertile.value = '0';
-        el.clutchUnknown.value = '0';
-        el.clutchMemo.value = '';
-        clearEggEdit();
+        selectedFemaleId = selectedGeckoId;
+        setClutchFemale(data.saved || geckoById(selectedGeckoId));
+        editingEggId = '';
+        el.cancelEggEditButton.classList.add('hidden');
+        el.clutchSubmitButton.textContent = '산란 저장';
+        if (el.clutchFormTitle) el.clutchFormTitle.textContent = '산란 정보';
+        resetClutchInputs(data.saved || geckoById(selectedGeckoId));
         renderAll();
         toast(wasEditing ? '산란 수정 완료' : '산란 저장 완료', titleOf(data.saved));
-        setTimeout(() => el.clutchFemaleSearch.focus(), 40);
+        setTimeout(() => el.clutchFertile.focus(), 40);
     } catch (err) {
         toast('산란 저장 실패', err.message, 'error');
     }
@@ -777,6 +796,8 @@ function renderManageRows() {
         );
         tr.addEventListener('click', () => {
             selectedGeckoId = gecko.id;
+            editingEggId = '';
+            clearActivityEdit();
             renderManageRows();
         });
         el.manageRows.append(tr);
@@ -790,6 +811,8 @@ function renderManageRows() {
         );
         card.addEventListener('click', () => {
             selectedGeckoId = gecko.id;
+            editingEggId = '';
+            clearActivityEdit();
             renderManageRows();
             setTimeout(() => document.querySelector('.gxDetailCard')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 30);
         });
@@ -863,11 +886,27 @@ function renderActivityTimeline(gecko) {
     return wrap;
 }
 
+function syncPairForm(gecko) {
+    el.pairForm.classList.toggle('hidden', !gecko);
+    if (!gecko) return;
+    el.pairManageMate.value = gecko.pairedWithNumber || '';
+    el.pairManageDate.value = gecko.pairingDate || '';
+}
+
+function syncClutchForm(gecko) {
+    el.clutchForm.classList.toggle('hidden', !gecko);
+    if (!gecko) return;
+    setClutchFemale(gecko);
+    if (!editingEggId) resetClutchInputs(gecko);
+}
+
 function renderDetail() {
     const gecko = geckoById(selectedGeckoId);
     el.clutchSelectedButton.disabled = !gecko;
     el.editSelectedButton.disabled = !gecko;
     el.deleteSelectedButton.disabled = !gecko;
+    syncPairForm(gecko);
+    syncClutchForm(gecko);
     el.activityForm.classList.toggle('hidden', !gecko);
     if (!gecko) {
         el.detailTitle.textContent = '개체를 선택하세요';
@@ -906,7 +945,6 @@ function fillRegisterFromSelected() {
     editingGeckoId = gecko.id;
     setMode('register');
     if (gecko.motherNumber || gecko.fatherNumber) setRegisterKind('hatch');
-    else if (gecko.pairedWithNumber || displaySex(gecko) === '암컷') setRegisterKind('breeding');
     else setRegisterKind('general');
     setSex(displaySex(gecko));
     el.regName.value = gecko.name || '';
@@ -926,9 +964,40 @@ function fillRegisterFromSelected() {
 function clutchFromSelected() {
     const gecko = geckoById(selectedGeckoId);
     if (!gecko) return;
-    setMode('clutch');
+    setMode('manage');
+    editingEggId = '';
     setClutchFemale(gecko);
+    resetClutchInputs(gecko);
+    renderManageRows();
     setTimeout(() => el.clutchFertile.focus(), 40);
+}
+
+async function savePair(event) {
+    event.preventDefault();
+    const gecko = geckoById(selectedGeckoId);
+    if (!gecko) return toast('개체 선택 필요', '메이팅 정보를 넣을 개체를 먼저 선택하세요.', 'error');
+    const mate = el.pairManageMate.value.trim();
+    const pairDate = el.pairManageDate.value;
+
+    try {
+        const data = await saveGecko({
+            id: gecko.id,
+            number: gecko.number,
+            sex: mate && displaySex(gecko) === '미구분' ? '암' : gecko.sex,
+            pairedWithNumber: mate,
+            pairingDate: pairDate
+        }, {
+            action: '메이팅 정보 저장',
+            detail: mate ? `${mate}${pairDate ? ` · ${pairDate}` : ''}` : '페어 비움'
+        });
+        if (!data) return;
+        state = data;
+        selectedGeckoId = data.saved?.id || selectedGeckoId;
+        renderAll();
+        toast('메이팅 저장 완료', titleOf(data.saved));
+    } catch (err) {
+        toast('메이팅 저장 실패', err.message, 'error');
+    }
 }
 
 async function deleteSelectedGecko() {
@@ -953,8 +1022,10 @@ function editEggRecord(geckoId, recordId) {
     const gecko = geckoById(geckoId);
     const record = recordsOf(gecko).find((item) => item.id === recordId);
     if (!gecko || !record) return;
+    selectedGeckoId = gecko.id;
     editingEggId = record.id;
-    setMode('clutch');
+    setMode('manage');
+    renderManageRows();
     setClutchFemale(gecko);
     el.clutchLayDate.value = record.layDate || todayValue();
     el.clutchFertile.value = numberValue(record.fertileCount);
@@ -965,7 +1036,9 @@ function editEggRecord(geckoId, recordId) {
     el.clutchMemo.value = record.memo || '';
     el.cancelEggEditButton.classList.remove('hidden');
     el.clutchSubmitButton.textContent = '산란 수정';
+    if (el.clutchFormTitle) el.clutchFormTitle.textContent = '산란 수정';
     updateClutchPreview();
+    setTimeout(() => el.clutchForm.scrollIntoView({ behavior: 'smooth', block: 'start' }), 30);
 }
 
 async function deleteEggRecord(geckoId, recordId) {
@@ -1137,6 +1210,12 @@ el.seedExamplesButton.addEventListener('click', seedExamples);
 el.importForm.addEventListener('submit', importGeckos);
 el.clutchForm.addEventListener('submit', saveClutch);
 el.cancelEggEditButton.addEventListener('click', clearEggEdit);
+el.pairForm.addEventListener('submit', savePair);
+el.pairClearButton.addEventListener('click', () => {
+    el.pairManageMate.value = '';
+    el.pairManageDate.value = '';
+    el.pairManageMate.focus();
+});
 el.activityForm.addEventListener('submit', saveActivity);
 el.cancelActivityEditButton.addEventListener('click', clearActivityEdit);
 el.clutchSelectedButton.addEventListener('click', clutchFromSelected);
@@ -1152,15 +1231,17 @@ el.deleteSelectedButton.addEventListener('click', deleteSelectedGecko);
     input.addEventListener('change', updateClutchPreview);
 });
 
-el.clutchFemaleSearch.addEventListener('input', () => {
-    selectedFemaleId = '';
-    clearEggEdit();
-    el.clutchFemaleLabel.textContent = '암컷을 선택하세요';
-    el.clutchPairHint.textContent = '개체 정보에 페어 수컷이 있으면 자동 연결됩니다.';
-    el.clutchMate.value = '';
-    renderFemaleSuggestions();
-});
-el.clutchFemaleSearch.addEventListener('focus', renderFemaleSuggestions);
+if (el.clutchFemaleSearch) {
+    el.clutchFemaleSearch.addEventListener('input', () => {
+        selectedFemaleId = '';
+        clearEggEdit();
+        el.clutchFemaleLabel.textContent = '개체를 선택하세요';
+        el.clutchPairHint.textContent = '메이팅 정보가 있으면 페어 수컷이 자동으로 들어갑니다.';
+        el.clutchMate.value = '';
+        renderFemaleSuggestions();
+    });
+    el.clutchFemaleSearch.addEventListener('focus', renderFemaleSuggestions);
+}
 el.manageSearch.addEventListener('input', renderManageRows);
 el.manageSexFilter.addEventListener('change', renderManageRows);
 
