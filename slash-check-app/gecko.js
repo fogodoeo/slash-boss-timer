@@ -20,6 +20,10 @@ const el = {
     registerForm: $('#registerForm'),
     resetRegisterButton: $('#resetRegisterButton'),
     seedExamplesButton: $('#seedExamplesButton'),
+    registerKindButtons: $$('[data-register-kind]'),
+    registerKindHint: $('#registerKindHint'),
+    pairFields: $$('.gxPairField'),
+    parentFields: $$('.gxParentField'),
     sexButtons: $$('[data-sex]'),
     regName: $('#regName'),
     regNumber: $('#regNumber'),
@@ -38,6 +42,7 @@ const el = {
     clutchForm: $('#clutchForm'),
     clutchFemaleSearch: $('#clutchFemaleSearch'),
     clutchFemaleSuggest: $('#clutchFemaleSuggest'),
+    clutchQuickList: $('#clutchQuickList'),
     clutchFemaleLabel: $('#clutchFemaleLabel'),
     clutchPairHint: $('#clutchPairHint'),
     clutchLayDate: $('#clutchLayDate'),
@@ -55,9 +60,11 @@ const el = {
     manageSearch: $('#manageSearch'),
     manageSexFilter: $('#manageSexFilter'),
     manageRows: $('#manageRows'),
+    manageCards: $('#manageCards'),
     manageEmpty: $('#manageEmpty'),
     detailTitle: $('#detailTitle'),
     detailBody: $('#detailBody'),
+    clutchSelectedButton: $('#clutchSelectedButton'),
     editSelectedButton: $('#editSelectedButton'),
     deleteSelectedButton: $('#deleteSelectedButton'),
     activityForm: $('#activityForm'),
@@ -69,6 +76,7 @@ const el = {
 };
 
 let state = { geckos: [], count: 0, logs: [], updatedAt: null };
+let registerKind = 'general';
 let selectedSex = '미구분';
 let selectedFemaleId = '';
 let selectedGeckoId = '';
@@ -131,8 +139,8 @@ function currentActor() {
 
 function renderActor() {
     const actor = currentActor();
-    el.actorButton.textContent = actor ? `작업자 · ${actor}` : '사용자 등록';
-    el.actorButton.classList.toggle('isMissing', !actor);
+    el.actorButton.textContent = actor ? `작업자 · ${actor}` : '작업자 설정';
+    el.actorButton.classList.toggle('isMissing', false);
 }
 
 function openActorModal(force = false) {
@@ -148,10 +156,7 @@ function closeActorModal() {
 
 function requireActor() {
     const actor = currentActor();
-    if (actor) return actor;
-    openActorModal(true);
-    toast('이름이 필요합니다', '누가 등록/수정했는지 남기기 위해 먼저 이름을 저장하세요.', 'error');
-    return '';
+    return actor || '익명';
 }
 
 function titleOf(gecko) {
@@ -257,6 +262,23 @@ function setSex(value) {
     el.sexButtons.forEach((button) => button.classList.toggle('active', button.dataset.sex === value));
 }
 
+function setRegisterKind(kind) {
+    registerKind = kind || 'general';
+    el.registerKindButtons.forEach((button) => button.classList.toggle('active', button.dataset.registerKind === registerKind));
+    el.parentFields.forEach((field) => field.classList.toggle('hidden', registerKind !== 'hatch'));
+    el.pairFields.forEach((field) => field.classList.toggle('hidden', registerKind !== 'breeding'));
+
+    if (registerKind === 'hatch') {
+        setSex('미구분');
+        el.registerKindHint.textContent = '해칭 개체는 어미/아비가 핵심입니다. 위치와 모프는 공통값으로 계속 이어가면 편합니다.';
+    } else if (registerKind === 'breeding') {
+        setSex('암컷');
+        el.registerKindHint.textContent = '산란 개체는 페어 수컷을 같이 넣어두면 산란 기록 때 자동으로 연결됩니다.';
+    } else {
+        el.registerKindHint.textContent = '이름만 넣어도 저장됩니다. 위치와 모프는 필요할 때만 채우세요.';
+    }
+}
+
 function setActivityStatus(value) {
     activityStatus = value;
     el.activityStatusButtons.forEach((button) => button.classList.toggle('active', button.dataset.activityStatus === value));
@@ -295,7 +317,8 @@ function resetRegister(keepShared = false) {
     } : null;
     editingGeckoId = '';
     el.registerForm.reset();
-    setSex(keepShared ? selectedSex : '미구분');
+    setRegisterKind(keepShared ? registerKind : 'general');
+    if (!keepShared) setSex('미구분');
     el.regContinue.checked = true;
     if (shared) {
         el.regLocation.value = shared.location;
@@ -317,10 +340,10 @@ function registerPayload(existing = null) {
         status: existing?.status || '보유',
         location: el.regLocation.value.trim(),
         morph: el.regMorph.value.trim(),
-        pairedWithNumber: el.regPair.value.trim(),
-        pairingDate: el.regPairDate.value,
-        motherNumber: el.regMother.value.trim(),
-        fatherNumber: el.regFather.value.trim(),
+        pairedWithNumber: registerKind === 'breeding' ? el.regPair.value.trim() : (existing?.pairedWithNumber || ''),
+        pairingDate: registerKind === 'breeding' ? el.regPairDate.value : (existing?.pairingDate || ''),
+        motherNumber: registerKind === 'hatch' ? el.regMother.value.trim() : (existing?.motherNumber || ''),
+        fatherNumber: registerKind === 'hatch' ? el.regFather.value.trim() : (existing?.fatherNumber || ''),
         memo: el.regMemo.value.trim(),
         eggRecords: existing?.eggRecords || [],
         activityRecords: existing?.activityRecords || [],
@@ -602,6 +625,41 @@ function renderFemaleSuggestions() {
     list.forEach((gecko) => el.clutchFemaleSuggest.append(suggestButton(gecko, setClutchFemale)));
 }
 
+function clutchCandidates() {
+    return state.geckos
+        .filter((gecko) => displaySex(gecko) === '암컷' || gecko.pairedWithNumber || recordsOf(gecko).length)
+        .sort((a, b) => {
+            const aLatest = latestClutch(a)?.layDate || '';
+            const bLatest = latestClutch(b)?.layDate || '';
+            return String(bLatest).localeCompare(String(aLatest))
+                || String(a.number || '').localeCompare(String(b.number || ''), 'ko', { numeric: true });
+        })
+        .slice(0, 10);
+}
+
+function renderClutchQuickList() {
+    el.clutchQuickList.replaceChildren();
+    const list = clutchCandidates();
+    if (!list.length) {
+        el.clutchQuickList.append(node('div', 'gxQuickEmpty', '브리딩 암컷을 등록하면 여기에 바로 뜹니다.'));
+        return;
+    }
+    list.forEach((gecko) => {
+        const latest = latestClutch(gecko);
+        const button = node('button', gecko.id === selectedFemaleId ? 'gxQuickPick active' : 'gxQuickPick');
+        button.type = 'button';
+        button.append(
+            node('strong', '', titleOf(gecko)),
+            node('span', '', [
+                gecko.pairedWithNumber ? `수컷 ${gecko.pairedWithNumber}` : '페어 없음',
+                latest ? `최근 ${shortDate(latest.layDate)}` : '산란 기록 없음'
+            ].join(' · '))
+        );
+        button.addEventListener('click', () => setClutchFemale(gecko));
+        el.clutchQuickList.append(button);
+    });
+}
+
 function setClutchFemale(gecko) {
     selectedFemaleId = gecko?.id || '';
     el.clutchFemaleSearch.value = gecko ? titleOf(gecko) : '';
@@ -611,6 +669,7 @@ function setClutchFemale(gecko) {
         ? `페어 수컷 ${gecko.pairedWithNumber} 자동 연결`
         : '페어 수컷이 없으면 직접 입력하세요.';
     el.clutchFemaleSuggest.replaceChildren();
+    renderClutchQuickList();
 }
 
 function setEggPreset(button) {
@@ -679,6 +738,9 @@ async function saveClutch(event) {
         state = data;
         selectedGeckoId = data.saved?.id || selectedGeckoId;
         setClutchFemale(null);
+        el.clutchFertile.value = '2';
+        el.clutchInfertile.value = '0';
+        el.clutchUnknown.value = '0';
         el.clutchMemo.value = '';
         clearEggEdit();
         renderAll();
@@ -696,6 +758,7 @@ function manageList() {
 function renderManageRows() {
     const list = manageList();
     el.manageRows.replaceChildren();
+    el.manageCards.replaceChildren();
     el.manageEmpty.classList.toggle('hidden', list.length > 0);
     if (!geckoById(selectedGeckoId) && list[0]) selectedGeckoId = list[0].id;
 
@@ -717,6 +780,20 @@ function renderManageRows() {
             renderManageRows();
         });
         el.manageRows.append(tr);
+
+        const card = node('button', gecko.id === selectedGeckoId ? 'gxManageCard active' : 'gxManageCard');
+        card.type = 'button';
+        card.append(
+            node('strong', '', titleOf(gecko)),
+            node('span', '', [displaySex(gecko), gecko.location || '위치 없음', gecko.morph || '모프 없음'].join(' · ')),
+            node('em', '', latest ? `${shortDate(latest.layDate)} · ${eggSummary(latest)}` : '산란 기록 없음')
+        );
+        card.addEventListener('click', () => {
+            selectedGeckoId = gecko.id;
+            renderManageRows();
+            setTimeout(() => document.querySelector('.gxDetailCard')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 30);
+        });
+        el.manageCards.append(card);
     });
     renderDetail();
 }
@@ -788,6 +865,7 @@ function renderActivityTimeline(gecko) {
 
 function renderDetail() {
     const gecko = geckoById(selectedGeckoId);
+    el.clutchSelectedButton.disabled = !gecko;
     el.editSelectedButton.disabled = !gecko;
     el.deleteSelectedButton.disabled = !gecko;
     el.activityForm.classList.toggle('hidden', !gecko);
@@ -827,6 +905,9 @@ function fillRegisterFromSelected() {
     if (!gecko) return;
     editingGeckoId = gecko.id;
     setMode('register');
+    if (gecko.motherNumber || gecko.fatherNumber) setRegisterKind('hatch');
+    else if (gecko.pairedWithNumber || displaySex(gecko) === '암컷') setRegisterKind('breeding');
+    else setRegisterKind('general');
     setSex(displaySex(gecko));
     el.regName.value = gecko.name || '';
     el.regNumber.value = gecko.number || '';
@@ -840,6 +921,14 @@ function fillRegisterFromSelected() {
     el.regContinue.checked = false;
     updateRegisterPreview();
     toast('수정 모드', `${titleOf(gecko)} 정보를 불러왔습니다.`);
+}
+
+function clutchFromSelected() {
+    const gecko = geckoById(selectedGeckoId);
+    if (!gecko) return;
+    setMode('clutch');
+    setClutchFemale(gecko);
+    setTimeout(() => el.clutchFertile.focus(), 40);
 }
 
 async function deleteSelectedGecko() {
@@ -998,6 +1087,7 @@ function renderAll() {
     renderActor();
     renderHeader();
     renderManageRows();
+    renderClutchQuickList();
     updateRegisterPreview();
     updateClutchPreview();
 }
@@ -1008,7 +1098,6 @@ async function load() {
         el.clutchLayDate.value = todayValue();
         selectedGeckoId = state.geckos[0]?.id || '';
         renderAll();
-        if (!currentActor()) openActorModal(true);
     } catch (err) {
         toast('불러오기 실패', err.message, 'error');
     }
@@ -1032,6 +1121,9 @@ el.modeButtons.forEach((button) => {
 el.sexButtons.forEach((button) => {
     button.addEventListener('click', () => setSex(button.dataset.sex));
 });
+el.registerKindButtons.forEach((button) => {
+    button.addEventListener('click', () => setRegisterKind(button.dataset.registerKind));
+});
 el.activityStatusButtons.forEach((button) => {
     button.addEventListener('click', () => setActivityStatus(button.dataset.activityStatus));
 });
@@ -1047,6 +1139,7 @@ el.clutchForm.addEventListener('submit', saveClutch);
 el.cancelEggEditButton.addEventListener('click', clearEggEdit);
 el.activityForm.addEventListener('submit', saveActivity);
 el.cancelActivityEditButton.addEventListener('click', clearActivityEdit);
+el.clutchSelectedButton.addEventListener('click', clutchFromSelected);
 el.editSelectedButton.addEventListener('click', fillRegisterFromSelected);
 el.deleteSelectedButton.addEventListener('click', deleteSelectedGecko);
 
@@ -1083,6 +1176,7 @@ document.addEventListener('keydown', (event) => {
     }
 });
 
+setRegisterKind(registerKind);
 setSex(selectedSex);
 setActivityStatus(activityStatus);
 renderActor();

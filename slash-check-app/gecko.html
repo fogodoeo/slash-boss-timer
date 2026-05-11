@@ -50,6 +50,16 @@
             </div>
 
             <form id="registerForm" class="gxForm">
+                <div class="gxFlowBlock">
+                    <span>등록 방식</span>
+                    <div class="gxRegisterKinds">
+                        <button type="button" class="active" data-register-kind="general">일반</button>
+                        <button type="button" data-register-kind="hatch">해칭</button>
+                        <button type="button" data-register-kind="breeding">브리딩</button>
+                    </div>
+                    <p id="registerKindHint">이름만 넣어도 저장됩니다. 위치와 모프는 필요할 때만 채우세요.</p>
+                </div>
+
                 <div class="gxSexPicker">
                     <button type="button" class="active" data-sex="미구분">미구분</button>
                     <button type="button" data-sex="수컷">수컷</button>
@@ -82,19 +92,19 @@
                         <span>모프</span>
                         <input id="regMorph" type="text" placeholder="예: 릴리화이트">
                     </label>
-                    <label class="gxField">
+                    <label class="gxField gxPairField hidden">
                         <span>페어 수컷</span>
                         <input id="regPair" type="text" placeholder="산란 암컷이면 입력">
                     </label>
-                    <label class="gxField">
+                    <label class="gxField gxPairField hidden">
                         <span>페어일</span>
                         <input id="regPairDate" type="date">
                     </label>
-                    <label class="gxField">
+                    <label class="gxField gxParentField hidden">
                         <span>어미</span>
                         <input id="regMother" type="text" placeholder="해칭 개체 등록용">
                     </label>
-                    <label class="gxField">
+                    <label class="gxField gxParentField hidden">
                         <span>아비</span>
                         <input id="regFather" type="text" placeholder="해칭 개체 등록용">
                     </label>
@@ -135,6 +145,11 @@
             </div>
 
             <form id="clutchForm" class="gxForm">
+                <div class="gxFlowBlock">
+                    <span>산란 후보</span>
+                    <div id="clutchQuickList" class="gxQuickList"></div>
+                </div>
+
                 <label class="gxField gxSearchField">
                     <span>암컷 찾기</span>
                     <input id="clutchFemaleSearch" type="text" autocomplete="off" placeholder="이름이나 번호 일부만 입력">
@@ -220,6 +235,7 @@
 
             <div class="gxManageGrid">
                 <div class="gxTableWrap">
+                    <div id="manageCards" class="gxManageCards"></div>
                     <table class="gxTable">
                         <thead>
                             <tr>
@@ -239,6 +255,7 @@
                     <div class="gxDetailHead">
                         <h3 id="detailTitle">개체를 선택하세요</h3>
                         <div>
+                            <button id="clutchSelectedButton" type="button" class="gxSoftButton" disabled>산란</button>
                             <button id="editSelectedButton" type="button" class="gxSoftButton" disabled>수정</button>
                             <button id="deleteSelectedButton" type="button" class="gxDangerButton" disabled>삭제</button>
                         </div>
