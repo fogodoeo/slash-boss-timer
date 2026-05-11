@@ -722,8 +722,6 @@ function fixedSpawnCoveredByLatestCut(latest, spawnMs) {
 
 function isUncutPendingTimeItem(item, now = getNowMs()) {
     return item?.boss?.타입 === '시간'
-        && item.source === 'planned'
-        && !item.record
         && Number.isFinite(item.spawnMs)
         && item.spawnMs <= now;
 }
@@ -1034,8 +1032,7 @@ function renderQuickBosses(timeline, now = getNowMs()) {
 
     const items = timeline
         .filter((item) => item.spawnMs <= now && item.boss.타입 !== '이벤트')
-        .sort((a, b) => a.spawnMs - b.spawnMs || a.boss.이름.localeCompare(b.boss.이름, 'ko'))
-        .slice(0, 12);
+        .sort((a, b) => a.spawnMs - b.spawnMs || a.boss.이름.localeCompare(b.boss.이름, 'ko'));
     bossQuickList.replaceChildren();
 
     if (items.length === 0) {
