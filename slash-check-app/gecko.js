@@ -1,7 +1,6 @@
 const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => [...document.querySelectorAll(selector)];
 
-const ADMIN_PASSWORD_KEY = 'geckoAdminPassword';
 const ACTOR_NAME_KEY = 'geckoActorName';
 const ACTIVE_EGG_STATUSES = new Set(['보관중', '관찰']);
 
@@ -33,11 +32,8 @@ const el = {
     regMother: $('#regMother'),
     regFather: $('#regFather'),
     regMemo: $('#regMemo'),
-    regPassword: $('#regPassword'),
-
     importForm: $('#importForm'),
     importText: $('#importText'),
-    importPassword: $('#importPassword'),
 
     clutchForm: $('#clutchForm'),
     clutchFemaleSearch: $('#clutchFemaleSearch'),
@@ -53,7 +49,6 @@ const el = {
     clutchMate: $('#clutchMate'),
     clutchMemo: $('#clutchMemo'),
     clutchPreview: $('#clutchPreview'),
-    clutchPassword: $('#clutchPassword'),
     clutchSubmitButton: $('#clutchSubmitButton'),
     cancelEggEditButton: $('#cancelEggEditButton'),
 
@@ -69,7 +64,6 @@ const el = {
     activityTitle: $('#activityTitle'),
     activityStatusButtons: $$('[data-activity-status]'),
     activityMemo: $('#activityMemo'),
-    activityPassword: $('#activityPassword'),
     activitySubmitButton: $('#activitySubmitButton'),
     cancelActivityEditButton: $('#cancelActivityEditButton')
 };
@@ -149,7 +143,6 @@ function openActorModal(force = false) {
 }
 
 function closeActorModal() {
-    if (el.actorModal.dataset.force === 'true' && !currentActor()) return;
     el.actorModal.classList.remove('open');
 }
 
@@ -159,21 +152,6 @@ function requireActor() {
     openActorModal(true);
     toast('이름이 필요합니다', '누가 등록/수정했는지 남기기 위해 먼저 이름을 저장하세요.', 'error');
     return '';
-}
-
-function passwordValue(input) {
-    const value = input?.value?.trim() || localStorage.getItem(ADMIN_PASSWORD_KEY) || '';
-    if (value) {
-        localStorage.setItem(ADMIN_PASSWORD_KEY, value);
-        syncPasswords(value);
-    }
-    return value;
-}
-
-function syncPasswords(value = localStorage.getItem(ADMIN_PASSWORD_KEY) || '') {
-    $$('[data-admin-password]').forEach((input) => {
-        if (!input.value) input.value = value;
-    });
 }
 
 function titleOf(gecko) {
@@ -327,7 +305,6 @@ function resetRegister(keepShared = false) {
         el.regMother.value = shared.mother;
         el.regFather.value = shared.father;
     }
-    syncPasswords();
     updateRegisterPreview();
 }
 
@@ -351,18 +328,17 @@ function registerPayload(existing = null) {
     };
 }
 
-async function saveGecko(gecko, { adminPassword, action, detail }) {
+async function saveGecko(gecko, { action, detail }) {
     const actor = requireActor();
     if (!actor) return null;
     return api('/api/geckos', {
         method: 'POST',
-        body: JSON.stringify({ adminPassword, actor, action, detail, gecko })
+        body: JSON.stringify({ actor, action, detail, gecko })
     });
 }
 
 async function saveRegister(event) {
     event.preventDefault();
-    const adminPassword = passwordValue(el.regPassword);
     const name = el.regName.value.trim();
     const number = el.regNumber.value.trim();
     const editing = geckoById(editingGeckoId);
@@ -370,11 +346,9 @@ async function saveRegister(event) {
     const shouldContinue = el.regContinue.checked && !existing;
 
     if (!name) return toast('이름 필요', '이름만은 입력해야 나중에 찾기 쉽습니다.', 'error');
-    if (!adminPassword) return toast('비밀번호 필요', '관리 비밀번호를 입력하세요.', 'error');
 
     try {
         const data = await saveGecko(registerPayload(existing), {
-            adminPassword,
             action: existing ? '개체 수정' : '개체 등록',
             detail: name
         });
@@ -439,16 +413,14 @@ function parseImportRows(text) {
 
 async function importGeckos(event) {
     event.preventDefault();
-    const adminPassword = passwordValue(el.importPassword);
     const actor = requireActor();
     const geckos = parseImportRows(el.importText.value);
     if (!actor) return;
-    if (!adminPassword) return toast('비밀번호 필요', '관리 비밀번호를 입력하세요.', 'error');
     if (!geckos.length) return toast('데이터 없음', '붙여넣은 표를 확인하세요.', 'error');
     try {
         state = await api('/api/geckos/import', {
             method: 'POST',
-            body: JSON.stringify({ adminPassword, actor, geckos })
+            body: JSON.stringify({ actor, geckos })
         });
         el.importText.value = '';
         renderAll();
@@ -460,6 +432,22 @@ async function importGeckos(event) {
 
 function exampleGeckos() {
     const today = todayValue();
+    const actor = currentActor() || '예시';
+    const babies = Array.from({ length: 12 }, (_, index) => {
+        const num = index + 1;
+        const pairIndex = Math.floor(index / 4) + 1;
+        return {
+            number: `EX-B-${String(num).padStart(3, '0')}`,
+            name: `베이비${String(num).padStart(2, '0')}`,
+            sex: '미구분',
+            location: `베이비 랙 ${Math.floor(index / 6) + 1}`,
+            morph: ['미확인', '할리퀸', '릴리 가능', '달마시안'][index % 4],
+            motherNumber: `EX-F-${String(pairIndex).padStart(3, '0')}`,
+            fatherNumber: `EX-M-${String(pairIndex).padStart(3, '0')}`,
+            memo: index < 2 ? '해칭 개체 연속 등록 예시' : ''
+        };
+    });
+
     return [
         {
             number: 'EX-F-001',
@@ -481,7 +469,7 @@ function exampleGeckos() {
                     incubationLocation: '인큐 1',
                     mateNumber: 'EX-M-001',
                     memo: '유정 2개 예시',
-                    actor: currentActor() || '예시',
+                    actor,
                     createdAt: new Date().toISOString()
                 }
             ],
@@ -492,10 +480,51 @@ function exampleGeckos() {
                     date: today,
                     status: '안먹음',
                     memo: '예시 메모입니다. 클릭해서 수정하거나 삭제할 수 있습니다.',
-                    actor: currentActor() || '예시',
+                    actor,
                     createdAt: new Date().toISOString()
                 }
             ]
+        },
+        {
+            number: 'EX-F-002',
+            name: '루나',
+            sex: '암',
+            location: '브리딩 랙 A-2',
+            morph: '트라이컬러',
+            pairedWithNumber: 'EX-M-002',
+            pairingDate: today,
+            memo: '산란 기록 입력 예시',
+            eggRecords: [{
+                id: makeId(),
+                layDate: today,
+                fertileCount: 1,
+                infertileCount: 1,
+                unknownCount: 0,
+                eggStatus: '관찰',
+                incubationLocation: '인큐 2',
+                mateNumber: 'EX-M-002',
+                memo: '유1 무1 예시',
+                actor,
+                createdAt: new Date().toISOString()
+            }]
+        },
+        {
+            number: 'EX-F-003',
+            name: '라떼',
+            sex: '암',
+            location: '브리딩 랙 B-1',
+            morph: '익스트림 할리퀸',
+            pairedWithNumber: 'EX-M-003',
+            memo: '페어 준비 예시'
+        },
+        {
+            number: 'EX-F-004',
+            name: '복숭',
+            sex: '암',
+            location: '브리딩 랙 B-2',
+            morph: '릴리화이트',
+            pairedWithNumber: 'EX-M-004',
+            memo: '브리딩 암컷 예시'
         },
         {
             number: 'EX-M-001',
@@ -506,30 +535,43 @@ function exampleGeckos() {
             memo: '페어 수컷 예시'
         },
         {
-            number: 'EX-B-001',
-            name: '베이비01',
-            sex: '미구분',
-            location: '베이비 랙 1',
-            morph: '미확인',
-            motherNumber: 'EX-F-001',
-            fatherNumber: 'EX-M-001',
-            memo: '해칭 개체를 연속 등록할 때의 예시'
-        }
+            number: 'EX-M-002',
+            name: '밤톨',
+            sex: '수',
+            location: '브리딩 랙 A-2',
+            morph: '핀스트라이프',
+            memo: '페어 수컷 예시'
+        },
+        {
+            number: 'EX-M-003',
+            name: '쿠키',
+            sex: '수',
+            location: '브리딩 랙 B-1',
+            morph: '달마시안',
+            memo: '페어 수컷 예시'
+        },
+        {
+            number: 'EX-M-004',
+            name: '흑당',
+            sex: '수',
+            location: '브리딩 랙 B-2',
+            morph: '다크 할리퀸',
+            memo: '페어 수컷 예시'
+        },
+        ...babies
     ];
 }
 
 async function seedExamples() {
-    const adminPassword = passwordValue(el.regPassword);
     const actor = requireActor();
     if (!actor) return;
-    if (!adminPassword) return toast('비밀번호 필요', '관리 비밀번호를 입력하세요.', 'error');
     try {
         state = await api('/api/geckos/import', {
             method: 'POST',
-            body: JSON.stringify({ adminPassword, actor, geckos: exampleGeckos() })
+            body: JSON.stringify({ actor, geckos: exampleGeckos() })
         });
         renderAll();
-        toast('예시 추가 완료', '수정/삭제 테스트용 예시 3건을 넣었습니다.');
+        toast('예시 추가 완료', '수정/삭제 테스트용 예시 20건을 넣었습니다.');
     } catch (err) {
         toast('예시 추가 실패', err.message, 'error');
     }
@@ -612,13 +654,11 @@ function clearEggEdit() {
 async function saveClutch(event) {
     event.preventDefault();
     const gecko = geckoById(selectedFemaleId);
-    const adminPassword = passwordValue(el.clutchPassword);
     const existingRecord = editingEggId ? recordsOf(gecko).find((record) => record.id === editingEggId) : null;
     const record = clutchRecord(existingRecord);
 
     if (!gecko) return toast('암컷 선택 필요', '산란한 암컷을 먼저 선택하세요.', 'error');
     if (eggTotal(record) === 0) return toast('알 개수 확인', '유정, 무정, 미확인 중 하나는 입력하세요.', 'error');
-    if (!adminPassword) return toast('비밀번호 필요', '관리 비밀번호를 입력하세요.', 'error');
 
     const nextRecords = editingEggId
         ? recordsOf(gecko).map((item) => item.id === editingEggId ? record : item)
@@ -632,7 +672,6 @@ async function saveClutch(event) {
             pairedWithNumber: gecko.pairedWithNumber || record.mateNumber,
             eggRecords: nextRecords
         }, {
-            adminPassword,
             action: editingEggId ? '산란 기록 수정' : '산란 기록',
             detail: `${shortDate(record.layDate)} · ${eggSummary(record)}`
         });
@@ -805,15 +844,13 @@ function fillRegisterFromSelected() {
 
 async function deleteSelectedGecko() {
     const gecko = geckoById(selectedGeckoId);
-    const adminPassword = passwordValue(el.activityPassword) || passwordValue(el.regPassword);
     const actor = requireActor();
     if (!gecko || !actor) return;
-    if (!adminPassword) return toast('비밀번호 필요', '관리 비밀번호를 입력하세요.', 'error');
     if (!confirm(`${titleOf(gecko)} 개체를 삭제할까요? 산란/메모 기록도 함께 삭제됩니다.`)) return;
     try {
         state = await api('/api/geckos', {
             method: 'DELETE',
-            body: JSON.stringify({ adminPassword, actor, id: gecko.id })
+            body: JSON.stringify({ actor, id: gecko.id })
         });
         selectedGeckoId = state.geckos[0]?.id || '';
         renderAll();
@@ -845,16 +882,13 @@ function editEggRecord(geckoId, recordId) {
 async function deleteEggRecord(geckoId, recordId) {
     const gecko = geckoById(geckoId);
     const record = recordsOf(gecko).find((item) => item.id === recordId);
-    const adminPassword = passwordValue(el.clutchPassword) || passwordValue(el.activityPassword);
     if (!gecko || !record) return;
-    if (!adminPassword) return toast('비밀번호 필요', '관리 비밀번호를 입력하세요.', 'error');
     if (!confirm(`${shortDate(record.layDate)} 산란 기록을 삭제할까요?`)) return;
     try {
         const data = await saveGecko({
             ...gecko,
             eggRecords: recordsOf(gecko).filter((item) => item.id !== recordId)
         }, {
-            adminPassword,
             action: '산란 기록 삭제',
             detail: `${shortDate(record.layDate)} · ${eggSummary(record)}`
         });
@@ -896,16 +930,13 @@ function editActivityRecord(geckoId, recordId) {
 async function deleteActivityRecord(geckoId, recordId) {
     const gecko = geckoById(geckoId);
     const record = activitiesOf(gecko).find((item) => item.id === recordId);
-    const adminPassword = passwordValue(el.activityPassword);
     if (!gecko || !record) return;
-    if (!adminPassword) return toast('비밀번호 필요', '관리 비밀번호를 입력하세요.', 'error');
     if (!confirm(`${record.status || '메모'} 기록을 삭제할까요?`)) return;
     try {
         const data = await saveGecko({
             ...gecko,
             activityRecords: activitiesOf(gecko).filter((item) => item.id !== recordId)
         }, {
-            adminPassword,
             action: '메모 삭제',
             detail: record.status || record.memo || ''
         });
@@ -923,9 +954,7 @@ async function deleteActivityRecord(geckoId, recordId) {
 async function saveActivity(event) {
     event.preventDefault();
     const gecko = geckoById(selectedGeckoId);
-    const adminPassword = passwordValue(el.activityPassword);
     if (!gecko) return toast('개체 선택 필요', '개체를 먼저 선택하세요.', 'error');
-    if (!adminPassword) return toast('비밀번호 필요', '관리 비밀번호를 입력하세요.', 'error');
 
     const existing = editingActivityId ? activitiesOf(gecko).find((item) => item.id === editingActivityId) : null;
     const now = new Date().toISOString();
@@ -951,7 +980,6 @@ async function saveActivity(event) {
             tags: [...new Set([...(gecko.tags || []), '확인필요'])],
             activityRecords: nextActivities
         }, {
-            adminPassword,
             action: editingActivityId ? '메모 수정' : '메모 등록',
             detail: `${activityStatus}${record.memo ? ` · ${record.memo}` : ''}`
         });
@@ -978,7 +1006,6 @@ async function load() {
     try {
         state = await api('/api/geckos');
         el.clutchLayDate.value = todayValue();
-        syncPasswords();
         selectedGeckoId = state.geckos[0]?.id || '';
         renderAll();
         if (!currentActor()) openActorModal(true);
@@ -1043,12 +1070,6 @@ el.clutchFemaleSearch.addEventListener('input', () => {
 el.clutchFemaleSearch.addEventListener('focus', renderFemaleSuggestions);
 el.manageSearch.addEventListener('input', renderManageRows);
 el.manageSexFilter.addEventListener('change', renderManageRows);
-
-$$('[data-admin-password]').forEach((input) => {
-    input.addEventListener('input', () => {
-        if (input.value.trim()) localStorage.setItem(ADMIN_PASSWORD_KEY, input.value.trim());
-    });
-});
 
 document.addEventListener('click', (event) => {
     if (event.target.closest('.gxSuggest, .gxSearchField')) return;

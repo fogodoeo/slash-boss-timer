@@ -34,9 +34,9 @@
         </section>
 
         <nav class="gxModeBar" aria-label="작업 모드">
-            <button type="button" class="active" data-gx-mode="register">개체 등록</button>
-            <button type="button" data-gx-mode="clutch">산란 기록</button>
-            <button type="button" data-gx-mode="manage">개체 관리</button>
+            <button type="button" class="active" data-gx-mode="register">등록</button>
+            <button type="button" data-gx-mode="clutch">산란</button>
+            <button type="button" data-gx-mode="manage">관리</button>
         </nav>
 
         <section id="registerPanel" class="gxPanel" data-gx-panel="register">
@@ -106,10 +106,6 @@
                 </label>
 
                 <div class="gxSubmitRow">
-                    <label class="gxField gxPassword">
-                        <span>관리 비밀번호</span>
-                        <input id="regPassword" data-admin-password type="password" autocomplete="current-password" placeholder="관리자 비밀번호">
-                    </label>
                     <button type="button" id="resetRegisterButton" class="gxSoftButton">초기화</button>
                     <button type="submit" class="gxPrimaryButton">저장</button>
                 </div>
@@ -123,10 +119,6 @@
                 </div>
                 <textarea id="importText" rows="4" placeholder="번호,이름,성별,위치&#10;A-001,달콩,암,랙A"></textarea>
                 <div class="gxSubmitRow">
-                    <label class="gxField gxPassword">
-                        <span>관리 비밀번호</span>
-                        <input id="importPassword" data-admin-password type="password" autocomplete="current-password">
-                    </label>
                     <button type="submit" class="gxSoftButton">일괄 등록</button>
                 </div>
             </form>
@@ -199,10 +191,6 @@
                 <div id="clutchPreview" class="gxHint">오늘 산란 · 유정 2 / 무정 0 / 미확인 0</div>
 
                 <div class="gxSubmitRow">
-                    <label class="gxField gxPassword">
-                        <span>관리 비밀번호</span>
-                        <input id="clutchPassword" data-admin-password type="password" autocomplete="current-password">
-                    </label>
                     <button id="clutchSubmitButton" type="submit" class="gxPrimaryButton">산란 저장</button>
                 </div>
             </form>
@@ -267,10 +255,6 @@
                         </div>
                         <textarea id="activityMemo" rows="3" placeholder="먹이 반응, 탈피, 컨디션 메모"></textarea>
                         <div class="gxSubmitRow">
-                            <label class="gxField gxPassword">
-                                <span>관리 비밀번호</span>
-                                <input id="activityPassword" data-admin-password type="password" autocomplete="current-password">
-                            </label>
                             <button id="cancelActivityEditButton" type="button" class="gxSoftButton hidden">수정 취소</button>
                             <button id="activitySubmitButton" type="submit" class="gxPrimaryButton">메모 저장</button>
                         </div>

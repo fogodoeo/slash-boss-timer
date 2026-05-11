@@ -62,7 +62,7 @@ const DEFAULT_BOSS_EVENTS = [
 ];
 
 let state = structuredClone(defaultState);
-let geckoState = { geckos: [], logs: [], updatedAt: null };
+let geckoState = { geckos: [], logs: [], examplesSeededAt: null, updatedAt: null };
 const RESERVATION_GRACE_MS = 10 * 60 * 1000;
 const CHECK_UNDO_GRACE_MS = 60 * 1000;
 const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
@@ -364,9 +364,25 @@ function addGeckoLog({ actor, action, target, targetId, detail }) {
     ]);
 }
 
-function createExampleGeckoState() {
-    const nowIso = new Date().toISOString();
-    const examples = [
+function exampleGeckoItems(nowIso = new Date().toISOString()) {
+    const today = cleanDate(nowIso.slice(0, 10));
+    const babies = Array.from({ length: 12 }, (_, index) => {
+        const num = index + 1;
+        const padded = String(num).padStart(3, '0');
+        const pairIndex = Math.floor(index / 4) + 1;
+        return {
+            number: `EX-B-${padded}`,
+            name: `베이비${String(num).padStart(2, '0')}`,
+            sex: '미구분',
+            location: `베이비 랙 ${Math.floor(index / 6) + 1}`,
+            morph: ['미확인', '할리퀸', '릴리 가능', '달마시안'][index % 4],
+            motherNumber: `EX-F-${String(pairIndex).padStart(3, '0')}`,
+            fatherNumber: `EX-M-${String(pairIndex).padStart(3, '0')}`,
+            memo: index < 2 ? '해칭 개체 연속 등록 예시' : ''
+        };
+    });
+
+    return [
         {
             number: 'EX-F-001',
             name: '달콩',
@@ -374,13 +390,11 @@ function createExampleGeckoState() {
             location: '브리딩 랙 A-1',
             morph: '릴리화이트',
             pairedWithNumber: 'EX-M-001',
-            pairingDate: cleanDate(nowIso.slice(0, 10)),
+            pairingDate: today,
             memo: '예시 암컷입니다. 실제 사용 전 수정하거나 삭제해도 됩니다.',
-            createdBy: '예시',
-            updatedBy: '예시',
             eggRecords: [
                 {
-                    layDate: cleanDate(nowIso.slice(0, 10)),
+                    layDate: today,
                     fertileCount: 2,
                     infertileCount: 0,
                     unknownCount: 0,
@@ -396,7 +410,7 @@ function createExampleGeckoState() {
             activityRecords: [
                 {
                     type: '상태메모',
-                    date: cleanDate(nowIso.slice(0, 10)),
+                    date: today,
                     status: '안먹음',
                     memo: '예시 메모입니다. 클릭해서 수정하거나 삭제할 수 있습니다.',
                     actor: '예시',
@@ -406,28 +420,91 @@ function createExampleGeckoState() {
             ]
         },
         {
+            number: 'EX-F-002',
+            name: '루나',
+            sex: '암',
+            location: '브리딩 랙 A-2',
+            morph: '트라이컬러',
+            pairedWithNumber: 'EX-M-002',
+            pairingDate: today,
+            memo: '산란 기록 입력 예시',
+            eggRecords: [
+                {
+                    layDate: today,
+                    fertileCount: 1,
+                    infertileCount: 1,
+                    unknownCount: 0,
+                    eggStatus: '관찰',
+                    incubationLocation: '인큐 2',
+                    mateNumber: 'EX-M-002',
+                    memo: '유1 무1 예시',
+                    actor: '예시',
+                    createdAt: nowIso,
+                    updatedAt: nowIso
+                }
+            ]
+        },
+        {
+            number: 'EX-F-003',
+            name: '라떼',
+            sex: '암',
+            location: '브리딩 랙 B-1',
+            morph: '익스트림 할리퀸',
+            pairedWithNumber: 'EX-M-003',
+            memo: '페어 준비 예시'
+        },
+        {
+            number: 'EX-F-004',
+            name: '복숭',
+            sex: '암',
+            location: '브리딩 랙 B-2',
+            morph: '릴리화이트',
+            pairedWithNumber: 'EX-M-004',
+            memo: '브리딩 암컷 예시'
+        },
+        {
             number: 'EX-M-001',
             name: '모카',
             sex: '수',
             location: '브리딩 랙 A-1',
             morph: '할리퀸',
-            memo: '페어 수컷 예시',
-            createdBy: '예시',
-            updatedBy: '예시'
+            memo: '페어 수컷 예시'
         },
         {
-            number: 'EX-B-001',
-            name: '베이비01',
-            sex: '미구분',
-            location: '베이비 랙 1',
-            morph: '미확인',
-            motherNumber: 'EX-F-001',
-            fatherNumber: 'EX-M-001',
-            memo: '해칭 개체를 연속 등록할 때의 예시',
-            createdBy: '예시',
-            updatedBy: '예시'
-        }
-    ];
+            number: 'EX-M-002',
+            name: '밤톨',
+            sex: '수',
+            location: '브리딩 랙 A-2',
+            morph: '핀스트라이프',
+            memo: '페어 수컷 예시'
+        },
+        {
+            number: 'EX-M-003',
+            name: '쿠키',
+            sex: '수',
+            location: '브리딩 랙 B-1',
+            morph: '달마시안',
+            memo: '페어 수컷 예시'
+        },
+        {
+            number: 'EX-M-004',
+            name: '흑당',
+            sex: '수',
+            location: '브리딩 랙 B-2',
+            morph: '다크 할리퀸',
+            memo: '페어 수컷 예시'
+        },
+        ...babies
+    ].map((item) => ({
+        createdBy: '예시',
+        updatedBy: '예시',
+        ...item
+    }));
+}
+
+function createExampleGeckoState() {
+    const nowIso = new Date().toISOString();
+    const examples = exampleGeckoItems(nowIso);
 
     return {
         geckos: examples.map((item) => normalizeGecko(item, item)).filter(Boolean),
@@ -437,11 +514,36 @@ function createExampleGeckoState() {
                 actor: '예시',
                 action: '예시 데이터 생성',
                 target: 'CrestBase',
-                detail: '처음 화면 확인용 예시 3건을 넣었습니다.'
+                detail: '처음 화면 확인용 예시 20건을 넣었습니다.'
             }
         ]),
+        examplesSeededAt: nowIso,
         updatedAt: nowIso
     };
+}
+
+function addMissingGeckoExamples() {
+    const nowIso = new Date().toISOString();
+    const existingNumbers = new Set((geckoState.geckos || []).map((gecko) => gecko.number));
+    let added = 0;
+    for (const item of exampleGeckoItems(nowIso)) {
+        if (existingNumbers.has(item.number)) continue;
+        const gecko = normalizeGecko(item, item);
+        if (!gecko) continue;
+        geckoState.geckos.push(gecko);
+        existingNumbers.add(gecko.number);
+        added += 1;
+    }
+    geckoState.examplesSeededAt = geckoState.examplesSeededAt || nowIso;
+    if (added > 0) {
+        addGeckoLog({
+            actor: '예시',
+            action: '예시 데이터 추가',
+            target: 'CrestBase',
+            detail: `화면 확인용 예시 ${added}건을 추가했습니다.`
+        });
+    }
+    return added;
 }
 
 function publicGeckoState() {
@@ -1347,8 +1449,13 @@ async function loadGeckoState() {
         geckoState = {
             geckos,
             logs: normalizeGeckoLogs(parsed.logs),
+            examplesSeededAt: parsed.examplesSeededAt || null,
             updatedAt: parsed.updatedAt || null
         };
+        if (!geckoState.examplesSeededAt) {
+            addMissingGeckoExamples();
+            await saveGeckoState();
+        }
     } catch (err) {
         if (err.code !== 'ENOENT') console.error('[gecko] state load failed:', err);
         geckoState = createExampleGeckoState();
@@ -1435,7 +1542,6 @@ async function handleApi(req, res, url) {
 
     if (url.pathname === '/api/geckos' && req.method === 'POST') {
         const body = await readJson(req);
-        if (rejectInvalidAdmin(res, body.adminPassword)) return true;
         const input = body.gecko || body;
         const actor = geckoActorFrom(body);
         const existing = geckoState.geckos.find((item) => item.id === input.id || item.number === input.number);
@@ -1471,7 +1577,6 @@ async function handleApi(req, res, url) {
 
     if (url.pathname === '/api/geckos/import' && req.method === 'POST') {
         const body = await readJson(req);
-        if (rejectInvalidAdmin(res, body.adminPassword)) return true;
         const actor = geckoActorFrom(body);
         const items = Array.isArray(body.geckos) ? body.geckos.slice(0, 3000) : [];
         if (items.length === 0) {
@@ -1508,8 +1613,6 @@ async function handleApi(req, res, url) {
 
     if (url.pathname === '/api/geckos' && req.method === 'DELETE') {
         const body = await readJson(req).catch(() => ({}));
-        const adminPassword = body.adminPassword || url.searchParams.get('adminPassword');
-        if (rejectInvalidAdmin(res, adminPassword)) return true;
         const actor = geckoActorFrom(body);
         const id = cleanText(body.id || url.searchParams.get('id'), 80);
         const deleted = geckoState.geckos.find((item) => item.id === id);

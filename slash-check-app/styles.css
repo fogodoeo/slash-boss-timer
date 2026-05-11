@@ -10720,6 +10720,8 @@ body {
 .geckoSimplePage {
     min-height: 100vh;
     margin: 0;
+    padding-bottom: 86px;
+    overflow-x: hidden;
     background: #eef4f8;
     color: #0f172a;
     font-family: Pretendard, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -11531,17 +11533,28 @@ body {
 }
 
 .gxModeBar {
+    position: fixed;
+    z-index: 900;
+    left: 50%;
+    bottom: max(10px, env(safe-area-inset-bottom));
+    transform: translateX(-50%);
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 8px;
-    margin-bottom: 10px;
+    width: min(520px, calc(100% - 18px));
+    border: 1px solid rgba(203, 216, 230, 0.92);
+    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.94);
+    padding: 7px;
+    box-shadow: 0 16px 42px rgba(15, 23, 42, 0.18);
+    backdrop-filter: blur(14px);
 }
 
 .gxModeBar button {
-    min-height: 46px;
-    border: 1px solid #cbd8e6;
-    border-radius: 8px;
-    background: #ffffff;
+    min-height: 48px;
+    border: 0;
+    border-radius: 10px;
+    background: transparent;
     color: #334155;
     cursor: pointer;
     font-size: 15px;
@@ -11549,7 +11562,6 @@ body {
 }
 
 .gxModeBar button.active {
-    border-color: #111827;
     background: #111827;
     color: #ffffff;
 }
@@ -11796,21 +11808,25 @@ body {
     inset: 0;
     z-index: 1000;
     display: none;
-    place-items: center;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
     background: rgba(15, 23, 42, 0.42);
     padding: 18px;
 }
 
 .gxModal.open {
-    display: grid;
+    display: flex;
 }
 
 .gxModalCard {
     position: relative;
     display: grid;
     gap: 10px;
-    width: min(360px, calc(100vw - 24px));
-    max-width: calc(100vw - 24px);
+    width: 100%;
+    max-width: 360px;
+    max-height: calc(100vh - 36px);
+    overflow: auto;
     border-radius: 10px;
     background: #ffffff;
     padding: 18px;
@@ -11835,6 +11851,9 @@ body {
     position: absolute;
     top: 8px;
     right: 8px;
+    z-index: 2;
+    display: grid;
+    place-items: center;
     width: 34px;
     height: 34px;
     border: 0;
@@ -11874,7 +11893,6 @@ body {
     }
 
     .gxSummary,
-    .gxModeBar,
     .gxFieldGrid,
     .gxCountGrid,
     .gxManageTools {
@@ -11901,5 +11919,13 @@ body {
 
     .gxMiniActions {
         justify-content: flex-end;
+    }
+
+    .gxModal {
+        padding: 12px;
+    }
+
+    .gxModalCard {
+        max-width: calc(100vw - 24px);
     }
 }
