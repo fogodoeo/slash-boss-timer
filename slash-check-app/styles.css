@@ -10715,3 +10715,710 @@ body {
         padding: 9px;
     }
 }
+
+/* CrestBase simple rebuild */
+.geckoSimplePage {
+    min-height: 100vh;
+    margin: 0;
+    background: #eef4f8;
+    color: #0f172a;
+    font-family: Pretendard, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.gxShell {
+    width: min(100% - 24px, 1180px);
+    margin: 0 auto;
+    padding: 12px 0 34px;
+}
+
+.gxHeader,
+.gxModeNav,
+.gxPanel,
+.gxBulkBox,
+.gxDetail {
+    border: 1px solid #d9e3ee;
+    border-radius: 8px;
+    background: #ffffff;
+}
+
+.gxHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px;
+    box-shadow: 0 18px 44px rgba(15, 23, 42, 0.08);
+}
+
+.gxBrand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+}
+
+.gxBrand > span {
+    display: grid;
+    width: 42px;
+    height: 42px;
+    flex: 0 0 auto;
+    place-items: center;
+    border-radius: 8px;
+    background: #111827;
+    color: #ffffff;
+    font-size: 14px;
+    font-weight: 1000;
+}
+
+.gxBrand strong {
+    display: block;
+    color: #07111f;
+    font-size: 25px;
+    font-weight: 1000;
+    line-height: 1;
+}
+
+.gxBrand small,
+.gxHeaderMeta span,
+.gxPanelTitle span,
+.gxStep p,
+.gxFieldGrid span,
+.gxDetails summary,
+.gxManageTools span,
+.gxDetailHead span {
+    color: #64748b;
+    font-size: 12px;
+    font-weight: 900;
+}
+
+.gxHeaderMeta {
+    display: grid;
+    justify-items: end;
+    gap: 2px;
+}
+
+.gxHeaderMeta strong {
+    color: #0f172a;
+    font-size: 15px;
+    font-weight: 1000;
+}
+
+.gxModeNav {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+    margin: 10px 0;
+    padding: 8px;
+}
+
+.gxModeNav button {
+    display: grid;
+    gap: 4px;
+    min-height: 72px;
+    border: 0;
+    border-radius: 8px;
+    background: #f6f9fc;
+    color: #334155;
+    cursor: pointer;
+    padding: 12px;
+    text-align: left;
+}
+
+.gxModeNav button.active {
+    background: #111827;
+    color: #ffffff;
+}
+
+.gxModeNav strong {
+    color: inherit;
+    font-size: 19px;
+    font-weight: 1000;
+}
+
+.gxModeNav span {
+    color: inherit;
+    font-size: 13px;
+    font-weight: 850;
+    opacity: 0.72;
+}
+
+.gxModePanel {
+    display: grid;
+    gap: 10px;
+}
+
+.gxPanel {
+    min-width: 0;
+    padding: 14px;
+}
+
+.gxPanelTitle,
+.gxDetailHead {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 12px;
+}
+
+.gxPanelTitle strong,
+.gxDetailHead strong {
+    display: block;
+    margin-top: 2px;
+    color: #0f172a;
+    font-size: 18px;
+    font-weight: 1000;
+}
+
+.gxFlowForm {
+    display: grid;
+    gap: 10px;
+}
+
+.gxStep {
+    display: grid;
+    grid-template-columns: 34px minmax(0, 1fr);
+    gap: 10px;
+    border: 1px solid #e3ebf4;
+    border-radius: 8px;
+    background: #fbfdff;
+    padding: 11px;
+}
+
+.gxStep > b {
+    display: grid;
+    width: 30px;
+    height: 30px;
+    place-items: center;
+    border-radius: 8px;
+    background: #111827;
+    color: #ffffff;
+    font-size: 15px;
+    font-weight: 1000;
+}
+
+.gxStep > div {
+    display: grid;
+    gap: 8px;
+    min-width: 0;
+}
+
+.gxStep strong {
+    color: #0f172a;
+    font-size: 16px;
+    font-weight: 1000;
+}
+
+.gxStep p {
+    margin: 0;
+}
+
+.gxFieldGrid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+}
+
+.gxFieldGrid.three {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.gxFieldGrid label,
+.gxSearchField,
+.gxManageTools label,
+.gxDetails label {
+    position: relative;
+    display: grid;
+    gap: 5px;
+    min-width: 0;
+}
+
+.geckoSimplePage input,
+.geckoSimplePage select,
+.geckoSimplePage textarea {
+    width: 100%;
+    min-width: 0;
+    border: 1px solid #cbd8e6;
+    border-radius: 8px;
+    background: #ffffff;
+    color: #0f172a;
+    font: inherit;
+    font-size: 14px;
+    font-weight: 850;
+    outline: none;
+}
+
+.geckoSimplePage input,
+.geckoSimplePage select {
+    height: 44px;
+    padding: 0 11px;
+}
+
+.geckoSimplePage textarea {
+    min-height: 86px;
+    padding: 10px 11px;
+    resize: vertical;
+}
+
+.geckoSimplePage input:focus,
+.geckoSimplePage select:focus,
+.geckoSimplePage textarea:focus {
+    border-color: #1d5bd8;
+    box-shadow: 0 0 0 3px rgba(29, 91, 216, 0.12);
+}
+
+.gxSexButtons,
+.gxPresetGrid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 7px;
+}
+
+.gxPresetGrid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.gxSexButtons button,
+.gxPresetGrid button,
+.gxGhostButton,
+.gxPrimaryButton {
+    min-height: 42px;
+    border: 1px solid #cbd8e6;
+    border-radius: 8px;
+    background: #ffffff;
+    color: #0f172a;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 1000;
+}
+
+.gxSexButtons button.active,
+.gxPresetGrid button.active {
+    border-color: #111827;
+    background: #111827;
+    color: #ffffff;
+}
+
+.gxPrimaryButton {
+    border-color: #1d5bd8;
+    background: #1d5bd8;
+    color: #ffffff;
+}
+
+.gxGhostButton {
+    min-width: 64px;
+    background: #f8fafc;
+    padding: 0 10px;
+}
+
+.gxSaveLine {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 124px;
+    gap: 8px;
+}
+
+.gxContinueBox,
+.gxSelected,
+.gxHint,
+.gxBulkBox {
+    border: 1px solid #d9e3ee;
+    border-radius: 8px;
+    background: #ffffff;
+}
+
+.gxContinueBox {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 11px;
+    background: #f8fbff;
+}
+
+.gxContinueBox strong {
+    display: block;
+    color: #0f172a;
+    font-size: 14px;
+    font-weight: 1000;
+}
+
+.gxContinueBox span {
+    color: #1457d9;
+    font-size: 13px;
+    font-weight: 1000;
+}
+
+.gxContinueBox label {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    flex: 0 0 auto;
+    border-radius: 999px;
+    background: #111827;
+    color: #ffffff;
+    padding: 8px 11px;
+    font-size: 13px;
+    font-weight: 1000;
+}
+
+.gxContinueBox input {
+    width: 16px;
+    height: 16px;
+    accent-color: #1d5bd8;
+}
+
+.gxDetails,
+.gxBulkBox {
+    overflow: hidden;
+}
+
+.gxDetails summary,
+.gxBulkBox summary {
+    cursor: pointer;
+    list-style: none;
+    padding: 13px;
+    color: #0f172a;
+    font-size: 14px;
+    font-weight: 1000;
+}
+
+.gxDetails summary::-webkit-details-marker,
+.gxBulkBox summary::-webkit-details-marker {
+    display: none;
+}
+
+.gxDetails[open],
+.gxBulkBox[open] {
+    padding-bottom: 12px;
+}
+
+.gxDetails[open] summary,
+.gxBulkBox[open] summary {
+    border-bottom: 1px solid #e3ebf4;
+    margin-bottom: 10px;
+    background: #f8fafc;
+}
+
+.gxDetails .gxFieldGrid,
+.gxDetails label,
+.gxDetails textarea,
+.gxBulkBox textarea,
+.gxBulkBox .gxSaveLine {
+    margin-inline: 12px;
+    width: calc(100% - 24px);
+}
+
+.gxSelected,
+.gxHint {
+    padding: 10px 11px;
+    font-size: 13px;
+    font-weight: 1000;
+}
+
+.gxSelected {
+    background: #eef4ff;
+    color: #1457d9;
+}
+
+.gxHint {
+    background: #f8fafc;
+    color: #64748b;
+}
+
+.gxSuggest {
+    position: absolute;
+    z-index: 20;
+    top: calc(100% + 4px);
+    left: 0;
+    right: 0;
+    display: grid;
+    gap: 5px;
+    max-height: 260px;
+    overflow: auto;
+    border-radius: 8px;
+    box-shadow: 0 18px 44px rgba(15, 23, 42, 0.18);
+}
+
+.gxSuggest:empty {
+    display: none;
+}
+
+.gxSuggestItem,
+.gxSuggestEmpty {
+    display: grid;
+    gap: 2px;
+    width: 100%;
+    border: 1px solid #d9e3ee;
+    border-radius: 8px;
+    background: #ffffff;
+    padding: 9px 10px;
+    text-align: left;
+}
+
+.gxSuggestItem strong {
+    color: #0f172a;
+    font-size: 14px;
+    font-weight: 1000;
+}
+
+.gxSuggestItem span,
+.gxSuggestEmpty {
+    color: #64748b;
+    font-size: 12px;
+    font-weight: 850;
+}
+
+.gxManageTools {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 160px;
+    gap: 8px;
+    margin-bottom: 10px;
+}
+
+.gxManageGrid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(320px, 0.75fr);
+    gap: 10px;
+    align-items: start;
+}
+
+.gxTableWrap {
+    min-width: 0;
+    overflow: auto;
+    border: 1px solid #d9e3ee;
+    border-radius: 8px;
+}
+
+.gxTable {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 720px;
+    background: #ffffff;
+}
+
+.gxTable th,
+.gxTable td {
+    border-bottom: 1px solid #e6edf5;
+    padding: 10px;
+    text-align: left;
+    vertical-align: top;
+}
+
+.gxTable th {
+    background: #f8fafc;
+    color: #64748b;
+    font-size: 12px;
+    font-weight: 1000;
+}
+
+.gxTable tr {
+    cursor: pointer;
+}
+
+.gxTable tr.active td,
+.gxTable tr:hover td {
+    background: #eef4ff;
+}
+
+.gxTable td {
+    color: #0f172a;
+    font-size: 13px;
+    font-weight: 850;
+}
+
+.gxTable td strong {
+    display: block;
+    font-size: 14px;
+    font-weight: 1000;
+}
+
+.gxTable td span {
+    color: #64748b;
+    font-size: 12px;
+}
+
+.gxDetail {
+    position: sticky;
+    top: 10px;
+    padding: 12px;
+}
+
+.gxDetailBody {
+    display: grid;
+    gap: 10px;
+}
+
+.gxInfoGrid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 7px;
+}
+
+.gxInfoRow {
+    display: grid;
+    gap: 3px;
+    border-radius: 8px;
+    background: #f8fafc;
+    padding: 9px;
+}
+
+.gxInfoRow span {
+    color: #64748b;
+    font-size: 11px;
+    font-weight: 900;
+}
+
+.gxInfoRow strong {
+    color: #0f172a;
+    font-size: 13px;
+    font-weight: 1000;
+    word-break: break-word;
+}
+
+.gxSectionTitle {
+    margin: 2px 0 0;
+    color: #64748b;
+    font-size: 12px;
+    font-weight: 1000;
+}
+
+.gxTimeline {
+    display: grid;
+    gap: 6px;
+}
+
+.gxTimelineItem {
+    display: grid;
+    gap: 3px;
+    border: 1px solid #e3ebf4;
+    border-radius: 8px;
+    background: #ffffff;
+    padding: 9px;
+}
+
+.gxTimelineItem strong {
+    color: #0f172a;
+    font-size: 13px;
+    font-weight: 1000;
+}
+
+.gxTimelineItem span,
+.gxTimelineItem p {
+    margin: 0;
+    color: #64748b;
+    font-size: 12px;
+    font-weight: 850;
+}
+
+.gxActivityBox {
+    display: grid;
+    gap: 8px;
+    margin-top: 12px;
+    border-top: 1px solid #e3ebf4;
+    padding-top: 12px;
+}
+
+.gxActivityBox > strong {
+    color: #0f172a;
+    font-size: 14px;
+    font-weight: 1000;
+}
+
+.gxEmpty {
+    border-radius: 8px;
+    background: #f8fafc;
+    color: #64748b;
+    padding: 14px;
+    text-align: center;
+    font-size: 13px;
+    font-weight: 850;
+}
+
+.hidden {
+    display: none !important;
+}
+
+@media (max-width: 900px) {
+    .gxManageGrid {
+        grid-template-columns: 1fr;
+    }
+
+    .gxDetail {
+        position: static;
+    }
+}
+
+@media (max-width: 640px) {
+    .gxShell {
+        width: min(100% - 12px, 1180px);
+        padding-top: 7px;
+    }
+
+    .gxHeader {
+        padding: 10px;
+    }
+
+    .gxBrand > span {
+        width: 38px;
+        height: 38px;
+    }
+
+    .gxBrand strong {
+        font-size: 21px;
+    }
+
+    .gxModeNav {
+        grid-template-columns: 1fr;
+        gap: 6px;
+        margin: 7px 0;
+        padding: 6px;
+    }
+
+    .gxModeNav button {
+        min-height: 58px;
+        padding: 10px;
+    }
+
+    .gxPanel {
+        padding: 9px;
+    }
+
+    .gxStep {
+        grid-template-columns: 28px minmax(0, 1fr);
+        gap: 8px;
+        padding: 9px;
+    }
+
+    .gxStep > b {
+        width: 26px;
+        height: 26px;
+        font-size: 13px;
+    }
+
+    .gxFieldGrid,
+    .gxFieldGrid.three,
+    .gxInfoGrid,
+    .gxManageTools {
+        grid-template-columns: 1fr;
+    }
+
+    .gxPresetGrid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .gxSaveLine {
+        grid-template-columns: 1fr;
+    }
+
+    .gxContinueBox {
+        display: grid;
+    }
+
+    .gxContinueBox label {
+        justify-content: center;
+    }
+
+    .gxTable {
+        min-width: 620px;
+    }
+}

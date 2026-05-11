@@ -7,441 +7,277 @@
     <link rel="icon" href="./favicon.svg" type="image/svg+xml">
     <link rel="stylesheet" href="./styles.css">
 </head>
-<body class="geckoOpsPage beginnerGeckoPage">
-    <main class="cgShell">
-        <header class="cgHeader">
-            <div class="cgBrand">
-                <span class="cgMark">CB</span>
+<body class="geckoSimplePage">
+    <main class="gxShell">
+        <header class="gxHeader">
+            <div class="gxBrand">
+                <span>CB</span>
                 <div>
-                    <span>크레 관리</span>
-                    <h1>CrestBase</h1>
+                    <strong>CrestBase</strong>
+                    <small>크레스티드 개체 기록</small>
                 </div>
             </div>
-            <div class="cgHeaderInfo">
-                <strong id="headerCount">0마리</strong>
-                <span id="headerUpdated">-</span>
+            <div class="gxHeaderMeta">
+                <strong id="gxTotal">0마리</strong>
+                <span id="gxUpdated">저장 전</span>
             </div>
         </header>
 
-        <section class="cgBeginnerHero">
-            <strong>어떤 기록을 남길까요?</strong>
-            <span>반복 입력이 끊기지 않게 다음 값까지 준비합니다.</span>
-        </section>
-
-        <nav class="cgModeNav beginnerModeNav" aria-label="작업 선택">
-            <button class="active" type="button" data-mode="register">
-                <strong>1. 개체 입력</strong>
-                <span>입고 · 해칭</span>
+        <nav class="gxModeNav" aria-label="기록 모드">
+            <button class="active" type="button" data-gx-mode="register">
+                <strong>개체 등록</strong>
+                <span>처음 보유 개체를 쭉 입력</span>
             </button>
-            <button type="button" data-mode="feeding">
-                <strong>2. 먹이 체크</strong>
-                <span>안먹음 · 탈피</span>
+            <button type="button" data-gx-mode="clutch">
+                <strong>산란 기록</strong>
+                <span>암컷 선택 후 알 정보 입력</span>
             </button>
-            <button type="button" data-mode="search">
-                <strong>3. 개체 찾기</strong>
-                <span>개체 정보 확인</span>
-            </button>
-            <button type="button" data-mode="breeding">
-                <strong>4. 번식 관리</strong>
-                <span>페어 · 산란</span>
+            <button type="button" data-gx-mode="manage">
+                <strong>개체 관리</strong>
+                <span>표로 찾고 상세 기록</span>
             </button>
         </nav>
 
-        <section id="registerModePanel" class="cgModePanel" data-mode-panel="register">
-            <div class="cgTaskSwitch" aria-label="등록 작업">
-                <button class="active" type="button" data-register-kind="single">새 개체</button>
-                <button type="button" data-register-kind="hatch">해칭 묶음</button>
-                <button type="button" data-register-kind="bulk">표 붙여넣기</button>
-            </div>
-            <div class="cgTermNote">
-                <strong>용어 기준</strong>
-                <span>새 개체는 한 마리씩 이어 입력, 해칭 묶음은 같은 부모에서 나온 형제를 연속 번호로 생성합니다.</span>
-            </div>
-
-            <form id="registerForm" class="cgPanel cgForm cgBeginnerForm" data-register-panel="single">
-                <div class="cgPanelHead">
-                    <div>
-                        <span>등록</span>
-                        <strong id="registerTitle">새 개체 입력</strong>
-                    </div>
-                    <button id="registerClearButton" class="cgButton ghost small" type="button">비우기</button>
+        <section id="registerPanel" class="gxPanel gxModePanel" data-gx-panel="register">
+            <div class="gxPanelTitle">
+                <div>
+                    <span>개체 등록</span>
+                    <strong>이름만 넣어도 저장됩니다.</strong>
                 </div>
+                <button id="resetRegisterButton" class="gxGhostButton" type="button">비우기</button>
+            </div>
 
-                <section class="cgBeginnerStep">
+            <form id="registerForm" class="gxFlowForm">
+                <section class="gxStep">
                     <b>1</b>
                     <div>
-                        <strong>번호와 이름</strong>
-                        <div class="cgFieldGrid">
-                            <label>
-                                <span>번호</span>
-                                <input id="regNumber" type="text" autocomplete="off" placeholder="예: F-001">
-                            </label>
-                            <label>
-                                <span>이름</span>
-                                <input id="regName" type="text" autocomplete="off" placeholder="예: 바보">
-                            </label>
+                        <strong>기본값</strong>
+                        <p>아무것도 안 고르면 성별은 미구분으로 저장됩니다.</p>
+                        <div class="gxSexButtons" role="radiogroup" aria-label="성별">
+                            <button class="active" type="button" data-sex="미구분">미구분</button>
+                            <button type="button" data-sex="수컷">수컷</button>
+                            <button type="button" data-sex="암컷">암컷</button>
                         </div>
                     </div>
                 </section>
 
-                <section class="cgBeginnerStep">
+                <section class="gxStep">
                     <b>2</b>
                     <div>
-                        <strong>기본 정보</strong>
-                        <div class="cgFieldGrid">
+                        <strong>이름 입력</strong>
+                        <div class="gxFieldGrid">
                             <label>
-                                <span>위치</span>
-                                <input id="regLocation" type="text" autocomplete="off" placeholder="예: 랙 A / 2층">
+                                <span>이름</span>
+                                <input id="regName" type="text" autocomplete="off" placeholder="예: 바보1">
                             </label>
                             <label>
-                                <span>성별</span>
-                                <select id="regSex">
-                                    <option>미확인</option>
-                                    <option>암</option>
-                                    <option>수</option>
-                                </select>
-                            </label>
-                            <label>
-                                <span>상태</span>
-                                <select id="regStatus">
-                                    <option>보유</option>
-                                    <option>브리딩</option>
-                                    <option>분양예정</option>
-                                    <option>분양</option>
-                                    <option>폐사</option>
-                                </select>
-                            </label>
-                            <label>
-                                <span>관리 비밀번호</span>
-                                <input id="regPassword" data-admin-password type="password" autocomplete="current-password">
+                                <span>관리번호</span>
+                                <input id="regNumber" type="text" autocomplete="off" placeholder="비워도 자동 생성">
                             </label>
                         </div>
                     </div>
                 </section>
 
-                <section class="cgContinuityPanel">
+                <section class="gxContinueBox">
                     <div>
-                        <strong>연속 입력</strong>
-                        <span>저장 후 번호와 이름만 다음 값으로 바꾸고, 위치·모프·부모 정보는 유지합니다.</span>
+                        <strong>연속 등록</strong>
+                        <span id="regNextPreview">저장 후 다음 값: -</span>
                     </div>
-                    <label class="cgToggle">
+                    <label>
                         <input id="regContinue" type="checkbox" checked>
-                        <span>켜짐</span>
+                        <span>저장 후 다음 개체 준비</span>
                     </label>
                 </section>
-                <div id="regNextPreview" class="cgNextPreview">저장 후 다음 값: -</div>
 
-                <details class="cgAdvanced">
-                    <summary>상세 정보 더 입력</summary>
-                    <div class="cgFieldGrid">
+                <details class="gxDetails">
+                    <summary>필요할 때만 위치, 페어, 메모 입력</summary>
+                    <div class="gxFieldGrid">
+                        <label>
+                            <span>위치</span>
+                            <input id="regLocation" type="text" autocomplete="off" placeholder="예: 랙 A / 2층">
+                        </label>
                         <label>
                             <span>모프</span>
-                            <input id="regMorph" type="text" autocomplete="off" placeholder="릴리화이트, 헬로윈 등">
-                        </label>
-                        <label>
-                            <span>모 개체</span>
-                            <input id="regMother" type="text" autocomplete="off" placeholder="어미 번호">
-                        </label>
-                        <label>
-                            <span>부 개체</span>
-                            <input id="regFather" type="text" autocomplete="off" placeholder="아비 번호">
+                            <input id="regMorph" type="text" autocomplete="off" placeholder="예: 릴리화이트">
                         </label>
                         <label>
                             <span>페어 수컷</span>
-                            <input id="regPair" type="text" autocomplete="off" placeholder="수컷 번호">
+                            <input id="regPair" type="text" autocomplete="off" placeholder="수컷 번호 또는 이름">
                         </label>
                         <label>
                             <span>합사일</span>
                             <input id="regPairDate" type="date">
                         </label>
                         <label>
-                            <span>부화/출생일</span>
-                            <input id="regHatchDate" type="date">
+                            <span>어미</span>
+                            <input id="regMother" type="text" autocomplete="off" placeholder="어미 번호">
+                        </label>
+                        <label>
+                            <span>아비</span>
+                            <input id="regFather" type="text" autocomplete="off" placeholder="아비 번호">
                         </label>
                     </div>
-                    <label class="cgWide">
+                    <label>
                         <span>메모</span>
-                        <textarea id="regMemo" rows="3" placeholder="성향, 먹이 반응, 특이사항"></textarea>
+                        <textarea id="regMemo" rows="3" placeholder="먹이 반응, 성향, 특이사항"></textarea>
                     </label>
                 </details>
 
-                <button class="cgButton primary cgBigAction" type="submit">저장</button>
+                <div class="gxSaveLine">
+                    <input id="regPassword" data-admin-password type="password" autocomplete="current-password" placeholder="관리 비밀번호">
+                    <button class="gxPrimaryButton" type="submit">저장</button>
+                </div>
             </form>
 
-            <form id="hatchForm" class="cgPanel cgForm cgBeginnerForm hidden" data-register-panel="hatch">
-                <div class="cgPanelHead">
-                    <div>
-                        <span>해칭</span>
-                        <strong>같은 부모의 형제 개체 생성</strong>
+            <details class="gxBulkBox">
+                <summary>이미 정리된 표가 있으면 붙여넣기</summary>
+                <form id="importForm">
+                    <textarea id="importText" rows="7" placeholder="번호	이름	성별	모프	위치	상태"></textarea>
+                    <div class="gxSaveLine">
+                        <input id="importPassword" data-admin-password type="password" autocomplete="current-password" placeholder="관리 비밀번호">
+                        <button class="gxPrimaryButton" type="submit">가져오기</button>
                     </div>
-                </div>
+                </form>
+            </details>
+        </section>
 
-                <section class="cgBeginnerStep">
+        <section id="clutchPanel" class="gxPanel gxModePanel hidden" data-gx-panel="clutch">
+            <div class="gxPanelTitle">
+                <div>
+                    <span>산란 기록</span>
+                    <strong>암컷 선택 → 알 개수 버튼 → 저장</strong>
+                </div>
+            </div>
+
+            <form id="clutchForm" class="gxFlowForm">
+                <section class="gxStep">
                     <b>1</b>
                     <div>
-                        <strong>부모 페어 선택</strong>
-                        <label class="cgSearchField">
-                            <span>어미 검색</span>
-                            <input id="hatchParentSearch" type="search" autocomplete="off" placeholder="번호나 이름 입력">
-                            <div id="hatchSuggestions" class="cgSuggest"></div>
+                        <strong>암컷 선택</strong>
+                        <label class="gxSearchField">
+                            <span>암컷 검색</span>
+                            <input id="clutchFemaleSearch" type="search" autocomplete="off" placeholder="이름이나 번호 입력">
+                            <div id="clutchFemaleSuggest" class="gxSuggest"></div>
                         </label>
-                        <span id="hatchParentLabel" class="cgSelectedLabel">어미 개체를 선택하세요</span>
-                        <span id="hatchPairHint" class="cgPairHint">수컷은 어미의 페어 수컷을 자동으로 가져옵니다.</span>
+                        <div id="clutchFemaleLabel" class="gxSelected">암컷을 선택하세요.</div>
+                        <div id="clutchPairHint" class="gxHint">개체 정보에 페어 수컷이 있으면 자동으로 연결됩니다.</div>
                     </div>
                 </section>
 
-                <section class="cgBeginnerStep">
+                <section class="gxStep">
                     <b>2</b>
                     <div>
-                        <strong>새 개체 번호</strong>
-                        <div class="cgFieldGrid">
+                        <strong>알 정보</strong>
+                        <div class="gxPresetGrid">
+                            <button class="active" type="button" data-egg-preset="2,0,0">유정 2</button>
+                            <button type="button" data-egg-preset="1,1,0">유1 무1</button>
+                            <button type="button" data-egg-preset="0,2,0">무정 2</button>
+                            <button type="button" data-egg-preset="0,0,1">미확인</button>
+                        </div>
+                        <div class="gxFieldGrid three">
                             <label>
-                                <span>해칭일</span>
-                                <input id="hatchDate" type="date">
+                                <span>산란일</span>
+                                <input id="clutchLayDate" type="date">
                             </label>
                             <label>
-                                <span>마릿수</span>
-                                <input id="hatchCount" type="number" min="1" max="50" step="1" inputmode="numeric" value="1">
+                                <span>유정</span>
+                                <input id="clutchFertile" type="number" min="0" max="99" step="1" inputmode="numeric" value="2">
                             </label>
                             <label>
-                                <span>시작 번호</span>
-                                <input id="hatchStartNumber" type="text" autocomplete="off" placeholder="예: H-001">
+                                <span>무정</span>
+                                <input id="clutchInfertile" type="number" min="0" max="99" step="1" inputmode="numeric" value="0">
                             </label>
                             <label>
-                                <span>이름 시작</span>
-                                <input id="hatchStartName" type="text" autocomplete="off" placeholder="예: 바보1">
+                                <span>미확인</span>
+                                <input id="clutchUnknown" type="number" min="0" max="99" step="1" inputmode="numeric" value="0">
                             </label>
                             <label>
-                                <span>입고 위치</span>
-                                <input id="hatchLocation" type="text" autocomplete="off" placeholder="예: 베이비랙 1">
+                                <span>보관 위치</span>
+                                <input id="clutchIncubation" type="text" autocomplete="off" placeholder="예: 인큐 1">
                             </label>
                             <label>
-                                <span>수컷 번호</span>
-                                <input id="hatchFather" type="text" autocomplete="off" placeholder="어미 페어에서 자동 입력">
-                            </label>
-                            <label>
-                                <span>관리 비밀번호</span>
-                                <input id="hatchPassword" data-admin-password type="password" autocomplete="current-password">
+                                <span>페어 수컷</span>
+                                <input id="clutchMate" type="text" autocomplete="off" placeholder="자동 입력">
                             </label>
                         </div>
-                        <div id="hatchPreview" class="cgNextPreview">생성될 개체: -</div>
+                        <div id="clutchPreview" class="gxSelected">오늘 산란 · 유정 2 / 무정 0 / 미확인 0</div>
                     </div>
                 </section>
 
-                <button class="cgButton primary cgBigAction" type="submit">해칭 개체 만들기</button>
-            </form>
+                <details class="gxDetails">
+                    <summary>메모가 필요하면 열기</summary>
+                    <textarea id="clutchMemo" rows="3" placeholder="알 상태, 보관 특이사항"></textarea>
+                </details>
 
-            <form id="importForm" class="cgPanel cgForm cgBeginnerForm hidden" data-register-panel="bulk">
-                <div class="cgPanelHead">
-                    <div>
-                        <span>여러 마리</span>
-                        <strong>표 붙여넣기</strong>
-                    </div>
-                </div>
-                <textarea id="importText" rows="9" placeholder="번호	이름	성별	모프	위치	상태"></textarea>
-                <div class="cgInlineSave">
-                    <input id="importPassword" data-admin-password type="password" autocomplete="current-password" placeholder="관리 비밀번호">
-                    <button class="cgButton primary" type="submit">가져오기</button>
+                <div class="gxSaveLine">
+                    <input id="clutchPassword" data-admin-password type="password" autocomplete="current-password" placeholder="관리 비밀번호">
+                    <button class="gxPrimaryButton" type="submit">저장하고 다음</button>
                 </div>
             </form>
         </section>
 
-        <section id="feedingModePanel" class="cgModePanel hidden" data-mode-panel="feeding">
-            <div class="cgGrid feed">
-                <form id="feedingForm" class="cgPanel cgForm cgBeginnerForm">
-                    <div class="cgPanelHead">
-                        <div>
-                            <span>피딩</span>
-                            <strong>문제 있는 개체만 기록</strong>
-                        </div>
-                    </div>
-
-                    <section class="cgBeginnerStep">
-                        <b>1</b>
-                        <div>
-                            <strong>오늘 도는 위치</strong>
-                            <div class="cgFieldGrid">
-                                <label>
-                                    <span>위치</span>
-                                    <input id="feedingLocation" type="text" autocomplete="off" placeholder="예: 랙 A / 2층">
-                                </label>
-                                <label>
-                                    <span>날짜</span>
-                                    <input id="feedingDate" type="date">
-                                </label>
-                            </div>
-                        </div>
-                    </section>
-
-                    <section class="cgBeginnerStep">
-                        <b>2</b>
-                        <div>
-                            <strong>개체 선택</strong>
-                            <label class="cgSearchField">
-                                <span>개체 검색</span>
-                                <input id="feedingGeckoSearch" type="search" autocomplete="off" placeholder="번호나 이름 입력">
-                                <div id="feedingSuggestions" class="cgSuggest"></div>
-                            </label>
-                            <span id="feedingSelectedLabel" class="cgSelectedLabel">개체를 선택하세요</span>
-                        </div>
-                    </section>
-
-                    <section class="cgBeginnerStep">
-                        <b>3</b>
-                        <div>
-                            <strong>상태 선택</strong>
-                            <div class="cgSegment" aria-label="피딩 상태">
-                                <button class="active" type="button" data-feed-status="안먹음">안먹음</button>
-                                <button type="button" data-feed-status="탈피중">탈피중</button>
-                                <button type="button" data-feed-status="기타">기타</button>
-                            </div>
-                            <label>
-                                <span>메모</span>
-                                <input id="feedingMemo" type="text" autocomplete="off" placeholder="예: 귀뚜라미 거부, 탈피껍질 남음">
-                            </label>
-                            <label>
-                                <span>관리 비밀번호</span>
-                                <input id="feedingPassword" data-admin-password type="password" autocomplete="current-password">
-                            </label>
-                        </div>
-                    </section>
-
-                    <button class="cgButton primary cgBigAction" type="submit">기록하고 다음 개체</button>
-                </form>
-
-                <aside class="cgPanel">
-                    <div class="cgPanelHead">
-                        <div>
-                            <span>오늘 기록</span>
-                            <strong id="todayFeedingCount">0건</strong>
-                        </div>
-                    </div>
-                    <div id="todayFeedingList" class="cgList compact"></div>
-                </aside>
+        <section id="managePanel" class="gxPanel gxModePanel hidden" data-gx-panel="manage">
+            <div class="gxPanelTitle">
+                <div>
+                    <span>개체 관리</span>
+                    <strong>표에서 찾고, 누르면 상세 기록을 봅니다.</strong>
+                </div>
             </div>
-        </section>
 
-        <section id="searchModePanel" class="cgModePanel hidden" data-mode-panel="search">
-            <label class="cgBigSearch">
-                <span>개체 찾기</span>
-                <input id="searchInput" type="search" autocomplete="off" placeholder="번호, 이름, 위치, 모프 입력">
-            </label>
+            <div class="gxManageTools">
+                <label>
+                    <span>검색</span>
+                    <input id="manageSearch" type="search" autocomplete="off" placeholder="이름, 번호, 위치, 모프">
+                </label>
+                <select id="manageSexFilter" aria-label="성별 필터">
+                    <option value="all">성별 전체</option>
+                    <option value="미구분">미구분</option>
+                    <option value="수컷">수컷</option>
+                    <option value="암컷">암컷</option>
+                </select>
+            </div>
 
-            <div class="cgWorkspace">
-                <section class="cgPanel">
-                    <div class="cgPanelHead">
-                        <div>
-                            <span>결과</span>
-                            <strong id="searchCount">0건</strong>
-                        </div>
-                    </div>
-                    <div id="searchList" class="cgList"></div>
+            <div class="gxManageGrid">
+                <section class="gxTableWrap">
+                    <table class="gxTable">
+                        <thead>
+                            <tr>
+                                <th>개체</th>
+                                <th>성별</th>
+                                <th>위치</th>
+                                <th>페어</th>
+                                <th>최근 산란</th>
+                            </tr>
+                        </thead>
+                        <tbody id="manageRows"></tbody>
+                    </table>
+                    <div id="manageEmpty" class="gxEmpty hidden">조건에 맞는 개체가 없습니다.</div>
                 </section>
 
-                <aside class="cgPanel cgStickyDetail">
-                    <div class="cgPanelHead">
+                <aside class="gxDetail">
+                    <div class="gxDetailHead">
                         <div>
-                            <span>정보</span>
+                            <span>상세</span>
                             <strong id="detailTitle">개체를 선택하세요</strong>
                         </div>
-                        <div class="cgHeadActions">
-                            <button id="detailEditButton" class="cgButton small" type="button" disabled>수정</button>
-                            <button id="detailClutchButton" class="cgButton small primary" type="button" disabled>산란</button>
-                        </div>
+                        <button id="editSelectedButton" class="gxGhostButton" type="button" disabled>수정</button>
                     </div>
-                    <div id="detailBody" class="cgDetailEmpty">왼쪽 목록에서 개체를 누르세요.</div>
+                    <div id="detailBody" class="gxEmpty">표에서 개체를 누르면 정보가 표시됩니다.</div>
+
+                    <form id="activityForm" class="gxActivityBox hidden">
+                        <strong>먹이·탈피 메모</strong>
+                        <div class="gxPresetGrid">
+                            <button class="active" type="button" data-activity-status="안먹음">안먹음</button>
+                            <button type="button" data-activity-status="탈피중">탈피중</button>
+                            <button type="button" data-activity-status="기타">기타</button>
+                        </div>
+                        <input id="activityMemo" type="text" autocomplete="off" placeholder="예: 귀뚜라미 거부, 탈피껍질 남음">
+                        <div class="gxSaveLine">
+                            <input id="activityPassword" data-admin-password type="password" autocomplete="current-password" placeholder="관리 비밀번호">
+                            <button class="gxPrimaryButton" type="submit">메모 저장</button>
+                        </div>
+                    </form>
                 </aside>
-            </div>
-        </section>
-
-        <section id="breedingModePanel" class="cgModePanel hidden" data-mode-panel="breeding">
-            <div class="cgGrid breeding">
-                <section class="cgPanel">
-                    <div class="cgPanelHead">
-                        <div>
-                            <span>브리딩</span>
-                            <strong>산란 개체 선택</strong>
-                        </div>
-                    </div>
-                    <label class="cgSearchField">
-                        <span>검색</span>
-                        <input id="breedingSearch" type="search" autocomplete="off" placeholder="번호, 이름, 수컷, 위치">
-                    </label>
-                    <div id="breedingList" class="cgList"></div>
-                </section>
-
-                <aside class="cgPanel">
-                    <div class="cgPanelHead">
-                        <div>
-                            <span>선택한 개체</span>
-                            <strong id="breedingTitle">개체를 선택하세요</strong>
-                        </div>
-                    </div>
-                    <div id="breedingDetail" class="cgBreedingDetail"></div>
-                </aside>
-
-                <form id="clutchForm" class="cgPanel cgForm cgBeginnerForm cgClutchPanel">
-                    <div class="cgPanelHead">
-                        <div>
-                            <span>산란 입력</span>
-                            <strong id="clutchTargetLabel">개체 선택 필요</strong>
-                        </div>
-                    </div>
-
-                    <section class="cgBeginnerStep">
-                        <b>1</b>
-                        <div>
-                            <strong>알 정보</strong>
-                            <div class="cgFieldGrid">
-                                <label>
-                                    <span>산란일</span>
-                                    <input id="clutchLayDate" type="date">
-                                </label>
-                                <label>
-                                    <span>상태</span>
-                                    <select id="clutchStatus">
-                                        <option>보관중</option>
-                                        <option>관찰</option>
-                                        <option>부화</option>
-                                        <option>무정란</option>
-                                        <option>폐기</option>
-                                    </select>
-                                </label>
-                                <label>
-                                    <span>유정</span>
-                                    <input id="clutchFertile" type="number" min="0" max="99" step="1" inputmode="numeric" value="2">
-                                </label>
-                                <label>
-                                    <span>무정</span>
-                                    <input id="clutchInfertile" type="number" min="0" max="99" step="1" inputmode="numeric" value="0">
-                                </label>
-                                <label>
-                                    <span>미확인</span>
-                                    <input id="clutchUnknown" type="number" min="0" max="99" step="1" inputmode="numeric" value="0">
-                                </label>
-                                <label>
-                                    <span>보관 위치</span>
-                                    <input id="clutchIncubation" type="text" autocomplete="off" placeholder="예: 인큐 1">
-                                </label>
-                                <label>
-                                    <span>페어 수컷</span>
-                                    <input id="clutchMate" type="text" autocomplete="off" placeholder="수컷 번호">
-                                </label>
-                                <label>
-                                    <span>관리 비밀번호</span>
-                                    <input id="clutchPassword" data-admin-password type="password" autocomplete="current-password">
-                                </label>
-                            </div>
-                        </div>
-                    </section>
-
-                    <details class="cgAdvanced">
-                        <summary>메모 남기기</summary>
-                        <textarea id="clutchMemo" rows="2" placeholder="알 상태, 보관 특이사항"></textarea>
-                    </details>
-
-                    <button class="cgButton primary cgBigAction" type="submit">산란 저장</button>
-                </form>
             </div>
         </section>
     </main>
