@@ -986,7 +986,7 @@ function renderLiveParticipation() {
     }
 }
 
-async function quickCutBoss(boss) {
+async function quickCutBoss(boss, options = {}) {
     const memberName = requireMember();
     if (!memberName || !boss || quickCutSubmittingBosses.has(boss.이름)) return;
     const lock = bossLock(boss.이름);
@@ -996,7 +996,9 @@ async function quickCutBoss(boss) {
     }
 
     const now = getNowMs();
-    const timeValue = timeInputValueFromMs(now);
+    const cutMs = now + (Number(options.offsetMinutes || 0) * 60000);
+    const timeValue = timeInputValueFromMs(cutMs);
+    const timeUncertain = Boolean(options.timeUncertain);
     quickCutSubmittingBosses.add(boss.이름);
     renderQuickBosses(buildTimeline(), now);
 
@@ -1006,9 +1008,9 @@ async function quickCutBoss(boss) {
             body: JSON.stringify({
                 bossName: boss.이름,
                 timeValue,
-                cutAt: new Date(now).toISOString(),
+                cutAt: new Date(cutMs).toISOString(),
                 reporterName: memberName,
-                timeUncertain: false,
+                timeUncertain,
                 requiresParticipation: false,
                 participantPassword: ''
             })
@@ -1017,9 +1019,9 @@ async function quickCutBoss(boss) {
         state.bossCutRecords = data.records || [];
         if (state.bossCutLocks) delete state.bossCutLocks[boss.이름];
         render();
-        showToast('바로컷 완료', `.컷 ${boss.이름} ${timeValue}`);
+        showToast(timeUncertain ? '멍 처리 완료' : '바로컷 완료', `.컷 ${boss.이름} ${timeValue}${timeUncertain ? ' · 불확실' : ''}`);
     } catch (err) {
-        showToast('바로컷 실패', err.message, 'error');
+        showToast(timeUncertain ? '멍 처리 실패' : '바로컷 실패', err.message, 'error');
         fetchState(true).catch(() => {});
     } finally {
         quickCutSubmittingBosses.delete(boss.이름);
@@ -1072,11 +1074,28 @@ function renderQuickBosses(timeline, now = getNowMs()) {
         quickButton.className = 'bossQuickCutLabel';
         quickButton.disabled = Boolean(lockedByOther || isSubmitting);
         quickButton.textContent = lockedByOther ? '입력중' : isSubmitting ? '처리중' : '바로컷';
+        const missButton = document.createElement('button');
+        missButton.type = 'button';
+        missButton.className = 'bossQuickCutLabel bossQuickMissLabel';
+        missButton.disabled = Boolean(lockedByOther || isSubmitting);
+        missButton.textContent = lockedByOther ? '-' : isSubmitting ? '...' : '멍';
+        missButton.title = '현재 시간 +1분으로 불확실 컷';
+        const actions = document.createElement('span');
+        actions.className = 'bossQuickActions';
+        actions.append(missButton, quickButton);
 
-        card.append(time, main, quickButton);
+        card.append(time, main, actions);
         card.addEventListener('click', () => {
             if (lockedByOther) showToast('컷 입력 중', `${lock.memberName} 님이 먼저 열었습니다.`, 'error');
             else openCutModal(item.boss, getNowMs());
+        });
+        missButton.addEventListener('click', (event) => {
+            event.stopPropagation();
+            if (lockedByOther) {
+                showToast('컷 입력 중', `${lock.memberName} 님이 먼저 열었습니다.`, 'error');
+                return;
+            }
+            quickCutBoss(item.boss, { offsetMinutes: 1, timeUncertain: true });
         });
         quickButton.addEventListener('click', (event) => {
             event.stopPropagation();
