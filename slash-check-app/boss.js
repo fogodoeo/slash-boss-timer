@@ -53,6 +53,10 @@ const participantModal = document.querySelector('#participantModal');
 const closeParticipantModalButton = document.querySelector('#closeParticipantModalButton');
 const participantModalTitle = document.querySelector('#participantModalTitle');
 const participantModalDesc = document.querySelector('#participantModalDesc');
+const participantViewButton = document.querySelector('#participantViewButton');
+const participantEditButton = document.querySelector('#participantEditButton');
+const participantConfirmPanel = document.querySelector('#participantConfirmPanel');
+const participantEditPanel = document.querySelector('#participantEditPanel');
 const participantList = document.querySelector('#participantList');
 const participantCutDateInput = document.querySelector('#participantCutDateInput');
 const participantCutTimeInput = document.querySelector('#participantCutTimeInput');
@@ -99,6 +103,7 @@ let bossListOpen = localStorage.getItem(BOSS_LIST_OPEN_KEY) === '1';
 const quickCutSubmittingBosses = new Set();
 let participantAddCandidates = [];
 let selectedParticipantAddMember = '';
+let selectedParticipantModalMode = 'participants';
 let bossAlarmAudioContext = null;
 let titleAlertTimer = null;
 let titleAlertKey = '';
@@ -1490,7 +1495,18 @@ function closeJoinModal() {
     joinModal.classList.add('hidden');
 }
 
-function openParticipantModal(record) {
+function setParticipantModalMode(mode) {
+    selectedParticipantModalMode = mode === 'edit' ? 'edit' : 'participants';
+    const isEdit = selectedParticipantModalMode === 'edit';
+    participantViewButton?.classList.toggle('active', !isEdit);
+    participantEditButton?.classList.toggle('active', isEdit);
+    participantViewButton?.setAttribute('aria-selected', String(!isEdit));
+    participantEditButton?.setAttribute('aria-selected', String(isEdit));
+    participantConfirmPanel?.classList.toggle('hiddenField', isEdit);
+    participantEditPanel?.classList.toggle('hiddenField', !isEdit);
+}
+
+function openParticipantModal(record, mode = 'participants') {
     selectedParticipantRecord = record;
     const names = participantNames(record);
     const cutMs = new Date(record.cutAt).getTime();
@@ -1540,6 +1556,7 @@ function openParticipantModal(record) {
         }
     }
 
+    setParticipantModalMode(mode);
     participantModal.classList.remove('hidden');
 }
 
@@ -1617,6 +1634,7 @@ function resolveParticipantAddMember() {
 
 function closeParticipantModal() {
     selectedParticipantRecord = null;
+    selectedParticipantModalMode = 'participants';
     participantModal.classList.add('hidden');
 }
 
@@ -1760,7 +1778,7 @@ async function updateParticipantRecordTime() {
         state.bossCutRecords = data.records || [];
         const updated = state.bossCutRecords.find((record) => record.id === recordId);
         render();
-        if (updated) openParticipantModal(updated);
+        if (updated) openParticipantModal(updated, 'edit');
         showToast('컷 시간 수정됨', `${updated?.bossName || selectedParticipantRecord.bossName} ${displayTimeValue(normalized)}`);
     } catch (err) {
         showToast('컷 시간 수정 실패', err.message, 'error');
@@ -1788,7 +1806,7 @@ async function cancelParticipantRecord() {
         state.bossCutRecords = data.records || [];
         const canceled = state.bossCutRecords.find((item) => item.id === record.id);
         render();
-        if (canceled) openParticipantModal(canceled);
+        if (canceled) openParticipantModal(canceled, 'edit');
         showToast('컷 기록 취소됨', record.bossName);
     } catch (err) {
         showToast('컷 취소 실패', err.message, 'error');
@@ -1827,7 +1845,7 @@ async function addParticipantManually() {
         const updated = state.bossCutRecords.find((item) => item.id === record.id);
         render();
         if (updated) {
-            openParticipantModal(updated);
+            openParticipantModal(updated, 'participants');
             setTimeout(() => participantAddMemberInput.focus(), 30);
         }
         showToast('참여자 추가됨', `${record.bossName} · ${memberName}`);
@@ -1924,6 +1942,8 @@ requiresParticipationInput.addEventListener('change', () => {
 joinForm.addEventListener('submit', submitJoin);
 closeJoinModalButton.addEventListener('click', closeJoinModal);
 closeParticipantModalButton.addEventListener('click', closeParticipantModal);
+participantViewButton?.addEventListener('click', () => setParticipantModalMode('participants'));
+participantEditButton?.addEventListener('click', () => setParticipantModalMode('edit'));
 document.addEventListener('keydown', closeTopBossModalByEscape);
 attachMinuteStepper(participantCutTimeInput, participantCutDateInput, participantCutSecondInput);
 participantAdminPasswordInput.addEventListener('input', () => cacheAdminPassword(participantAdminPasswordInput.value));
