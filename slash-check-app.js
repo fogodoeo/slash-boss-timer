@@ -910,6 +910,7 @@ function normalizeBossCutRecord(value) {
         requiresParticipation: Boolean(value.requiresParticipation),
         participantPasswordHash: cleanText(value.participantPasswordHash, 128),
         participationOpenUntil: value.participationOpenUntil || null,
+        temporary: Boolean(value.temporary) || cleanText(value.bossType, 16) === '임시',
         participants: Array.isArray(value.participants)
             ? value.participants.map(normalizeBossParticipant).filter(Boolean)
             : []
@@ -1046,6 +1047,7 @@ function publicBossCutRecords() {
         requiresParticipation: Boolean(record.requiresParticipation),
         hasParticipantPassword: Boolean(record.participantPasswordHash),
         participationOpenUntil: record.participationOpenUntil || null,
+        temporary: Boolean(record.temporary) || record.bossType === '임시',
         participants: Array.isArray(record.participants) ? record.participants : []
     }));
 }
@@ -1754,6 +1756,68 @@ async function handleApi(req, res, url) {
         return true;
     }
 
+    if (url.pathname === '/api/boss-cuts/test-participation' && req.method === 'POST') {
+        const body = await readJson(req);
+        const reporterName = cleanText(body.reporterName, 24);
+        const participantPasswordHash = hashParticipantPassword(body.participantPassword);
+
+        if (!state.members.includes(reporterName)) {
+            sendJson(res, 400, { error: '등록된 길드원만 테스트 기록을 열 수 있습니다.' });
+            return true;
+        }
+
+        if (!participantPasswordHash) {
+            sendJson(res, 400, { error: '테스트용 참여 비번을 입력하세요.' });
+            return true;
+        }
+
+        const now = Date.now();
+        const nowIso = new Date(now).toISOString();
+        const timeValue = formatCommandTimeFromIso(nowIso);
+        const participationOpenUntil = new Date(now + BOSS_PARTICIPATION_WINDOW_MS).toISOString();
+        const record = {
+            id: randomUUID(),
+            bossName: '참여확인 테스트',
+            bossAlias: '테스트',
+            bossType: '임시',
+            location: '테스트',
+            timeValue,
+            cutAt: nowIso,
+            nextSpawnAt: null,
+            reporterName,
+            updatedAt: nowIso,
+            status: 'active',
+            timeUncertain: false,
+            requiresParticipation: true,
+            participantPasswordHash,
+            participationOpenUntil,
+            temporary: true,
+            participants: []
+        };
+
+        state.bossCutRecords = state.bossCutRecords || [];
+        state.bossCutRecords.unshift(record);
+        state.bossCutRecords = state.bossCutRecords.slice(0, MAX_BOSS_CUT_RECORDS);
+        appendBossAuditLog('participation-test', {
+            bossName: record.bossName,
+            recordId: record.id,
+            actorName: reporterName,
+            detail: {
+                timeValue,
+                participationOpenUntil
+            }
+        });
+
+        await saveState();
+        const records = publicBossCutRecords();
+        sendJson(res, 200, {
+            cuts: publicBossCuts(),
+            records,
+            record: records.find((item) => item.id === record.id) || null
+        });
+        return true;
+    }
+
     if (url.pathname === '/api/boss-cut-locks' && req.method === 'POST') {
         const body = await readJson(req);
         const bossName = cleanText(body.bossName, 40);
@@ -1942,13 +2006,14 @@ async function handleApi(req, res, url) {
 
         const bosses = await readBosses();
         const boss = bosses.find((item) => item.이름 === record.bossName || item.애칭 === record.bossName);
-        if (!boss) {
+        const isTemporaryRecord = Boolean(record.temporary) || record.bossType === '임시';
+        if (!boss && !isTemporaryRecord) {
             sendJson(res, 404, { error: '보스 정보를 찾을 수 없습니다.' });
             return true;
         }
 
         const nowIso = new Date().toISOString();
-        const timeUncertain = boss.타입 === '시간' && Boolean(body.timeUncertain);
+        const timeUncertain = boss?.타입 === '시간' && Boolean(body.timeUncertain);
         const previous = {
             timeValue: record.timeValue,
             cutAt: record.cutAt,
@@ -1957,14 +2022,14 @@ async function handleApi(req, res, url) {
         };
         record.timeValue = timeValue;
         record.cutAt = cutAt;
-        record.nextSpawnAt = calcBossNextSpawnAt(boss, cutAt);
+        record.nextSpawnAt = boss ? calcBossNextSpawnAt(boss, cutAt) : null;
         record.updatedAt = nowIso;
         record.editedBy = actorName;
         record.timeUncertain = timeUncertain;
         state.bossCutRecords = [record, ...(state.bossCutRecords || []).filter((item) => item.id !== record.id)]
             .slice(0, MAX_BOSS_CUT_RECORDS);
 
-        refreshCurrentBossCut(record.bossName);
+        if (boss) refreshCurrentBossCut(record.bossName);
         appendBossAuditLog('cut-update', {
             bossName: record.bossName,
             recordId: record.id,

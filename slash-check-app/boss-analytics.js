@@ -62,6 +62,7 @@ function recordMs(record) {
 function filteredRecords() {
     const start = periodStartMs();
     return (state.bossCutRecords || [])
+        .filter((record) => !record.temporary && record.bossType !== '임시')
         .filter((record) => !start || recordMs(record) >= start)
         .sort((a, b) => recordMs(b) - recordMs(a));
 }

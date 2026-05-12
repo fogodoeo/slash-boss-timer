@@ -20,6 +20,8 @@ const recordSummary = document.querySelector('#recordSummary');
 const bossRecordList = document.querySelector('#bossRecordList');
 const liveParticipationSummary = document.querySelector('#liveParticipationSummary');
 const liveParticipationList = document.querySelector('#liveParticipationList');
+const testParticipationPasswordInput = document.querySelector('#testParticipationPasswordInput');
+const createTestParticipationButton = document.querySelector('#createTestParticipationButton');
 const enableBossNotifyButton = document.querySelector('#enableBossNotifyButton');
 const selectedMemberLabel = document.querySelector('#selectedMemberLabel');
 const openProfileButton = document.querySelector('#openProfileButton');
@@ -967,13 +969,12 @@ function renderLiveParticipation() {
     const panel = liveParticipationList.closest('.bossLivePanel');
     liveParticipationSummary.textContent = `열린 기록 ${records.length}건`;
     liveParticipationList.replaceChildren();
+    if (panel) panel.hidden = false;
 
     if (records.length === 0) {
-        if (panel) panel.hidden = true;
+        liveParticipationList.innerHTML = '<div class="empty small">열린 참여 확인이 없습니다.</div>';
         return;
     }
-
-    if (panel) panel.hidden = false;
 
     for (const record of records.slice(0, 8)) {
         const item = liveParticipationTemplate.content.firstElementChild.cloneNode(true);
@@ -983,6 +984,40 @@ function renderLiveParticipation() {
         item.querySelector('.liveDetailButton').addEventListener('click', () => openParticipantModal(record));
         item.querySelector('.liveJoinButton').addEventListener('click', () => openJoinModal(record));
         liveParticipationList.append(item);
+    }
+}
+
+async function createTestParticipationRecord() {
+    const reporterName = requireMember();
+    if (!reporterName) return;
+
+    const participantPassword = testParticipationPasswordInput.value.trim();
+    if (!participantPassword) {
+        showToast('테스트 비번 필요', '참여 입력에서 확인할 비밀번호를 먼저 넣어주세요.', 'error');
+        testParticipationPasswordInput.focus();
+        return;
+    }
+
+    createTestParticipationButton.disabled = true;
+    try {
+        const data = await api('/api/boss-cuts/test-participation', {
+            method: 'POST',
+            body: JSON.stringify({
+                reporterName,
+                participantPassword
+            })
+        });
+        state.bossCuts = data.cuts || {};
+        state.bossCutRecords = data.records || [];
+        testParticipationPasswordInput.value = '';
+        render();
+        if (data.record) openJoinModal(data.record);
+        showToast('테스트 열림', '10분 동안 참여 비번 입력을 확인할 수 있습니다.');
+    } catch (err) {
+        showToast('테스트 생성 실패', err.message, 'error');
+        fetchState(true).catch(() => {});
+    } finally {
+        createTestParticipationButton.disabled = false;
     }
 }
 
@@ -1856,6 +1891,12 @@ bossSearchInput.addEventListener('input', renderBosses);
 toggleBossListButton?.addEventListener('click', () => setBossListOpen(!bossListOpen));
 resetTimeBossButton?.addEventListener('click', resetTimeBossSpawns);
 enableBossNotifyButton?.addEventListener('click', requestNotifications);
+createTestParticipationButton?.addEventListener('click', createTestParticipationRecord);
+testParticipationPasswordInput?.addEventListener('keydown', (event) => {
+    if (event.key !== 'Enter') return;
+    event.preventDefault();
+    createTestParticipationRecord();
+});
 openProfileButton.addEventListener('click', openProfileModal);
 closeProfileButton.addEventListener('click', closeProfileModal);
 skipProfileButton.addEventListener('click', closeProfileModal);
