@@ -84,7 +84,7 @@ const SPAWNED_KEEP_MS = 60 * 60 * 1000;
 const SOON_MS = 10 * 60 * 1000;
 const BOSS_ALERT_MS = 10 * 60 * 1000;
 const ORIGINAL_TITLE = document.title;
-let state = { now: new Date().toISOString(), members: [], bossCuts: {}, bossCutRecords: [], bossCutLocks: {} };
+let state = { now: new Date().toISOString(), members: [], bossCuts: {}, bossCutRecords: [], bossCutLocks: {}, bossParticipationWindowMin: 60 };
 let bosses = [];
 let selectedMember = localStorage.getItem(MEMBER_KEY) || '';
 let selectedFilter = 'all';
@@ -347,6 +347,14 @@ function formatDuration(ms) {
     const sec = totalSec % 60;
     if (min >= 60) return `${Math.floor(min / 60)}시간 ${min % 60}분`;
     return `${min}:${pad2(sec)}`;
+}
+
+function participationWindowLabel() {
+    const minutes = Number(state.bossParticipationWindowMin || 60);
+    if (!Number.isFinite(minutes) || minutes <= 0) return '1시간';
+    if (minutes % 60 === 0) return `${minutes / 60}시간`;
+    if (minutes > 60) return `${Math.floor(minutes / 60)}시간 ${minutes % 60}분`;
+    return `${minutes}분`;
 }
 
 function participationOpenMs(record) {
@@ -1009,10 +1017,11 @@ async function createTestParticipationRecord() {
         });
         state.bossCuts = data.cuts || {};
         state.bossCutRecords = data.records || [];
+        state.bossParticipationWindowMin = data.bossParticipationWindowMin || state.bossParticipationWindowMin;
         testParticipationPasswordInput.value = '';
         render();
         if (data.record) openJoinModal(data.record);
-        showToast('테스트 열림', '10분 동안 참여 비번 입력을 확인할 수 있습니다.');
+        showToast('테스트 열림', `${participationWindowLabel()} 동안 참여 비번 입력을 확인할 수 있습니다.`);
     } catch (err) {
         showToast('테스트 생성 실패', err.message, 'error');
         fetchState(true).catch(() => {});
@@ -1465,8 +1474,9 @@ function openJoinModal(record) {
     }
     selectedJoinRecord = record;
     joinModalTitle.textContent = `${record.bossName} 참여 확인`;
+    const remain = formatDuration(participationOpenMs(record) - getNowMs());
     joinModalDesc.textContent = record.hasParticipantPassword
-        ? `${displayTimeValue(record.timeValue)} 컷 기록에 ${selectedMember} 님으로 참여 확인합니다.`
+        ? `${displayTimeValue(record.timeValue)} 컷 기록에 ${selectedMember} 님으로 참여 확인합니다. 입력 가능 ${remain}`
         : '이 기록은 참여 비번이 없어 관리자 수동 추가만 가능합니다.';
     joinPasswordInput.value = '';
     joinPasswordInput.disabled = false;
@@ -1671,6 +1681,7 @@ async function submitCut(event) {
         });
         state.bossCuts = data.cuts || {};
         state.bossCutRecords = data.records || [];
+        state.bossParticipationWindowMin = data.bossParticipationWindowMin || state.bossParticipationWindowMin;
         if (state.bossCutLocks) delete state.bossCutLocks[bossName];
         selectedCutLock = null;
         closeCutModal({ releaseLock: false });
@@ -1833,7 +1844,8 @@ async function fetchState(shouldRender = true) {
         members: data.members || [],
         bossCuts: data.bossCuts || {},
         bossCutRecords: data.bossCutRecords || [],
-        bossCutLocks: data.bossCutLocks || {}
+        bossCutLocks: data.bossCutLocks || {},
+        bossParticipationWindowMin: data.bossParticipationWindowMin || 60
     };
     lastSyncAt = Date.now();
     if (!state.members.includes(selectedMember)) setSelectedMember('');

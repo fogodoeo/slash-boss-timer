@@ -67,7 +67,11 @@ const RESERVATION_GRACE_MS = 10 * 60 * 1000;
 const CHECK_UNDO_GRACE_MS = 60 * 1000;
 const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
 const DAY_MS = 24 * 60 * 60 * 1000;
-const BOSS_PARTICIPATION_WINDOW_MS = 10 * 60 * 1000;
+const BOSS_PARTICIPATION_WINDOW_MIN_INPUT = Number(process.env.BOSS_PARTICIPATION_WINDOW_MIN || process.env.BOSS_PARTICIPATION_MINUTES);
+const BOSS_PARTICIPATION_WINDOW_MIN = Number.isFinite(BOSS_PARTICIPATION_WINDOW_MIN_INPUT)
+    ? Math.max(10, Math.min(180, Math.round(BOSS_PARTICIPATION_WINDOW_MIN_INPUT)))
+    : 60;
+const BOSS_PARTICIPATION_WINDOW_MS = BOSS_PARTICIPATION_WINDOW_MIN * 60 * 1000;
 const BOSS_CUT_LOCK_MS = 90 * 1000;
 const MAX_BOSS_CUT_RECORDS = 300;
 const MAX_BOSS_AUDIT_LOGS = 500;
@@ -1575,7 +1579,8 @@ function publicState() {
         logs: state.logs.slice(0, 500),
         bossCuts: publicBossCuts(),
         bossCutRecords: publicBossCutRecords(),
-        bossCutLocks: publicBossCutLocks()
+        bossCutLocks: publicBossCutLocks(),
+        bossParticipationWindowMin: BOSS_PARTICIPATION_WINDOW_MIN
     };
 }
 
@@ -1813,7 +1818,8 @@ async function handleApi(req, res, url) {
         sendJson(res, 200, {
             cuts: publicBossCuts(),
             records,
-            record: records.find((item) => item.id === record.id) || null
+            record: records.find((item) => item.id === record.id) || null,
+            bossParticipationWindowMin: BOSS_PARTICIPATION_WINDOW_MIN
         });
         return true;
     }
@@ -1965,7 +1971,11 @@ async function handleApi(req, res, url) {
         });
 
         await saveState();
-        sendJson(res, 200, { cuts: publicBossCuts(), records: publicBossCutRecords() });
+        sendJson(res, 200, {
+            cuts: publicBossCuts(),
+            records: publicBossCutRecords(),
+            bossParticipationWindowMin: BOSS_PARTICIPATION_WINDOW_MIN
+        });
         return true;
     }
 
