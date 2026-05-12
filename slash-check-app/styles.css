@@ -1082,6 +1082,14 @@ h1 {
     gap: 8px;
 }
 
+.participantList {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.participantList .empty {
+    grid-column: 1 / -1;
+}
+
 .participationTestCard {
     display: grid;
     grid-template-columns: minmax(0, 1fr) 180px 92px;
@@ -1178,6 +1186,10 @@ h1 {
     padding: 10px 12px;
 }
 
+.bossLivePanel {
+    padding: 10px;
+}
+
 .liveParticipationItem > div {
     display: grid;
     gap: 4px;
@@ -1217,6 +1229,12 @@ h1 {
 }
 
 .timelineCutButton {
+    border-color: var(--blue);
+    background: var(--blue);
+    color: #ffffff;
+}
+
+.liveJoinButton {
     border-color: var(--blue);
     background: var(--blue);
     color: #ffffff;
@@ -1491,18 +1509,21 @@ h1 {
 }
 
 .participantRow {
-    display: grid;
-    gap: 4px;
-    min-height: 50px;
+    display: flex;
+    align-items: center;
+    min-height: 40px;
     border: 1px solid var(--line-soft);
     border-radius: 8px;
-    background: var(--soft);
-    padding: 10px 12px;
+    background: #ffffff;
+    padding: 8px 10px;
 }
 
 .participantRow strong {
+    overflow: hidden;
     color: var(--text);
     font-weight: 950;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .participantRow span {

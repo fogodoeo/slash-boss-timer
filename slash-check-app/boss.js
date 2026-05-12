@@ -980,21 +980,22 @@ function renderLiveParticipation() {
     const now = getNowMs();
     const records = activeParticipationRecords();
     const panel = liveParticipationList.closest('.bossLivePanel');
-    liveParticipationSummary.textContent = `열린 기록 ${records.length}건`;
+    if (liveParticipationSummary) liveParticipationSummary.textContent = `열린 기록 ${records.length}건`;
     liveParticipationList.replaceChildren();
-    if (panel) panel.hidden = false;
 
     if (records.length === 0) {
-        liveParticipationList.innerHTML = '<div class="empty small">열린 참여 확인이 없습니다.</div>';
+        if (panel) panel.hidden = true;
         return;
     }
+
+    if (panel) panel.hidden = false;
 
     for (const record of records.slice(0, 8)) {
         const item = liveParticipationTemplate.content.firstElementChild.cloneNode(true);
         const names = participantNames(record);
         item.querySelector('.liveTitle').textContent = `${record.bossName} · ${displayTimeValue(record.timeValue)}`;
         item.querySelector('.liveMeta').textContent = `${formatDuration(participationOpenMs(record) - now)} 남음 · 참여 ${names.length}명`;
-        item.querySelector('.liveDetailButton').addEventListener('click', () => openParticipantModal(record));
+        item.querySelector('.liveDetailButton').addEventListener('click', () => openParticipantModal(record, 'participants'));
         item.querySelector('.liveJoinButton').addEventListener('click', () => openJoinModal(record));
         liveParticipationList.append(item);
     }
@@ -1506,7 +1507,7 @@ function setParticipantModalMode(mode) {
     participantEditPanel?.classList.toggle('hiddenField', !isEdit);
 }
 
-function openParticipantModal(record, mode = 'participants') {
+function openParticipantModal(record, mode = 'edit') {
     selectedParticipantRecord = record;
     const names = participantNames(record);
     const cutMs = new Date(record.cutAt).getTime();
@@ -1549,9 +1550,7 @@ function openParticipantModal(record, mode = 'participants') {
             row.className = 'participantRow';
             const name = document.createElement('strong');
             name.textContent = participant.memberName;
-            const meta = document.createElement('span');
-            meta.textContent = `${participant.method === 'admin' ? '관리자 추가' : '비번 확인'} · ${formatKstDateTime(participant.confirmedAt)}`;
-            row.append(name, meta);
+            row.append(name);
             participantList.append(row);
         }
     }
