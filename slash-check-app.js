@@ -2638,6 +2638,50 @@ async function handleApi(req, res, url) {
         return true;
     }
 
+    if (url.pathname === '/api/boss-cuts/participants/photo' && req.method === 'DELETE') {
+        const body = await readJson(req);
+        const recordId = cleanText(body.recordId || url.searchParams.get('recordId'), 80);
+        const proofId = cleanText(body.proofId || url.searchParams.get('proofId'), 80);
+        const actorName = cleanText(body.actorName || url.searchParams.get('actorName'), 24);
+        const adminPassword = body.adminPassword || url.searchParams.get('adminPassword');
+
+        if (!state.members.includes(actorName)) {
+            sendJson(res, 400, { error: '작업자 닉네임을 먼저 선택하세요.' });
+            return true;
+        }
+
+        const record = (state.bossCutRecords || []).find((item) => item.id === recordId);
+        if (!record) {
+            sendJson(res, 404, { error: '컷 기록을 찾을 수 없습니다.' });
+            return true;
+        }
+
+        record.participantProofs = Array.isArray(record.participantProofs) ? record.participantProofs : [];
+        const proofIndex = record.participantProofs.findIndex((item) => item.id === proofId);
+        const proof = proofIndex >= 0 ? record.participantProofs[proofIndex] : null;
+        if (!proof) {
+            sendJson(res, 404, { error: '사진 인증 요청을 찾을 수 없습니다.' });
+            return true;
+        }
+
+        const isOwner = proof.memberName === actorName;
+        const isReporter = record.reporterName === actorName;
+        const isAdmin = Boolean(adminPassword) && verifyAdminPassword(adminPassword);
+        if (!isOwner && !isReporter && !isAdmin) {
+            sendJson(res, 403, { error: '사진 인증 요청을 삭제할 권한이 없습니다.' });
+            return true;
+        }
+
+        const filePath = participantProofFilePath(proof.fileName);
+        record.participantProofs.splice(proofIndex, 1);
+        syncBossCutRecordState(record);
+        if (filePath) fs.unlink(filePath).catch(() => {});
+
+        await saveState();
+        sendJson(res, 200, { cuts: publicBossCuts(), records: publicBossCutRecords() });
+        return true;
+    }
+
     if (url.pathname === '/api/boss-cuts/participants/admin' && req.method === 'POST') {
         const body = await readJson(req);
         const recordId = cleanText(body.recordId, 80);
