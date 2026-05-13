@@ -2175,18 +2175,12 @@ async function handleApi(req, res, url) {
         const body = await readJson(req);
         const recordId = cleanText(body.recordId, 80);
         const actorName = cleanText(body.actorName, 24);
-        const adminPassword = body.adminPassword;
         let timeValue = normalizeBossCutTime(body.timeValue || formatCommandTimeFromIso(body.cutAt));
         const cutAt = isoFromBossCutInput(body.cutAt, timeValue);
         if (!timeValue && cutAt) timeValue = formatCommandTimeFromIso(cutAt);
 
         if (!state.members.includes(actorName)) {
             sendJson(res, 400, { error: '등록된 길드원만 컷 기록을 수정할 수 있습니다.' });
-            return true;
-        }
-
-        if (!verifyAdminPassword(adminPassword)) {
-            sendJson(res, 403, { error: '관리자 비밀번호가 맞지 않습니다.' });
             return true;
         }
 

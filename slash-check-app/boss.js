@@ -1669,6 +1669,7 @@ function openParticipantModal(record, mode = 'edit') {
     participantUncertainInput.closest('label')?.classList.toggle('hiddenField', !canMarkUncertain);
     participantAdminPasswordInput.value = cachedAdminPassword;
     participantAdminPasswordInput.disabled = canceled;
+    participantAdminPasswordInput.closest('label')?.classList.add('hiddenField');
     participantCancelReasonInput.value = reason;
     participantCancelReasonInput.disabled = canceled;
     saveParticipantRecordButton.disabled = canceled;
@@ -2208,12 +2209,6 @@ async function updateParticipantRecordTime() {
         showToast('컷 시간 확인', '날짜와 시간을 다시 확인하세요.', 'error');
         return;
     }
-    if (!participantAdminPasswordInput.value.trim()) {
-        showToast('관리자 확인', '관리자 비밀번호를 입력하세요.', 'error');
-        return;
-    }
-    cacheAdminPassword(participantAdminPasswordInput.value.trim());
-
     try {
         const recordId = selectedParticipantRecord.id;
         const data = await api('/api/boss-cuts/record', {
@@ -2223,8 +2218,7 @@ async function updateParticipantRecordTime() {
                 timeValue: normalized,
                 cutAt,
                 actorName: memberName,
-                timeUncertain: isTimeBossRecord(selectedParticipantRecord) && participantUncertainInput.checked,
-                adminPassword: participantAdminPasswordInput.value
+                timeUncertain: isTimeBossRecord(selectedParticipantRecord) && participantUncertainInput.checked
             })
         });
         state.bossCuts = data.cuts || {};
