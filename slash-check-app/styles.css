@@ -1457,9 +1457,17 @@ h1 {
     padding: 10px 12px;
 }
 
+.bossRecordItem.compactRecord.hasRecordJoinButton {
+    grid-template-columns: minmax(0, 1fr) 104px;
+}
+
 .bossRecordItem.compactRecord .recordActions {
     grid-template-columns: 32px;
     justify-content: end;
+}
+
+.bossRecordItem.compactRecord.hasRecordJoinButton .recordActions {
+    grid-template-columns: 32px 66px;
 }
 
 .bossRecordItem.compactRecord .recordMeta,
@@ -1489,6 +1497,34 @@ h1 {
 .bossRecordItem strong {
     color: var(--text);
     font-weight: 950;
+}
+
+.recordTitle {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    min-width: 0;
+}
+
+.recordTitleText {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.recordJoinedCheck {
+    display: inline-grid;
+    place-items: center;
+    flex: 0 0 auto;
+    width: 17px;
+    height: 17px;
+    border-radius: 999px;
+    background: #16a34a;
+    color: #ffffff !important;
+    font-size: 12px !important;
+    font-weight: 1000 !important;
+    line-height: 1;
 }
 
 .bossRecordItem.canceled {
@@ -5694,8 +5730,16 @@ body {
     padding: 7px 10px;
 }
 
+.bossPage .bossRecordItem.compactRecord.hasRecordJoinButton {
+    grid-template-columns: minmax(0, 1fr) 100px;
+}
+
 .bossPage .bossRecordItem.compactRecord .recordActions {
     grid-template-columns: 30px;
+}
+
+.bossPage .bossRecordItem.compactRecord.hasRecordJoinButton .recordActions {
+    grid-template-columns: 30px 64px;
 }
 
 .bossPage .bossRecordItem.compactRecord .recordMeta {

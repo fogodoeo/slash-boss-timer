@@ -1930,6 +1930,13 @@ async function handleApi(req, res, url) {
         const participationOpenUntil = requiresParticipation && participantPasswordHash
             ? new Date(Date.now() + BOSS_PARTICIPATION_WINDOW_MS).toISOString()
             : null;
+        const participants = requiresParticipation
+            ? [{
+                memberName: reporterName,
+                confirmedAt: nowIso,
+                method: 'reporter'
+            }]
+            : [];
         const record = {
             id: randomUUID(),
             bossName: boss.이름,
@@ -1946,7 +1953,7 @@ async function handleApi(req, res, url) {
             requiresParticipation,
             participantPasswordHash,
             participationOpenUntil,
-            participants: []
+            participants
         };
 
         state.bossCuts = state.bossCuts || {};

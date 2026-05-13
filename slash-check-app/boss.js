@@ -1408,11 +1408,25 @@ function renderRecords() {
     for (const record of records) {
         const item = recordItemTemplate.content.firstElementChild.cloneNode(true);
         const canceled = record.status === 'canceled';
+        const participationOpen = isParticipationOpen(record);
+        const joinedByMe = hasParticipant(record);
         item.classList.add('compactRecord');
         item.classList.toggle('canceled', canceled);
-        item.querySelector('.recordTitle').textContent = canceled
+        const title = item.querySelector('.recordTitle');
+        const titleText = document.createElement('span');
+        titleText.className = 'recordTitleText';
+        titleText.textContent = canceled
             ? `${record.bossName} · ${bossCutClock(record)} · 취소됨`
             : `${record.bossName} · ${bossCutClock(record)}`;
+        title.replaceChildren(titleText);
+        if (joinedByMe && !canceled) {
+            const joinedMark = document.createElement('span');
+            joinedMark.className = 'recordJoinedCheck';
+            joinedMark.textContent = '✓';
+            joinedMark.title = '참여함';
+            joinedMark.setAttribute('aria-label', '참여함');
+            title.append(joinedMark);
+        }
         const reporterText = canceled
             ? record.canceledBy ? `취소 ${record.canceledBy}` : record.reporterName ? `기록 ${record.reporterName}` : ''
             : record.reporterName ? `기록 ${record.reporterName}` : '';
@@ -1422,14 +1436,12 @@ function renderRecords() {
         item.querySelector('.recordParticipants').hidden = true;
         item.querySelector('.recordDetailButton').addEventListener('click', () => openParticipantModal(record));
         const button = item.querySelector('.recordJoinButton');
-        const participationOpen = isParticipationOpen(record);
-        const joinedByMe = hasParticipant(record);
-        button.hidden = canceled || !record.requiresParticipation || (!participationOpen && !joinedByMe);
-        button.disabled = joinedByMe || !participationOpen;
-        button.textContent = joinedByMe ? '참여함' : participationOpen ? '참여입력' : '마감';
-        button.classList.toggle('isJoined', joinedByMe);
+        button.hidden = canceled || joinedByMe || !record.requiresParticipation || !participationOpen;
+        button.disabled = !participationOpen;
+        button.textContent = participationOpen ? '참여입력' : '마감';
+        item.classList.toggle('hasRecordJoinButton', !button.hidden);
         button.addEventListener('click', () => {
-            if (!joinedByMe && participationOpen) openJoinModal(record);
+            if (participationOpen) openJoinModal(record);
         });
         item.addEventListener('click', (event) => {
             if (isBossCardControl(event.target)) return;
