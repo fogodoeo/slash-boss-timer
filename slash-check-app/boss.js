@@ -53,6 +53,12 @@ const joinPhotoInput = document.querySelector('#joinPhotoInput');
 const joinPhotoButton = document.querySelector('#joinPhotoButton');
 const joinPhotoStatus = document.querySelector('#joinPhotoStatus');
 const joinPhotoDropZone = document.querySelector('#joinPhotoDropZone');
+const joinPhotoPreview = document.querySelector('#joinPhotoPreview');
+const joinPhotoPreviewImage = document.querySelector('#joinPhotoPreviewImage');
+const joinPhotoPreviewTitle = document.querySelector('#joinPhotoPreviewTitle');
+const joinPhotoPreviewMeta = document.querySelector('#joinPhotoPreviewMeta');
+const confirmJoinPhotoButton = document.querySelector('#confirmJoinPhotoButton');
+const clearJoinPhotoButton = document.querySelector('#clearJoinPhotoButton');
 const participantModal = document.querySelector('#participantModal');
 const closeParticipantModalButton = document.querySelector('#closeParticipantModalButton');
 const participantModalTitle = document.querySelector('#participantModalTitle');
@@ -110,6 +116,9 @@ let participantAddCandidates = [];
 let selectedParticipantAddMember = '';
 let selectedParticipantModalMode = 'participants';
 let isUploadingJoinPhoto = false;
+let pendingJoinPhotoFile = null;
+let pendingJoinPhotoSource = 'select';
+let pendingJoinPhotoPreviewUrl = '';
 let bossAlarmAudioContext = null;
 let titleAlertTimer = null;
 let titleAlertKey = '';
@@ -1613,7 +1622,8 @@ function openJoinModal(record) {
     if (joinPhotoInput) joinPhotoInput.value = '';
     if (joinPhotoButton) joinPhotoButton.disabled = false;
     if (joinPhotoDropZone) joinPhotoDropZone.classList.remove('isDragging', 'isUploading');
-    if (joinPhotoStatus) joinPhotoStatus.textContent = '사진 선택, 붙여넣기, 드래그로 인증을 올릴 수 있습니다.';
+    clearJoinPhotoPreview({ resetStatus: false });
+    if (joinPhotoStatus) joinPhotoStatus.textContent = '사진 선택, 붙여넣기, 드래그 후 미리보기에서 확인하세요.';
     joinModal.classList.remove('hidden');
     setTimeout(() => joinPasswordInput.focus(), 30);
 }
@@ -1621,6 +1631,7 @@ function openJoinModal(record) {
 function closeJoinModal() {
     selectedJoinRecord = null;
     isUploadingJoinPhoto = false;
+    clearJoinPhotoPreview({ resetStatus: false });
     joinPhotoDropZone?.classList.remove('isDragging', 'isUploading');
     joinModal.classList.add('hidden');
 }
@@ -1772,7 +1783,7 @@ function renderParticipantProofs(record, canceled = false) {
     title.textContent = '사진 인증 요청';
     const desc = document.createElement('span');
     const pendingCount = proofs.filter((proof) => proof.status === 'pending').length;
-    desc.textContent = pendingCount ? `확인 대기 ${pendingCount}건 · 승인하면 참여자로 등록됩니다.` : '처리된 사진 인증입니다.';
+    desc.textContent = pendingCount ? `확인 대기 ${pendingCount}건 · 관리자 비밀번호로 승인하면 참여자로 등록됩니다.` : '처리된 사진 인증입니다.';
     header.append(title, desc);
     participantProofList.append(header);
 
@@ -1820,7 +1831,7 @@ function renderParticipantProofs(record, canceled = false) {
             const approveButton = document.createElement('button');
             approveButton.type = 'button';
             approveButton.className = 'photoProofApprove';
-            approveButton.textContent = '승인';
+            approveButton.textContent = '관리자 승인';
             approveButton.addEventListener('click', () => resolvePhotoProof(proof, 'approve'));
             const rejectButton = document.createElement('button');
             rejectButton.type = 'button';
@@ -2025,8 +2036,37 @@ function photoFileFromItems(items) {
 function setJoinPhotoUploadState(uploading, message = '') {
     isUploadingJoinPhoto = uploading;
     if (joinPhotoButton) joinPhotoButton.disabled = uploading;
+    if (confirmJoinPhotoButton) confirmJoinPhotoButton.disabled = uploading || !pendingJoinPhotoFile;
+    if (clearJoinPhotoButton) clearJoinPhotoButton.disabled = uploading;
     joinPhotoDropZone?.classList.toggle('isUploading', uploading);
     if (message && joinPhotoStatus) joinPhotoStatus.textContent = message;
+}
+
+function clearJoinPhotoPreview({ resetStatus = true } = {}) {
+    pendingJoinPhotoFile = null;
+    pendingJoinPhotoSource = 'select';
+    if (pendingJoinPhotoPreviewUrl) URL.revokeObjectURL(pendingJoinPhotoPreviewUrl);
+    pendingJoinPhotoPreviewUrl = '';
+    if (joinPhotoPreviewImage) joinPhotoPreviewImage.removeAttribute('src');
+    if (joinPhotoPreviewTitle) joinPhotoPreviewTitle.textContent = '선택된 사진';
+    if (joinPhotoPreviewMeta) joinPhotoPreviewMeta.textContent = '';
+    joinPhotoPreview?.classList.add('hiddenField');
+    if (confirmJoinPhotoButton) confirmJoinPhotoButton.disabled = true;
+    if (joinPhotoInput) joinPhotoInput.value = '';
+    if (resetStatus && joinPhotoStatus) joinPhotoStatus.textContent = '사진 선택, 붙여넣기, 드래그 후 미리보기에서 확인하세요.';
+}
+
+function sourceLabelFromPhotoSource(source) {
+    if (source === 'paste') return '붙여넣은 사진';
+    if (source === 'drop') return '드롭한 사진';
+    return '선택한 사진';
+}
+
+function formatFileSize(bytes) {
+    const size = Number(bytes) || 0;
+    if (size >= 1024 * 1024) return `${Math.round(size / 1024 / 1024 * 10) / 10}MB`;
+    if (size >= 1024) return `${Math.round(size / 1024)}KB`;
+    return `${size}B`;
 }
 
 function handleJoinPhotoFile(file, source = 'select') {
@@ -2035,7 +2075,29 @@ function handleJoinPhotoFile(file, source = 'select') {
         return;
     }
     if (isUploadingJoinPhoto) return;
-    submitJoinPhoto(file, source);
+    if (!file.type?.startsWith('image/')) {
+        showToast('사진 인증 확인', '이미지 파일만 올릴 수 있습니다.', 'error');
+        return;
+    }
+    if (file.size > 12 * 1024 * 1024) {
+        showToast('사진 인증 확인', '사진 용량이 너무 큽니다. 12MB 이하로 선택하세요.', 'error');
+        return;
+    }
+
+    clearJoinPhotoPreview({ resetStatus: false });
+    pendingJoinPhotoFile = file;
+    pendingJoinPhotoSource = source;
+    pendingJoinPhotoPreviewUrl = URL.createObjectURL(file);
+    if (joinPhotoPreviewImage) joinPhotoPreviewImage.src = pendingJoinPhotoPreviewUrl;
+    if (joinPhotoPreviewTitle) joinPhotoPreviewTitle.textContent = sourceLabelFromPhotoSource(source);
+    if (joinPhotoPreviewMeta) {
+        const name = file.name || sourceLabelFromPhotoSource(source);
+        joinPhotoPreviewMeta.textContent = `${name} · ${formatFileSize(file.size)}`;
+    }
+    joinPhotoPreview?.classList.remove('hiddenField');
+    if (confirmJoinPhotoButton) confirmJoinPhotoButton.disabled = false;
+    if (joinPhotoStatus) joinPhotoStatus.textContent = '미리보기를 확인한 뒤 인증 요청을 눌러주세요.';
+    confirmJoinPhotoButton?.focus();
 }
 
 async function submitJoinPhoto(file, source = 'select') {
@@ -2043,7 +2105,7 @@ async function submitJoinPhoto(file, source = 'select') {
     if (!memberName || !selectedJoinRecord || !file) return;
 
     const record = selectedJoinRecord;
-    const sourceLabel = source === 'paste' ? '붙여넣은 사진' : source === 'drop' ? '드롭한 사진' : '선택한 사진';
+    const sourceLabel = sourceLabelFromPhotoSource(source);
     setJoinPhotoUploadState(true, `${sourceLabel}을 압축해서 올리는 중입니다...`);
 
     try {
@@ -2383,12 +2445,23 @@ joinPhotoInput?.addEventListener('change', () => {
     const file = joinPhotoInput.files?.[0];
     if (file) handleJoinPhotoFile(file, 'select');
 });
+confirmJoinPhotoButton?.addEventListener('click', (event) => {
+    event.stopPropagation();
+    if (!pendingJoinPhotoFile || isUploadingJoinPhoto) return;
+    submitJoinPhoto(pendingJoinPhotoFile, pendingJoinPhotoSource);
+});
+clearJoinPhotoButton?.addEventListener('click', (event) => {
+    event.stopPropagation();
+    if (isUploadingJoinPhoto) return;
+    clearJoinPhotoPreview();
+    joinPhotoInput?.click();
+});
 ['dragenter', 'dragover'].forEach((eventName) => {
     joinPhotoDropZone?.addEventListener(eventName, (event) => {
         event.preventDefault();
         if (!isModalVisible(joinModal) || isUploadingJoinPhoto) return;
         joinPhotoDropZone.classList.add('isDragging');
-        if (joinPhotoStatus) joinPhotoStatus.textContent = '사진을 놓으면 바로 인증 요청됩니다.';
+        if (joinPhotoStatus) joinPhotoStatus.textContent = '사진을 놓으면 미리보기로 먼저 확인합니다.';
     });
 });
 ['dragleave', 'dragend'].forEach((eventName) => {

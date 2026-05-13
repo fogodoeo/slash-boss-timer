@@ -223,6 +223,17 @@
                 <strong>사진 인증</strong>
                 <span>사진 선택 · 붙여넣기 · 드롭</span>
                 <input id="joinPhotoInput" type="file" accept="image/*" hidden>
+                <div id="joinPhotoPreview" class="joinPhotoPreview hiddenField">
+                    <img id="joinPhotoPreviewImage" alt="인증 사진 미리보기">
+                    <div class="joinPhotoPreviewText">
+                        <strong id="joinPhotoPreviewTitle">선택된 사진</strong>
+                        <span id="joinPhotoPreviewMeta"></span>
+                    </div>
+                    <div class="joinPhotoPreviewActions">
+                        <button id="confirmJoinPhotoButton" class="bossModalPrimary" type="button">이 사진으로 인증 요청</button>
+                        <button id="clearJoinPhotoButton" class="bossModalSecondary" type="button">다시 선택</button>
+                    </div>
+                </div>
                 <button id="joinPhotoButton" class="bossModalSecondary" type="button">사진 인증 올리기</button>
                 <small id="joinPhotoStatus" class="fieldHint">사진은 24시간만 보관되고 관리자가 확인합니다.</small>
             </div>
