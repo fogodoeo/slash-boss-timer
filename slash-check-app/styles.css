@@ -1216,6 +1216,13 @@ h1 {
     font-weight: 850;
 }
 
+.liveParticipationItem.hasPhotoProofs,
+.bossRecordItem.hasPhotoProofs,
+.bossCard.hasPhotoProofs {
+    border-color: #f6c768;
+    background: linear-gradient(90deg, #fffbeb, #ffffff 54%);
+}
+
 .timelineCutButton,
 .liveJoinButton,
 .liveDetailButton,
@@ -1527,6 +1534,20 @@ h1 {
     line-height: 1;
 }
 
+.recordPhotoProofBadge {
+    display: inline-grid;
+    place-items: center;
+    flex: 0 0 auto;
+    height: 18px;
+    border-radius: 999px;
+    background: #fffbeb;
+    color: #92400e !important;
+    padding: 0 7px;
+    font-size: 11px !important;
+    font-weight: 950 !important;
+    line-height: 1;
+}
+
 .bossRecordItem.canceled {
     border-color: #e3e7ef;
     background: #f1f4f8;
@@ -1584,18 +1605,28 @@ h1 {
     background: #fffbeb;
     box-shadow: none;
     color: #92400e;
-    cursor: default;
+    cursor: pointer;
     opacity: 1;
 }
 
 .participantRow {
     display: flex;
     align-items: center;
+    width: 100%;
     min-height: 40px;
     border: 1px solid var(--line-soft);
     border-radius: 8px;
     background: #ffffff;
+    color: inherit;
+    cursor: pointer;
+    font: inherit;
     padding: 8px 10px;
+    text-align: left;
+}
+
+.participantRow:hover {
+    border-color: #f0b7b1;
+    background: #fff7f7;
 }
 
 .participantRow strong {
@@ -1702,6 +1733,12 @@ h1 {
     border: 1px solid #f0b7b1;
     background: #ffffff;
     color: var(--red);
+}
+
+.photoProofCancel {
+    border: 1px solid #cbd5e1;
+    background: #ffffff;
+    color: var(--text-soft);
 }
 
 .photoProofActions span {

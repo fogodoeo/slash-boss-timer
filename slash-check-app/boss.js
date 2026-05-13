@@ -420,6 +420,10 @@ function pendingParticipantProofs(record) {
     return participantProofs(record).filter((proof) => proof.status === 'pending');
 }
 
+function pendingParticipantProofCount(record) {
+    return pendingParticipantProofs(record).length;
+}
+
 function hasPendingParticipantProof(record, memberName = selectedMember) {
     const name = cleanName(memberName);
     if (!name) return false;
@@ -857,8 +861,12 @@ function buildTimeline() {
 function activeParticipationRecords() {
     const now = getNowMs();
     return activeCutRecords()
-        .filter((record) => isParticipationOpen(record, now))
-        .sort((a, b) => participationOpenMs(a) - participationOpenMs(b));
+        .filter((record) => isParticipationOpen(record, now) || pendingParticipantProofCount(record) > 0)
+        .sort((a, b) => {
+            const proofDiff = pendingParticipantProofCount(b) - pendingParticipantProofCount(a);
+            if (proofDiff) return proofDiff;
+            return participationOpenMs(a) - participationOpenMs(b);
+        });
 }
 
 function bossStateFromSpawn(spawnMs, now = getNowMs()) {
@@ -1031,7 +1039,12 @@ function renderLiveParticipation() {
     const now = getNowMs();
     const records = activeParticipationRecords();
     const panel = liveParticipationList.closest('.bossLivePanel');
-    if (liveParticipationSummary) liveParticipationSummary.textContent = `열린 기록 ${records.length}건`;
+    const pendingProofs = records.reduce((sum, record) => sum + pendingParticipantProofCount(record), 0);
+    if (liveParticipationSummary) {
+        liveParticipationSummary.textContent = pendingProofs
+            ? `사진대기 ${pendingProofs}건 · 열린 기록 ${records.length}건`
+            : `열린 기록 ${records.length}건`;
+    }
     liveParticipationList.replaceChildren();
 
     if (records.length === 0) {
@@ -1046,16 +1059,25 @@ function renderLiveParticipation() {
         const names = participantNames(record);
         const joinedByMe = hasParticipant(record);
         const pendingByMe = hasPendingParticipantProof(record);
+        const pendingCount = pendingParticipantProofCount(record);
+        item.classList.toggle('hasPhotoProofs', pendingCount > 0);
         item.querySelector('.liveTitle').textContent = `${record.bossName} · ${displayTimeValue(record.timeValue)}`;
-        item.querySelector('.liveMeta').textContent = `${formatDuration(participationOpenMs(record) - now)} 남음 · 참여 ${names.length}명`;
+        const metaParts = [];
+        if (pendingCount > 0) metaParts.push(`사진대기 ${pendingCount}건`);
+        if (isParticipationOpen(record, now)) metaParts.push(`${formatDuration(participationOpenMs(record) - now)} 남음`);
+        else metaParts.push('입력 마감');
+        metaParts.push(`참여 ${names.length}명`);
+        item.querySelector('.liveMeta').textContent = metaParts.join(' · ');
         item.querySelector('.liveDetailButton').addEventListener('click', () => openParticipantModal(record, 'participants'));
         const joinButton = item.querySelector('.liveJoinButton');
         joinButton.textContent = joinedByMe ? '참여함' : pendingByMe ? '인증대기' : '참여입력';
-        joinButton.disabled = joinedByMe || pendingByMe;
+        joinButton.disabled = joinedByMe;
         joinButton.classList.toggle('isJoined', joinedByMe);
         joinButton.classList.toggle('isPending', pendingByMe);
         joinButton.addEventListener('click', () => {
-            if (!joinedByMe && !pendingByMe) openJoinModal(record);
+            if (joinedByMe) return;
+            if (pendingByMe) openParticipantModal(record, 'participants');
+            else openJoinModal(record);
         });
         liveParticipationList.append(item);
     }
@@ -1356,6 +1378,8 @@ function renderBosses() {
         const spawnState = bossStateFromSpawn(nextMs, now);
         const card = bossCardTemplate.content.firstElementChild.cloneNode(true);
         card.classList.add(spawnState, bossTypeClass(boss));
+        const pendingProofCount = pendingParticipantProofCount(record);
+        card.classList.toggle('hasPhotoProofs', pendingProofCount > 0);
 
         card.querySelector('.bossName').textContent = boss.이름;
         card.querySelector('.bossLocation').textContent = displayBossLocation(boss.위치);
@@ -1371,7 +1395,7 @@ function renderBosses() {
         metaEl.hidden = !metaText;
         const participationOpen = isParticipationOpen(record, now);
         const participationText = record?.requiresParticipation
-            ? ` · 참여 ${record.participants?.length || 0}명${participationOpen ? ` · ${formatDuration(participationOpenMs(record) - now)}` : record.hasParticipantPassword ? ' · 마감' : ' · 비번 없음'}`
+            ? ` · 참여 ${record.participants?.length || 0}명${pendingProofCount ? ` · 사진대기 ${pendingProofCount}건` : ''}${participationOpen ? ` · ${formatDuration(participationOpenMs(record) - now)}` : record.hasParticipantPassword ? ' · 마감' : ' · 비번 없음'}`
             : '';
         const reporterEl = card.querySelector('.bossReporter');
         reporterEl.textContent = record?.reporterName
@@ -1399,12 +1423,14 @@ function renderBosses() {
         const joinButton = card.querySelector('.bossJoinButton');
         const joinedByMe = hasParticipant(record);
         const pendingByMe = hasPendingParticipantProof(record);
-        joinButton.disabled = boss.타입 === '이벤트' || !participationOpen || joinedByMe || pendingByMe;
+        joinButton.disabled = boss.타입 === '이벤트' || joinedByMe || (!participationOpen && !pendingByMe);
         joinButton.textContent = joinedByMe ? '참여함' : pendingByMe ? '인증대기' : participationOpen ? '참여' : record?.requiresParticipation ? '마감' : '-';
         joinButton.classList.toggle('isJoined', joinedByMe);
         joinButton.classList.toggle('isPending', pendingByMe);
         joinButton.addEventListener('click', () => {
-            if (!joinedByMe && !pendingByMe) openJoinModal(record);
+            if (joinedByMe) return;
+            if (pendingByMe) openParticipantModal(record, 'participants');
+            else openJoinModal(record);
         });
 
         card.addEventListener('click', (event) => {
@@ -1437,8 +1463,10 @@ function renderRecords() {
         const participationOpen = isParticipationOpen(record);
         const joinedByMe = hasParticipant(record);
         const pendingByMe = hasPendingParticipantProof(record);
+        const pendingCount = pendingParticipantProofCount(record);
         item.classList.add('compactRecord');
         item.classList.toggle('canceled', canceled);
+        item.classList.toggle('hasPhotoProofs', pendingCount > 0);
         const title = item.querySelector('.recordTitle');
         const titleText = document.createElement('span');
         titleText.className = 'recordTitleText';
@@ -1454,6 +1482,12 @@ function renderRecords() {
             joinedMark.setAttribute('aria-label', '참여함');
             title.append(joinedMark);
         }
+        if (pendingCount > 0 && !canceled) {
+            const proofBadge = document.createElement('span');
+            proofBadge.className = 'recordPhotoProofBadge';
+            proofBadge.textContent = `사진 ${pendingCount}`;
+            title.append(proofBadge);
+        }
         const reporterText = canceled
             ? record.canceledBy ? `취소 ${record.canceledBy}` : record.reporterName ? `기록 ${record.reporterName}` : ''
             : record.reporterName ? `기록 ${record.reporterName}` : '';
@@ -1463,13 +1497,14 @@ function renderRecords() {
         item.querySelector('.recordParticipants').hidden = true;
         item.querySelector('.recordDetailButton').addEventListener('click', () => openParticipantModal(record));
         const button = item.querySelector('.recordJoinButton');
-        button.hidden = canceled || joinedByMe || !record.requiresParticipation || !participationOpen;
-        button.disabled = !participationOpen || pendingByMe;
+        button.hidden = canceled || joinedByMe || !record.requiresParticipation || (!participationOpen && !pendingByMe);
+        button.disabled = !participationOpen && !pendingByMe;
         button.textContent = pendingByMe ? '인증대기' : participationOpen ? '참여입력' : '마감';
         button.classList.toggle('isPending', pendingByMe);
         item.classList.toggle('hasRecordJoinButton', !button.hidden);
         button.addEventListener('click', () => {
-            if (participationOpen && !pendingByMe) openJoinModal(record);
+            if (pendingByMe) openParticipantModal(record, 'participants');
+            else if (participationOpen) openJoinModal(record);
         });
         item.addEventListener('click', (event) => {
             if (isBossCardControl(event.target)) return;
@@ -1556,7 +1591,8 @@ function openJoinModal(record) {
     if (!record || !record.requiresParticipation) return;
     if (!requireMember()) return;
     if (hasPendingParticipantProof(record)) {
-        showToast('사진 인증 대기 중', '관리자가 확인하면 참여자로 올라갑니다.');
+        openParticipantModal(record, 'participants');
+        showToast('사진 인증 대기 중', '상세에서 내가 올린 사진을 취소할 수 있습니다.');
         return;
     }
     if (!isParticipationOpen(record)) {
@@ -1634,11 +1670,14 @@ function openParticipantModal(record, mode = 'edit') {
         participantList.innerHTML = '<div class="empty small">아직 확인된 참여자가 없습니다.</div>';
     } else {
         for (const participant of record.participants || []) {
-            const row = document.createElement('div');
+            const row = document.createElement('button');
+            row.type = 'button';
             row.className = 'participantRow';
+            row.title = '클릭해서 참여자에서 제거';
             const name = document.createElement('strong');
             name.textContent = participant.memberName;
             row.append(name);
+            row.addEventListener('click', () => removeParticipantManually(participant.memberName));
             participantList.append(row);
         }
     }
@@ -1763,6 +1802,15 @@ function renderParticipantProofs(record, canceled = false) {
 
         const actions = document.createElement('div');
         actions.className = 'photoProofActions';
+        const isMine = proof.memberName === selectedMember;
+        if (isMine && ['pending', 'rejected'].includes(proof.status)) {
+            const cancelButton = document.createElement('button');
+            cancelButton.type = 'button';
+            cancelButton.className = 'photoProofCancel';
+            cancelButton.textContent = proof.status === 'pending' ? '취소' : '삭제';
+            cancelButton.addEventListener('click', () => deletePhotoProof(proof));
+            actions.append(cancelButton);
+        }
         if (proof.status === 'pending' && !canceled) {
             const approveButton = document.createElement('button');
             approveButton.type = 'button';
@@ -2022,6 +2070,34 @@ async function resolvePhotoProof(proof, decision) {
     }
 }
 
+async function deletePhotoProof(proof) {
+    const actorName = requireMember();
+    if (!actorName || !selectedParticipantRecord || !proof) return;
+    const isMine = proof.memberName === actorName;
+    if (!isMine && !confirm(`${proof.memberName} 사진 인증 요청을 삭제할까요?`)) return;
+    if (isMine && !confirm('올린 사진 인증 요청을 취소할까요?')) return;
+
+    try {
+        const data = await api('/api/boss-cuts/participants/photo', {
+            method: 'DELETE',
+            body: JSON.stringify({
+                recordId: selectedParticipantRecord.id,
+                proofId: proof.id,
+                actorName
+            })
+        });
+        state.bossCuts = data.cuts || {};
+        state.bossCutRecords = data.records || [];
+        const updated = state.bossCutRecords.find((item) => item.id === selectedParticipantRecord.id);
+        render();
+        if (updated) openParticipantModal(updated, 'participants');
+        showToast(isMine ? '사진 인증 취소됨' : '사진 인증 삭제됨', proof.memberName);
+    } catch (err) {
+        showToast('사진 인증 삭제 실패', err.message, 'error');
+        fetchState(true).catch(() => {});
+    }
+}
+
 async function updateParticipantRecordTime() {
     const memberName = requireMember();
     if (!memberName || !selectedParticipantRecord) return;
@@ -2134,6 +2210,37 @@ async function addParticipantManually() {
         showToast('참여자 추가됨', `${record.bossName} · ${memberName}`);
     } catch (err) {
         showToast('참여자 추가 실패', err.message, 'error');
+        fetchState(true).catch(() => {});
+    }
+}
+
+async function removeParticipantManually(memberName) {
+    const actorName = requireMember();
+    if (!actorName || !selectedParticipantRecord || !memberName) return;
+    if (!confirm(`${memberName} 님을 ${selectedParticipantRecord.bossName} 참여자에서 제거할까요?`)) return;
+
+    const adminPassword = adminPasswordForParticipantAction();
+    if (!adminPassword) return;
+
+    try {
+        const recordId = selectedParticipantRecord.id;
+        const data = await api('/api/boss-cuts/participants/admin', {
+            method: 'DELETE',
+            body: JSON.stringify({
+                recordId,
+                memberName,
+                actorName,
+                adminPassword
+            })
+        });
+        state.bossCuts = data.cuts || {};
+        state.bossCutRecords = data.records || [];
+        const updated = state.bossCutRecords.find((item) => item.id === recordId);
+        render();
+        if (updated) openParticipantModal(updated, 'participants');
+        showToast('참여자 제거됨', `${selectedParticipantRecord.bossName} · ${memberName}`);
+    } catch (err) {
+        showToast('참여자 제거 실패', err.message, 'error');
         fetchState(true).catch(() => {});
     }
 }

@@ -2743,6 +2743,60 @@ async function handleApi(req, res, url) {
         return true;
     }
 
+    if (url.pathname === '/api/boss-cuts/participants/admin' && req.method === 'DELETE') {
+        const body = await readJson(req);
+        const recordId = cleanText(body.recordId || url.searchParams.get('recordId'), 80);
+        const memberName = cleanText(body.memberName || url.searchParams.get('memberName'), 24);
+        const actorName = cleanText(body.actorName || url.searchParams.get('actorName'), 24);
+        const adminPassword = body.adminPassword || url.searchParams.get('adminPassword');
+
+        if (!verifyAdminPassword(adminPassword)) {
+            sendJson(res, 403, { error: '관리자 비밀번호가 맞지 않습니다.' });
+            return true;
+        }
+
+        if (!state.members.includes(actorName)) {
+            sendJson(res, 400, { error: '작업자 닉네임을 먼저 선택하세요.' });
+            return true;
+        }
+
+        if (!memberName) {
+            sendJson(res, 400, { error: '제거할 참여자를 선택하세요.' });
+            return true;
+        }
+
+        const record = (state.bossCutRecords || []).find((item) => item.id === recordId);
+        if (!record) {
+            sendJson(res, 404, { error: '컷 기록을 찾을 수 없습니다.' });
+            return true;
+        }
+
+        record.participants = Array.isArray(record.participants) ? record.participants : [];
+        const beforeCount = record.participants.length;
+        record.participants = record.participants.filter((item) => item.memberName !== memberName);
+
+        if (record.participants.length === beforeCount) {
+            sendJson(res, 404, { error: '해당 참여자가 기록에 없습니다.' });
+            return true;
+        }
+
+        syncBossCutRecordState(record);
+        appendBossAuditLog('participant-remove', {
+            bossName: record.bossName,
+            recordId: record.id,
+            actorName,
+            detail: {
+                participantName: memberName,
+                timeValue: record.timeValue,
+                cutAt: record.cutAt
+            }
+        });
+
+        await saveState();
+        sendJson(res, 200, { cuts: publicBossCuts(), records: publicBossCutRecords() });
+        return true;
+    }
+
     if (url.pathname === '/api/members' && req.method === 'POST') {
         const body = await readJson(req);
         if (rejectInvalidAdmin(res, body.adminPassword)) return true;
