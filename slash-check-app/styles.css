@@ -1458,7 +1458,7 @@ h1 {
 }
 
 .bossRecordItem.compactRecord.hasRecordJoinButton {
-    grid-template-columns: minmax(0, 1fr) 104px;
+    grid-template-columns: minmax(0, 1fr) 116px;
 }
 
 .bossRecordItem.compactRecord .recordActions {
@@ -1467,7 +1467,7 @@ h1 {
 }
 
 .bossRecordItem.compactRecord.hasRecordJoinButton .recordActions {
-    grid-template-columns: 32px 66px;
+    grid-template-columns: 32px 76px;
 }
 
 .bossRecordItem.compactRecord .recordMeta,
@@ -1544,6 +1544,10 @@ h1 {
 }
 
 .recordJoinButton {
+    display: inline-grid;
+    place-items: center;
+    justify-self: end;
+    min-width: 76px;
     height: 32px;
     border: 1px solid var(--blue);
     border-radius: 6px;
@@ -1551,6 +1555,9 @@ h1 {
     color: #ffffff;
     font-size: 12px;
     font-weight: 900;
+    line-height: 1;
+    white-space: nowrap;
+    writing-mode: horizontal-tb;
 }
 
 .recordJoinButton:disabled {
@@ -1564,6 +1571,20 @@ h1 {
     border-color: #16a34a;
     background: #ecfdf3;
     color: #087443;
+    opacity: 1;
+}
+
+.liveJoinButton.isPending,
+.bossJoinButton.isPending,
+.recordJoinButton.isPending,
+.liveJoinButton.isPending:hover,
+.bossJoinButton.isPending:hover,
+.recordJoinButton.isPending:hover {
+    border-color: #f59e0b;
+    background: #fffbeb;
+    box-shadow: none;
+    color: #92400e;
+    cursor: default;
     opacity: 1;
 }
 
@@ -1589,6 +1610,104 @@ h1 {
     color: var(--muted);
     font-size: 12px;
     font-weight: 750;
+}
+
+.participantProofList {
+    display: grid;
+    gap: 8px;
+    border: 1px solid var(--line-soft);
+    border-radius: 8px;
+    background: #f8fafc;
+    padding: 10px;
+}
+
+.photoProofCard {
+    display: grid;
+    grid-template-columns: 56px minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 9px;
+    min-width: 0;
+    border: 1px solid var(--line-soft);
+    border-radius: 8px;
+    background: #ffffff;
+    padding: 8px;
+}
+
+.photoProofThumb {
+    display: grid;
+    place-items: center;
+    width: 56px;
+    height: 56px;
+    overflow: hidden;
+    border-radius: 7px;
+    background: #e9edf4;
+    color: var(--muted);
+    font-size: 11px;
+    font-weight: 900;
+    text-decoration: none;
+}
+
+.photoProofThumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.photoProofBody {
+    display: grid;
+    gap: 3px;
+    min-width: 0;
+}
+
+.photoProofBody strong,
+.photoProofBody span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.photoProofBody strong {
+    color: var(--text);
+    font-size: 13px;
+    font-weight: 950;
+}
+
+.photoProofBody span {
+    color: var(--muted);
+    font-size: 11px;
+    font-weight: 800;
+}
+
+.photoProofActions {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.photoProofActions button {
+    height: 30px;
+    min-width: 46px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 950;
+}
+
+.photoProofApprove {
+    border: 1px solid #16a34a;
+    background: #16a34a;
+    color: #ffffff;
+}
+
+.photoProofReject {
+    border: 1px solid #f0b7b1;
+    background: #ffffff;
+    color: var(--red);
+}
+
+.photoProofActions span {
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 900;
 }
 
 .bossRecordManage {
@@ -1756,6 +1875,42 @@ h1 {
 
 .bossDangerButton:hover {
     background: var(--red-soft);
+}
+
+.bossModalSecondary {
+    height: 40px;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    background: #ffffff;
+    color: var(--text);
+    font-weight: 950;
+}
+
+.bossModalSecondary:hover {
+    border-color: #9db7ff;
+    background: var(--blue-soft);
+    color: var(--blue-dark);
+}
+
+.bossModalSecondary:disabled {
+    background: #e9edf4;
+    color: #7b8494;
+    cursor: wait;
+}
+
+.joinPhotoAuth {
+    display: grid;
+    gap: 7px;
+    border: 1px dashed #cbd5e1;
+    border-radius: 8px;
+    background: #f8fafc;
+    padding: 10px;
+}
+
+.joinPhotoAuth > span {
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 900;
 }
 
 .hiddenField {
@@ -4397,6 +4552,14 @@ body {
     opacity: 1;
 }
 
+.liveJoinButton.isPending:disabled,
+.bossJoinButton.isPending:disabled,
+.recordJoinButton.isPending:disabled {
+    background: #fffbeb;
+    border-color: #f59e0b;
+    color: #92400e;
+}
+
 .rouletteCard {
     border-left: 4px solid var(--dark);
     padding: 14px;
@@ -4956,6 +5119,24 @@ body {
     .recordJoinButton {
         min-height: 32px;
         padding: 0 10px;
+    }
+
+    .photoProofCard {
+        grid-template-columns: 48px minmax(0, 1fr);
+    }
+
+    .photoProofThumb {
+        width: 48px;
+        height: 48px;
+    }
+
+    .photoProofActions {
+        grid-column: 1 / -1;
+        justify-content: stretch;
+    }
+
+    .photoProofActions button {
+        flex: 1;
     }
 
     .bossTime {
@@ -5731,7 +5912,7 @@ body {
 }
 
 .bossPage .bossRecordItem.compactRecord.hasRecordJoinButton {
-    grid-template-columns: minmax(0, 1fr) 100px;
+    grid-template-columns: minmax(0, 1fr) 112px;
 }
 
 .bossPage .bossRecordItem.compactRecord .recordActions {
@@ -5739,7 +5920,7 @@ body {
 }
 
 .bossPage .bossRecordItem.compactRecord.hasRecordJoinButton .recordActions {
-    grid-template-columns: 30px 64px;
+    grid-template-columns: 30px 76px;
 }
 
 .bossPage .bossRecordItem.compactRecord .recordMeta {

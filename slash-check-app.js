@@ -14,6 +14,7 @@ const STATE_DIR = process.env.SLASH_CHECK_STATE_DIR || process.env.STATE_DIR || 
 const STATE_FILE = process.env.SLASH_CHECK_STATE_FILE || path.join(STATE_DIR, 'slash-check-state.json');
 const GECKO_STATE_FILE = process.env.GECKO_STATE_FILE || path.join(STATE_DIR, 'gecko-state.json');
 const LEGACY_BOSS_STATE_FILE = path.join(ROOT, 'local-boss-state.json');
+const PHOTO_PROOF_DIR = path.join(STATE_DIR, 'boss-photo-proofs');
 
 const mimeTypes = {
     '.html': 'text/html; charset=utf-8',
@@ -76,6 +77,13 @@ const BOSS_CUT_LOCK_MS = 90 * 1000;
 const MAX_BOSS_CUT_RECORDS = 300;
 const MAX_BOSS_AUDIT_LOGS = 500;
 const MAX_GECKO_AUDIT_LOGS = 500;
+const PHOTO_PROOF_TTL_MS = 24 * 60 * 60 * 1000;
+const PHOTO_PROOF_MAX_BYTES = 2.5 * 1024 * 1024;
+const PHOTO_PROOF_MIME_EXT = {
+    'image/jpeg': 'jpg',
+    'image/png': 'png',
+    'image/webp': 'webp'
+};
 const ADMIN_PASSWORD = process.env.SLASH_CHECK_ADMIN_PASSWORD || process.env.ADMIN_PASSWORD || (IS_RENDER_RUNTIME ? '' : '1234');
 const ADMIN_PASSWORD_CONFIGURED = Boolean(ADMIN_PASSWORD);
 let saveStateQueue = Promise.resolve();
@@ -881,6 +889,59 @@ function normalizeBossParticipant(value) {
     };
 }
 
+function normalizeParticipantProofStatus(value) {
+    const status = cleanText(value, 16);
+    return ['pending', 'approved', 'rejected', 'expired'].includes(status) ? status : 'pending';
+}
+
+function normalizeBossParticipantProof(value) {
+    if (!value || typeof value !== 'object') return null;
+    const memberName = cleanText(value.memberName, 24);
+    if (!memberName) return null;
+
+    const uploadedMs = new Date(value.uploadedAt || value.createdAt || Date.now()).getTime();
+    const expiresMs = new Date(value.expiresAt || (Number.isFinite(uploadedMs) ? uploadedMs + PHOTO_PROOF_TTL_MS : Date.now() + PHOTO_PROOF_TTL_MS)).getTime();
+    const status = normalizeParticipantProofStatus(value.status);
+    const mimeType = PHOTO_PROOF_MIME_EXT[value.mimeType] ? value.mimeType : 'image/jpeg';
+
+    return {
+        id: cleanText(value.id, 80) || randomUUID(),
+        memberName,
+        uploadedAt: new Date(Number.isFinite(uploadedMs) ? uploadedMs : Date.now()).toISOString(),
+        expiresAt: new Date(Number.isFinite(expiresMs) ? expiresMs : Date.now() + PHOTO_PROOF_TTL_MS).toISOString(),
+        status,
+        fileName: cleanText(value.fileName, 120),
+        originalName: cleanText(value.originalName, 120),
+        mimeType,
+        size: Math.max(0, Math.round(Number(value.size) || 0)),
+        reviewedAt: value.reviewedAt || null,
+        reviewedBy: cleanText(value.reviewedBy, 24)
+    };
+}
+
+function publicParticipantProof(proof) {
+    if (!proof) return null;
+    const expired = new Date(proof.expiresAt || '').getTime() <= Date.now();
+    const hasPhoto = proof.fileName && !expired && proof.status !== 'expired';
+    return {
+        id: proof.id,
+        memberName: proof.memberName,
+        uploadedAt: proof.uploadedAt,
+        expiresAt: proof.expiresAt,
+        status: expired && proof.status === 'pending' ? 'expired' : proof.status,
+        originalName: proof.originalName || '',
+        mimeType: proof.mimeType || '',
+        size: proof.size || 0,
+        reviewedAt: proof.reviewedAt || null,
+        reviewedBy: proof.reviewedBy || '',
+        photoUrl: hasPhoto ? `/api/boss-cuts/participant-photo?id=${encodeURIComponent(proof.id)}` : ''
+    };
+}
+
+function publicParticipantProofs(value) {
+    return Array.isArray(value) ? value.map(publicParticipantProof).filter(Boolean) : [];
+}
+
 function normalizeBossRecordStatus(value) {
     return cleanText(value, 16) === 'canceled' ? 'canceled' : 'active';
 }
@@ -917,6 +978,9 @@ function normalizeBossCutRecord(value) {
         temporary: Boolean(value.temporary) || cleanText(value.bossType, 16) === '임시',
         participants: Array.isArray(value.participants)
             ? value.participants.map(normalizeBossParticipant).filter(Boolean)
+            : [],
+        participantProofs: Array.isArray(value.participantProofs)
+            ? value.participantProofs.map(normalizeBossParticipantProof).filter(Boolean)
             : []
     };
 }
@@ -997,6 +1061,9 @@ function normalizeBossCuts(value) {
             participationOpenUntil: cut?.participationOpenUntil || null,
             participants: Array.isArray(cut?.participants)
                 ? cut.participants.map(normalizeBossParticipant).filter(Boolean)
+                : [],
+            participantProofs: Array.isArray(cut?.participantProofs)
+                ? cut.participantProofs.map(normalizeBossParticipantProof).filter(Boolean)
                 : []
         };
     }
@@ -1017,7 +1084,8 @@ function publicBossCut(value) {
         requiresParticipation: Boolean(value.requiresParticipation),
         hasParticipantPassword: Boolean(value.participantPasswordHash),
         participationOpenUntil: value.participationOpenUntil || null,
-        participants: Array.isArray(value.participants) ? value.participants : []
+        participants: Array.isArray(value.participants) ? value.participants : [],
+        participantProofs: publicParticipantProofs(value.participantProofs)
     };
 }
 
@@ -1052,7 +1120,8 @@ function publicBossCutRecords() {
         hasParticipantPassword: Boolean(record.participantPasswordHash),
         participationOpenUntil: record.participationOpenUntil || null,
         temporary: Boolean(record.temporary) || record.bossType === '임시',
-        participants: Array.isArray(record.participants) ? record.participants : []
+        participants: Array.isArray(record.participants) ? record.participants : [],
+        participantProofs: publicParticipantProofs(record.participantProofs)
     }));
 }
 
@@ -1088,7 +1157,8 @@ function bossCutStateFromRecord(record) {
         requiresParticipation: Boolean(record.requiresParticipation),
         participantPasswordHash: record.participantPasswordHash || '',
         participationOpenUntil: record.participationOpenUntil || null,
-        participants: Array.isArray(record.participants) ? record.participants : []
+        participants: Array.isArray(record.participants) ? record.participants : [],
+        participantProofs: Array.isArray(record.participantProofs) ? record.participantProofs : []
     };
 }
 
@@ -1117,6 +1187,54 @@ function refreshCurrentBossCut(bossName) {
     } else {
         delete state.bossCuts[bossName];
     }
+}
+
+function syncBossCutRecordState(record) {
+    const cut = state.bossCuts?.[record?.bossName];
+    if (!cut || cut.recordId !== record.id) return;
+    cut.participants = Array.isArray(record.participants) ? record.participants : [];
+    cut.participantProofs = Array.isArray(record.participantProofs) ? record.participantProofs : [];
+    cut.participationOpenUntil = record.participationOpenUntil || null;
+}
+
+function findParticipantProofById(proofId) {
+    const id = cleanText(proofId, 80);
+    if (!id) return null;
+
+    for (const record of state.bossCutRecords || []) {
+        const proof = (record.participantProofs || []).find((item) => item.id === id);
+        if (proof) return { record, proof };
+    }
+    return null;
+}
+
+function participantProofFilePath(fileName) {
+    const safeName = path.basename(cleanText(fileName, 120));
+    return safeName ? path.join(PHOTO_PROOF_DIR, safeName) : '';
+}
+
+function cleanupExpiredParticipantProofs() {
+    const now = Date.now();
+    let changed = false;
+
+    for (const record of state.bossCutRecords || []) {
+        let recordChanged = false;
+        for (const proof of record.participantProofs || []) {
+            const expiresMs = new Date(proof.expiresAt || '').getTime();
+            if (!Number.isFinite(expiresMs) || expiresMs > now || proof.status === 'expired') continue;
+
+            const filePath = participantProofFilePath(proof.fileName);
+            if (proof.status === 'pending') proof.status = 'expired';
+            proof.fileName = '';
+            proof.reviewedAt = proof.reviewedAt || (proof.status === 'expired' ? new Date(now).toISOString() : null);
+            changed = true;
+            recordChanged = true;
+            if (filePath) fs.unlink(filePath).catch(() => {});
+        }
+        if (recordChanged) syncBossCutRecordState(record);
+    }
+
+    return changed;
 }
 
 function appendBossAuditLog(action, { bossName, recordId = '', actorName = '', detail = {} }) {
@@ -1225,7 +1343,8 @@ async function hydrateBossCutState() {
                 requiresParticipation: cut.requiresParticipation,
                 participantPasswordHash: cut.participantPasswordHash,
                 participationOpenUntil: cut.participationOpenUntil,
-                participants: cut.participants
+                participants: cut.participants,
+                participantProofs: cut.participantProofs
             });
 
             if (record) {
@@ -1420,6 +1539,40 @@ async function readJson(req) {
     return JSON.parse(body);
 }
 
+function decodePhotoProofDataUrl(value) {
+    const text = String(value || '');
+    const match = text.match(/^data:(image\/(?:jpeg|png|webp));base64,([A-Za-z0-9+/=\s]+)$/);
+    if (!match) {
+        const err = new Error('사진 파일 형식은 JPG, PNG, WEBP만 가능합니다.');
+        err.statusCode = 400;
+        throw err;
+    }
+
+    const mimeType = match[1];
+    const buffer = Buffer.from(match[2].replace(/\s+/g, ''), 'base64');
+    if (!buffer.length) {
+        const err = new Error('사진 파일을 읽지 못했습니다.');
+        err.statusCode = 400;
+        throw err;
+    }
+    if (buffer.length > PHOTO_PROOF_MAX_BYTES) {
+        const err = new Error('사진 용량이 큽니다. 다시 압축해서 올려주세요.');
+        err.statusCode = 413;
+        throw err;
+    }
+
+    return { mimeType, buffer, ext: PHOTO_PROOF_MIME_EXT[mimeType] };
+}
+
+async function storePhotoProof(imageData) {
+    const { mimeType, buffer, ext } = decodePhotoProofDataUrl(imageData);
+    const id = randomUUID();
+    const fileName = `${id}.${ext}`;
+    await fs.mkdir(PHOTO_PROOF_DIR, { recursive: true });
+    await fs.writeFile(path.join(PHOTO_PROOF_DIR, fileName), buffer);
+    return { id, fileName, mimeType, size: buffer.length };
+}
+
 async function readPrimaryStateFile() {
     try {
         return await fs.readFile(STATE_FILE, 'utf8');
@@ -1571,6 +1724,7 @@ function buildRankings() {
 
 function publicState() {
     cleanupExpiredReservations();
+    cleanupExpiredParticipantProofs();
     return {
         now: new Date().toISOString(),
         members: state.members,
@@ -1592,7 +1746,7 @@ async function publicStateWithBosses() {
 }
 
 async function handleApi(req, res, url) {
-    if (cleanupExpiredReservations() || cleanupExpiredBossCutLocks()) await saveState();
+    if (cleanupExpiredReservations() || cleanupExpiredBossCutLocks() || cleanupExpiredParticipantProofs()) await saveState();
 
     if (url.pathname === '/health' && req.method === 'GET') {
         sendJson(res, 200, { ok: true, now: new Date().toISOString() });
@@ -1761,6 +1915,35 @@ async function handleApi(req, res, url) {
         return true;
     }
 
+    if (url.pathname === '/api/boss-cuts/participant-photo' && req.method === 'GET') {
+        const found = findParticipantProofById(url.searchParams.get('id'));
+        const proof = found?.proof;
+        if (!proof || !proof.fileName || proof.status === 'expired') {
+            sendJson(res, 404, { error: '사진 인증 파일을 찾을 수 없습니다.' });
+            return true;
+        }
+
+        const expiresMs = new Date(proof.expiresAt || '').getTime();
+        if (!Number.isFinite(expiresMs) || expiresMs <= Date.now()) {
+            cleanupExpiredParticipantProofs();
+            await saveState();
+            sendJson(res, 410, { error: '사진 인증 보관 시간이 지났습니다.' });
+            return true;
+        }
+
+        try {
+            const data = await fs.readFile(participantProofFilePath(proof.fileName));
+            res.writeHead(200, {
+                'Content-Type': proof.mimeType || 'image/jpeg',
+                'Cache-Control': 'private, no-store'
+            });
+            res.end(data);
+        } catch {
+            sendJson(res, 404, { error: '사진 인증 파일을 찾을 수 없습니다.' });
+        }
+        return true;
+    }
+
     if (url.pathname === '/api/boss-cuts/test-participation' && req.method === 'POST') {
         const body = await readJson(req);
         const reporterName = cleanText(body.reporterName, 24);
@@ -1797,7 +1980,8 @@ async function handleApi(req, res, url) {
             participantPasswordHash,
             participationOpenUntil,
             temporary: true,
-            participants: []
+            participants: [],
+            participantProofs: []
         };
 
         state.bossCutRecords = state.bossCutRecords || [];
@@ -1953,7 +2137,8 @@ async function handleApi(req, res, url) {
             requiresParticipation,
             participantPasswordHash,
             participationOpenUntil,
-            participants
+            participants,
+            participantProofs: []
         };
 
         state.bossCuts = state.bossCuts || {};
@@ -2162,6 +2347,59 @@ async function handleApi(req, res, url) {
         return true;
     }
 
+    if (url.pathname === '/api/boss-cuts/participation-window' && req.method === 'POST') {
+        const body = await readJson(req);
+        const recordId = cleanText(body.recordId, 80);
+        const actorName = cleanText(body.actorName, 24);
+        const adminPassword = body.adminPassword;
+        const minutesInput = Number(body.minutes || 30);
+        const minutes = Number.isFinite(minutesInput) ? Math.max(1, Math.min(180, Math.round(minutesInput))) : 30;
+
+        if (!state.members.includes(actorName)) {
+            sendJson(res, 400, { error: '등록된 길드원만 참여 입력 시간을 연장할 수 있습니다.' });
+            return true;
+        }
+
+        const record = (state.bossCutRecords || []).find((item) => item.id === recordId);
+        if (!record) {
+            sendJson(res, 404, { error: '컷 기록을 찾을 수 없습니다.' });
+            return true;
+        }
+
+        if (record.status === 'canceled' || !record.requiresParticipation) {
+            sendJson(res, 409, { error: '참여 입력을 연장할 수 없는 기록입니다.' });
+            return true;
+        }
+
+        const isReporter = record.reporterName === actorName;
+        const adminOk = Boolean(adminPassword) && verifyAdminPassword(adminPassword);
+        if (!isReporter && !adminOk) {
+            sendJson(res, 403, { error: '컷 입력자 또는 관리자만 참여 입력 시간을 연장할 수 있습니다.' });
+            return true;
+        }
+
+        const previous = record.participationOpenUntil || null;
+        const currentMs = new Date(previous || 0).getTime();
+        const baseMs = Math.max(Date.now(), Number.isFinite(currentMs) ? currentMs : 0);
+        record.participationOpenUntil = new Date(baseMs + minutes * 60 * 1000).toISOString();
+        record.updatedAt = new Date().toISOString();
+        syncBossCutRecordState(record);
+        appendBossAuditLog('participation-window-extend', {
+            bossName: record.bossName,
+            recordId: record.id,
+            actorName,
+            detail: {
+                previous,
+                participationOpenUntil: record.participationOpenUntil,
+                minutes
+            }
+        });
+
+        await saveState();
+        sendJson(res, 200, { cuts: publicBossCuts(), records: publicBossCutRecords() });
+        return true;
+    }
+
     if (url.pathname === '/api/boss-cuts/participants' && req.method === 'POST') {
         const body = await readJson(req);
         const recordId = cleanText(body.recordId, 80);
@@ -2224,8 +2462,176 @@ async function handleApi(req, res, url) {
             });
         }
 
-        const cut = state.bossCuts?.[record.bossName];
-        if (cut && cut.recordId === record.id) cut.participants = record.participants;
+        syncBossCutRecordState(record);
+
+        await saveState();
+        sendJson(res, 200, { cuts: publicBossCuts(), records: publicBossCutRecords() });
+        return true;
+    }
+
+    if (url.pathname === '/api/boss-cuts/participants/photo' && req.method === 'POST') {
+        const body = await readJson(req);
+        const recordId = cleanText(body.recordId, 80);
+        const memberName = cleanText(body.memberName, 24);
+        const originalName = cleanText(body.fileName, 120);
+
+        if (!state.members.includes(memberName)) {
+            sendJson(res, 400, { error: '등록된 길드원만 사진 인증을 올릴 수 있습니다.' });
+            return true;
+        }
+
+        const record = (state.bossCutRecords || []).find((item) => item.id === recordId);
+        if (!record) {
+            sendJson(res, 404, { error: '컷 기록을 찾을 수 없습니다.' });
+            return true;
+        }
+
+        if (record.status === 'canceled') {
+            sendJson(res, 409, { error: '취소된 컷 기록에는 사진 인증을 올릴 수 없습니다.' });
+            return true;
+        }
+
+        if (!record.requiresParticipation) {
+            sendJson(res, 400, { error: '참여 확인이 필요한 보스 기록이 아닙니다.' });
+            return true;
+        }
+
+        const openUntilMs = record.participationOpenUntil ? new Date(record.participationOpenUntil).getTime() : 0;
+        if (!Number.isFinite(openUntilMs) || openUntilMs <= Date.now()) {
+            sendJson(res, 409, { error: '참여 입력 시간이 지났습니다. 관리자 수동 추가만 가능합니다.' });
+            return true;
+        }
+
+        record.participants = Array.isArray(record.participants) ? record.participants : [];
+        if (record.participants.some((item) => item.memberName === memberName)) {
+            sendJson(res, 409, { error: '이미 참여 확인된 길드원입니다.' });
+            return true;
+        }
+
+        record.participantProofs = Array.isArray(record.participantProofs) ? record.participantProofs : [];
+        const hasPendingProof = record.participantProofs.some((proof) => (
+            proof.memberName === memberName
+            && proof.status === 'pending'
+            && new Date(proof.expiresAt || '').getTime() > Date.now()
+        ));
+        if (hasPendingProof) {
+            sendJson(res, 409, { error: '이미 확인 대기 중인 사진 인증이 있습니다.' });
+            return true;
+        }
+
+        let stored;
+        try {
+            stored = await storePhotoProof(body.imageData);
+        } catch (err) {
+            sendJson(res, err.statusCode || 400, { error: err.message || '사진 인증을 저장하지 못했습니다.' });
+            return true;
+        }
+
+        const nowIso = new Date().toISOString();
+        const proof = {
+            id: stored.id,
+            memberName,
+            uploadedAt: nowIso,
+            expiresAt: new Date(Date.now() + PHOTO_PROOF_TTL_MS).toISOString(),
+            status: 'pending',
+            fileName: stored.fileName,
+            originalName,
+            mimeType: stored.mimeType,
+            size: stored.size,
+            reviewedAt: null,
+            reviewedBy: ''
+        };
+        record.participantProofs.unshift(proof);
+        syncBossCutRecordState(record);
+        appendBossAuditLog('participant-photo-submit', {
+            bossName: record.bossName,
+            recordId: record.id,
+            actorName: memberName,
+            detail: {
+                proofId: proof.id,
+                timeValue: record.timeValue,
+                cutAt: record.cutAt,
+                size: proof.size
+            }
+        });
+
+        await saveState();
+        const records = publicBossCutRecords();
+        sendJson(res, 200, {
+            cuts: publicBossCuts(),
+            records,
+            proof: records.find((item) => item.id === record.id)?.participantProofs?.find((item) => item.id === proof.id) || null
+        });
+        return true;
+    }
+
+    if (url.pathname === '/api/boss-cuts/participants/photo/resolve' && req.method === 'POST') {
+        const body = await readJson(req);
+        const recordId = cleanText(body.recordId, 80);
+        const proofId = cleanText(body.proofId, 80);
+        const actorName = cleanText(body.actorName, 24);
+        const decision = cleanText(body.decision, 16);
+        const adminPassword = body.adminPassword;
+
+        if (!verifyAdminPassword(adminPassword)) {
+            sendJson(res, 403, { error: '관리자 비밀번호가 맞지 않습니다.' });
+            return true;
+        }
+
+        if (!state.members.includes(actorName)) {
+            sendJson(res, 400, { error: '작업자 닉네임을 먼저 선택하세요.' });
+            return true;
+        }
+
+        if (!['approve', 'reject'].includes(decision)) {
+            sendJson(res, 400, { error: '사진 인증 처리 방식을 확인하세요.' });
+            return true;
+        }
+
+        const record = (state.bossCutRecords || []).find((item) => item.id === recordId);
+        if (!record) {
+            sendJson(res, 404, { error: '컷 기록을 찾을 수 없습니다.' });
+            return true;
+        }
+
+        const proof = (record.participantProofs || []).find((item) => item.id === proofId);
+        if (!proof) {
+            sendJson(res, 404, { error: '사진 인증 요청을 찾을 수 없습니다.' });
+            return true;
+        }
+
+        if (proof.status !== 'pending') {
+            sendJson(res, 409, { error: '이미 처리된 사진 인증입니다.' });
+            return true;
+        }
+
+        const nowIso = new Date().toISOString();
+        proof.status = decision === 'approve' ? 'approved' : 'rejected';
+        proof.reviewedAt = nowIso;
+        proof.reviewedBy = actorName;
+
+        record.participants = Array.isArray(record.participants) ? record.participants : [];
+        if (decision === 'approve' && !record.participants.some((item) => item.memberName === proof.memberName)) {
+            record.participants.push({
+                memberName: proof.memberName,
+                confirmedAt: nowIso,
+                method: 'photo',
+                addedBy: actorName
+            });
+        }
+
+        syncBossCutRecordState(record);
+        appendBossAuditLog(decision === 'approve' ? 'participant-photo-approve' : 'participant-photo-reject', {
+            bossName: record.bossName,
+            recordId: record.id,
+            actorName,
+            detail: {
+                proofId: proof.id,
+                participantName: proof.memberName,
+                timeValue: record.timeValue,
+                cutAt: record.cutAt
+            }
+        });
 
         await saveState();
         sendJson(res, 200, { cuts: publicBossCuts(), records: publicBossCutRecords() });
@@ -2286,8 +2692,7 @@ async function handleApi(req, res, url) {
             });
         }
 
-        const cut = state.bossCuts?.[record.bossName];
-        if (cut && cut.recordId === record.id) cut.participants = record.participants;
+        syncBossCutRecordState(record);
 
         await saveState();
         sendJson(res, 200, { cuts: publicBossCuts(), records: publicBossCutRecords() });

@@ -219,6 +219,12 @@
                 <input id="joinPasswordInput" type="password" autocomplete="off" placeholder="비번 입력">
             </label>
             <button class="bossModalPrimary" type="submit">참여 확인</button>
+            <div class="joinPhotoAuth">
+                <span>비번을 모를 때</span>
+                <input id="joinPhotoInput" type="file" accept="image/*" hidden>
+                <button id="joinPhotoButton" class="bossModalSecondary" type="button">사진 인증 올리기</button>
+                <small id="joinPhotoStatus" class="fieldHint">사진은 24시간만 보관되고 관리자가 확인합니다.</small>
+            </div>
         </form>
     </div>
 
@@ -278,6 +284,7 @@
             </div>
             <div id="participantConfirmPanel" class="participantModePanel">
                 <div id="participantList" class="participantList"></div>
+                <div id="participantProofList" class="participantProofList hiddenField"></div>
                 <div class="bossParticipantAdd">
                     <div class="bossRecordManageHead">
                         <strong>참여자 추가</strong>

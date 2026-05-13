@@ -49,6 +49,9 @@ const closeJoinModalButton = document.querySelector('#closeJoinModalButton');
 const joinModalTitle = document.querySelector('#joinModalTitle');
 const joinModalDesc = document.querySelector('#joinModalDesc');
 const joinPasswordInput = document.querySelector('#joinPasswordInput');
+const joinPhotoInput = document.querySelector('#joinPhotoInput');
+const joinPhotoButton = document.querySelector('#joinPhotoButton');
+const joinPhotoStatus = document.querySelector('#joinPhotoStatus');
 const participantModal = document.querySelector('#participantModal');
 const closeParticipantModalButton = document.querySelector('#closeParticipantModalButton');
 const participantModalTitle = document.querySelector('#participantModalTitle');
@@ -58,6 +61,7 @@ const participantEditButton = document.querySelector('#participantEditButton');
 const participantConfirmPanel = document.querySelector('#participantConfirmPanel');
 const participantEditPanel = document.querySelector('#participantEditPanel');
 const participantList = document.querySelector('#participantList');
+const participantProofList = document.querySelector('#participantProofList');
 const participantCutDateInput = document.querySelector('#participantCutDateInput');
 const participantCutTimeInput = document.querySelector('#participantCutTimeInput');
 const participantCutSecondInput = document.querySelector('#participantCutSecondInput');
@@ -402,6 +406,24 @@ function hasParticipant(record, memberName = selectedMember) {
     const name = cleanName(memberName);
     if (!name) return false;
     return participantNames(record).some((item) => item === name);
+}
+
+function participantProofs(record) {
+    return Array.isArray(record?.participantProofs) ? record.participantProofs : [];
+}
+
+function activeParticipantProofs(record) {
+    return participantProofs(record).filter((proof) => proof.status !== 'expired');
+}
+
+function pendingParticipantProofs(record) {
+    return participantProofs(record).filter((proof) => proof.status === 'pending');
+}
+
+function hasPendingParticipantProof(record, memberName = selectedMember) {
+    const name = cleanName(memberName);
+    if (!name) return false;
+    return pendingParticipantProofs(record).some((proof) => proof.memberName === name);
 }
 
 function cancelReasonText(record) {
@@ -1023,15 +1045,17 @@ function renderLiveParticipation() {
         const item = liveParticipationTemplate.content.firstElementChild.cloneNode(true);
         const names = participantNames(record);
         const joinedByMe = hasParticipant(record);
+        const pendingByMe = hasPendingParticipantProof(record);
         item.querySelector('.liveTitle').textContent = `${record.bossName} · ${displayTimeValue(record.timeValue)}`;
         item.querySelector('.liveMeta').textContent = `${formatDuration(participationOpenMs(record) - now)} 남음 · 참여 ${names.length}명`;
         item.querySelector('.liveDetailButton').addEventListener('click', () => openParticipantModal(record, 'participants'));
         const joinButton = item.querySelector('.liveJoinButton');
-        joinButton.textContent = joinedByMe ? '참여함' : '참여입력';
-        joinButton.disabled = joinedByMe;
+        joinButton.textContent = joinedByMe ? '참여함' : pendingByMe ? '인증대기' : '참여입력';
+        joinButton.disabled = joinedByMe || pendingByMe;
         joinButton.classList.toggle('isJoined', joinedByMe);
+        joinButton.classList.toggle('isPending', pendingByMe);
         joinButton.addEventListener('click', () => {
-            if (!joinedByMe) openJoinModal(record);
+            if (!joinedByMe && !pendingByMe) openJoinModal(record);
         });
         liveParticipationList.append(item);
     }
@@ -1374,11 +1398,13 @@ function renderBosses() {
 
         const joinButton = card.querySelector('.bossJoinButton');
         const joinedByMe = hasParticipant(record);
-        joinButton.disabled = boss.타입 === '이벤트' || !participationOpen || joinedByMe;
-        joinButton.textContent = joinedByMe ? '참여함' : participationOpen ? '참여' : record?.requiresParticipation ? '마감' : '-';
+        const pendingByMe = hasPendingParticipantProof(record);
+        joinButton.disabled = boss.타입 === '이벤트' || !participationOpen || joinedByMe || pendingByMe;
+        joinButton.textContent = joinedByMe ? '참여함' : pendingByMe ? '인증대기' : participationOpen ? '참여' : record?.requiresParticipation ? '마감' : '-';
         joinButton.classList.toggle('isJoined', joinedByMe);
+        joinButton.classList.toggle('isPending', pendingByMe);
         joinButton.addEventListener('click', () => {
-            if (!joinedByMe) openJoinModal(record);
+            if (!joinedByMe && !pendingByMe) openJoinModal(record);
         });
 
         card.addEventListener('click', (event) => {
@@ -1410,6 +1436,7 @@ function renderRecords() {
         const canceled = record.status === 'canceled';
         const participationOpen = isParticipationOpen(record);
         const joinedByMe = hasParticipant(record);
+        const pendingByMe = hasPendingParticipantProof(record);
         item.classList.add('compactRecord');
         item.classList.toggle('canceled', canceled);
         const title = item.querySelector('.recordTitle');
@@ -1437,11 +1464,12 @@ function renderRecords() {
         item.querySelector('.recordDetailButton').addEventListener('click', () => openParticipantModal(record));
         const button = item.querySelector('.recordJoinButton');
         button.hidden = canceled || joinedByMe || !record.requiresParticipation || !participationOpen;
-        button.disabled = !participationOpen;
-        button.textContent = participationOpen ? '참여입력' : '마감';
+        button.disabled = !participationOpen || pendingByMe;
+        button.textContent = pendingByMe ? '인증대기' : participationOpen ? '참여입력' : '마감';
+        button.classList.toggle('isPending', pendingByMe);
         item.classList.toggle('hasRecordJoinButton', !button.hidden);
         button.addEventListener('click', () => {
-            if (participationOpen) openJoinModal(record);
+            if (participationOpen && !pendingByMe) openJoinModal(record);
         });
         item.addEventListener('click', (event) => {
             if (isBossCardControl(event.target)) return;
@@ -1527,6 +1555,10 @@ function closeCutModal({ releaseLock = true } = {}) {
 function openJoinModal(record) {
     if (!record || !record.requiresParticipation) return;
     if (!requireMember()) return;
+    if (hasPendingParticipantProof(record)) {
+        showToast('사진 인증 대기 중', '관리자가 확인하면 참여자로 올라갑니다.');
+        return;
+    }
     if (!isParticipationOpen(record)) {
         showToast('참여 입력 마감', '관리자 수동 추가만 가능합니다.', 'error');
         return;
@@ -1540,6 +1572,9 @@ function openJoinModal(record) {
     joinPasswordInput.value = '';
     joinPasswordInput.disabled = false;
     joinForm.querySelector('.bossModalPrimary').disabled = false;
+    if (joinPhotoInput) joinPhotoInput.value = '';
+    if (joinPhotoButton) joinPhotoButton.disabled = false;
+    if (joinPhotoStatus) joinPhotoStatus.textContent = '비번이 없으면 사진 인증으로 관리자 확인을 요청할 수 있습니다.';
     joinModal.classList.remove('hidden');
     setTimeout(() => joinPasswordInput.focus(), 30);
 }
@@ -1607,6 +1642,7 @@ function openParticipantModal(record, mode = 'edit') {
             participantList.append(row);
         }
     }
+    renderParticipantProofs(record, canceled);
 
     setParticipantModalMode(mode);
     participantModal.classList.remove('hidden');
@@ -1669,6 +1705,84 @@ function renderParticipantAddSuggest() {
             renderParticipantAddSuggest();
         });
         participantAddMemberSuggest.append(button);
+    }
+}
+
+function proofStatusLabel(status) {
+    if (status === 'approved') return '승인됨';
+    if (status === 'rejected') return '거절됨';
+    if (status === 'expired') return '만료됨';
+    return '확인 대기';
+}
+
+function renderParticipantProofs(record, canceled = false) {
+    if (!participantProofList) return;
+    const proofs = activeParticipantProofs(record);
+    participantProofList.replaceChildren();
+    participantProofList.classList.toggle('hiddenField', proofs.length === 0);
+    if (proofs.length === 0) return;
+
+    const header = document.createElement('div');
+    header.className = 'bossRecordManageHead';
+    const title = document.createElement('strong');
+    title.textContent = '사진 인증 요청';
+    const desc = document.createElement('span');
+    const pendingCount = proofs.filter((proof) => proof.status === 'pending').length;
+    desc.textContent = pendingCount ? `확인 대기 ${pendingCount}건 · 승인하면 참여자로 등록됩니다.` : '처리된 사진 인증입니다.';
+    header.append(title, desc);
+    participantProofList.append(header);
+
+    for (const proof of proofs) {
+        const card = document.createElement('article');
+        card.className = `photoProofCard ${proof.status || 'pending'}`;
+
+        const imageWrap = document.createElement('a');
+        imageWrap.className = 'photoProofThumb';
+        imageWrap.href = proof.photoUrl || '#';
+        imageWrap.target = '_blank';
+        imageWrap.rel = 'noopener noreferrer';
+        imageWrap.addEventListener('click', (event) => {
+            if (!proof.photoUrl) event.preventDefault();
+        });
+        if (proof.photoUrl) {
+            const img = document.createElement('img');
+            img.src = proof.photoUrl;
+            img.alt = `${proof.memberName} 사진 인증`;
+            imageWrap.append(img);
+        } else {
+            imageWrap.textContent = '만료';
+        }
+
+        const body = document.createElement('div');
+        body.className = 'photoProofBody';
+        const name = document.createElement('strong');
+        name.textContent = proof.memberName;
+        const meta = document.createElement('span');
+        meta.textContent = `${proofStatusLabel(proof.status)} · ${formatKstDateTime(proof.uploadedAt)}`;
+        body.append(name, meta);
+
+        const actions = document.createElement('div');
+        actions.className = 'photoProofActions';
+        if (proof.status === 'pending' && !canceled) {
+            const approveButton = document.createElement('button');
+            approveButton.type = 'button';
+            approveButton.className = 'photoProofApprove';
+            approveButton.textContent = '승인';
+            approveButton.addEventListener('click', () => resolvePhotoProof(proof, 'approve'));
+            const rejectButton = document.createElement('button');
+            rejectButton.type = 'button';
+            rejectButton.className = 'photoProofReject';
+            rejectButton.textContent = '거절';
+            rejectButton.addEventListener('click', () => resolvePhotoProof(proof, 'reject'));
+            actions.append(approveButton, rejectButton);
+        } else {
+            const status = document.createElement('span');
+            status.textContent = proofStatusLabel(proof.status);
+            actions.append(status);
+        }
+
+        card.append(imageWrap, body, actions);
+        participantProofList.append(card);
     }
 }
 
@@ -1787,6 +1901,123 @@ async function submitJoin(event) {
         showToast('참여 확인됨', bossName);
     } catch (err) {
         showToast('참여 확인 실패', err.message, 'error');
+        fetchState(true).catch(() => {});
+    }
+}
+
+function adminPasswordForParticipantAction() {
+    const current = participantAddAdminPasswordInput?.value.trim()
+        || participantAdminPasswordInput?.value.trim()
+        || cachedAdminPassword;
+    if (current) {
+        cacheAdminPassword(current);
+        fillAdminPasswordInputs();
+        return current;
+    }
+
+    const input = prompt('관리자 비밀번호를 입력하세요.', cachedAdminPassword);
+    if (!input) return '';
+    cacheAdminPassword(input.trim());
+    fillAdminPasswordInputs();
+    return input.trim();
+}
+
+function readFileAsDataUrl(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result || ''));
+        reader.onerror = () => reject(new Error('사진 파일을 읽지 못했습니다.'));
+        reader.readAsDataURL(file);
+    });
+}
+
+function loadImageFromDataUrl(dataUrl) {
+    return new Promise((resolve, reject) => {
+        const image = new Image();
+        image.onload = () => resolve(image);
+        image.onerror = () => reject(new Error('사진 파일을 열지 못했습니다. JPG나 PNG로 다시 올려주세요.'));
+        image.src = dataUrl;
+    });
+}
+
+async function compressPhotoForProof(file) {
+    if (!file || !file.type?.startsWith('image/')) throw new Error('사진 파일을 선택하세요.');
+    if (file.size > 12 * 1024 * 1024) throw new Error('사진 용량이 너무 큽니다. 12MB 이하로 선택하세요.');
+
+    const originalDataUrl = await readFileAsDataUrl(file);
+    const image = await loadImageFromDataUrl(originalDataUrl);
+    const maxSide = 1280;
+    const scale = Math.min(1, maxSide / Math.max(image.naturalWidth || image.width, image.naturalHeight || image.height));
+    const width = Math.max(1, Math.round((image.naturalWidth || image.width) * scale));
+    const height = Math.max(1, Math.round((image.naturalHeight || image.height) * scale));
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(image, 0, 0, width, height);
+    return canvas.toDataURL('image/jpeg', 0.72);
+}
+
+async function submitJoinPhoto(file) {
+    const memberName = requireMember();
+    if (!memberName || !selectedJoinRecord || !file) return;
+
+    const record = selectedJoinRecord;
+    joinPhotoButton.disabled = true;
+    if (joinPhotoStatus) joinPhotoStatus.textContent = '사진을 압축해서 올리는 중입니다...';
+
+    try {
+        const imageData = await compressPhotoForProof(file);
+        const data = await api('/api/boss-cuts/participants/photo', {
+            method: 'POST',
+            body: JSON.stringify({
+                recordId: record.id,
+                memberName,
+                fileName: file.name,
+                imageData
+            })
+        });
+        state.bossCuts = data.cuts || {};
+        state.bossCutRecords = data.records || [];
+        closeJoinModal();
+        render();
+        showToast('사진 인증 대기', '관리자가 확인하면 참여자로 등록됩니다.');
+    } catch (err) {
+        showToast('사진 인증 실패', err.message, 'error');
+        if (joinPhotoStatus) joinPhotoStatus.textContent = '사진 인증에 실패했습니다. 다시 시도하거나 비번으로 입력하세요.';
+        fetchState(true).catch(() => {});
+    } finally {
+        if (joinPhotoButton) joinPhotoButton.disabled = false;
+        if (joinPhotoInput) joinPhotoInput.value = '';
+    }
+}
+
+async function resolvePhotoProof(proof, decision) {
+    const actorName = requireMember();
+    if (!actorName || !selectedParticipantRecord || !proof) return;
+
+    const adminPassword = adminPasswordForParticipantAction();
+    if (!adminPassword) return;
+
+    try {
+        const data = await api('/api/boss-cuts/participants/photo/resolve', {
+            method: 'POST',
+            body: JSON.stringify({
+                recordId: selectedParticipantRecord.id,
+                proofId: proof.id,
+                actorName,
+                decision,
+                adminPassword
+            })
+        });
+        state.bossCuts = data.cuts || {};
+        state.bossCutRecords = data.records || [];
+        const updated = state.bossCutRecords.find((item) => item.id === selectedParticipantRecord.id);
+        render();
+        if (updated) openParticipantModal(updated, 'participants');
+        showToast(decision === 'approve' ? '사진 인증 승인' : '사진 인증 거절', proof.memberName);
+    } catch (err) {
+        showToast('사진 인증 처리 실패', err.message, 'error');
         fetchState(true).catch(() => {});
     }
 }
@@ -1993,6 +2224,11 @@ requiresParticipationInput.addEventListener('change', () => {
 });
 joinForm.addEventListener('submit', submitJoin);
 closeJoinModalButton.addEventListener('click', closeJoinModal);
+joinPhotoButton?.addEventListener('click', () => joinPhotoInput?.click());
+joinPhotoInput?.addEventListener('change', () => {
+    const file = joinPhotoInput.files?.[0];
+    if (file) submitJoinPhoto(file);
+});
 closeParticipantModalButton.addEventListener('click', closeParticipantModal);
 participantViewButton?.addEventListener('click', () => setParticipantModalMode('participants'));
 participantEditButton?.addEventListener('click', () => setParticipantModalMode('edit'));
