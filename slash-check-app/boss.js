@@ -398,6 +398,12 @@ function participantNames(record) {
     return (record?.participants || []).map((item) => item.memberName).filter(Boolean);
 }
 
+function hasParticipant(record, memberName = selectedMember) {
+    const name = cleanName(memberName);
+    if (!name) return false;
+    return participantNames(record).some((item) => item === name);
+}
+
 function cancelReasonText(record) {
     return String(record?.cancelReason || '').trim();
 }
@@ -1016,10 +1022,17 @@ function renderLiveParticipation() {
     for (const record of records.slice(0, 8)) {
         const item = liveParticipationTemplate.content.firstElementChild.cloneNode(true);
         const names = participantNames(record);
+        const joinedByMe = hasParticipant(record);
         item.querySelector('.liveTitle').textContent = `${record.bossName} · ${displayTimeValue(record.timeValue)}`;
         item.querySelector('.liveMeta').textContent = `${formatDuration(participationOpenMs(record) - now)} 남음 · 참여 ${names.length}명`;
         item.querySelector('.liveDetailButton').addEventListener('click', () => openParticipantModal(record, 'participants'));
-        item.querySelector('.liveJoinButton').addEventListener('click', () => openJoinModal(record));
+        const joinButton = item.querySelector('.liveJoinButton');
+        joinButton.textContent = joinedByMe ? '참여함' : '참여입력';
+        joinButton.disabled = joinedByMe;
+        joinButton.classList.toggle('isJoined', joinedByMe);
+        joinButton.addEventListener('click', () => {
+            if (!joinedByMe) openJoinModal(record);
+        });
         liveParticipationList.append(item);
     }
 }
@@ -1360,9 +1373,13 @@ function renderBosses() {
         });
 
         const joinButton = card.querySelector('.bossJoinButton');
-        joinButton.disabled = boss.타입 === '이벤트' || !participationOpen;
-        joinButton.textContent = participationOpen ? '참여' : record?.requiresParticipation ? '마감' : '-';
-        joinButton.addEventListener('click', () => openJoinModal(record));
+        const joinedByMe = hasParticipant(record);
+        joinButton.disabled = boss.타입 === '이벤트' || !participationOpen || joinedByMe;
+        joinButton.textContent = joinedByMe ? '참여함' : participationOpen ? '참여' : record?.requiresParticipation ? '마감' : '-';
+        joinButton.classList.toggle('isJoined', joinedByMe);
+        joinButton.addEventListener('click', () => {
+            if (!joinedByMe) openJoinModal(record);
+        });
 
         card.addEventListener('click', (event) => {
             if (isBossCardControl(event.target)) return;
@@ -1405,8 +1422,15 @@ function renderRecords() {
         item.querySelector('.recordParticipants').hidden = true;
         item.querySelector('.recordDetailButton').addEventListener('click', () => openParticipantModal(record));
         const button = item.querySelector('.recordJoinButton');
-        button.hidden = true;
-        button.disabled = true;
+        const participationOpen = isParticipationOpen(record);
+        const joinedByMe = hasParticipant(record);
+        button.hidden = canceled || !record.requiresParticipation || (!participationOpen && !joinedByMe);
+        button.disabled = joinedByMe || !participationOpen;
+        button.textContent = joinedByMe ? '참여함' : participationOpen ? '참여입력' : '마감';
+        button.classList.toggle('isJoined', joinedByMe);
+        button.addEventListener('click', () => {
+            if (!joinedByMe && participationOpen) openJoinModal(record);
+        });
         item.addEventListener('click', (event) => {
             if (isBossCardControl(event.target)) return;
             openParticipantModal(record);

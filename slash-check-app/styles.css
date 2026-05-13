@@ -1425,6 +1425,20 @@ h1 {
     opacity: 0.44;
 }
 
+.liveJoinButton.isJoined,
+.bossJoinButton.isJoined,
+.recordJoinButton.isJoined,
+.liveJoinButton.isJoined:hover,
+.bossJoinButton.isJoined:hover,
+.recordJoinButton.isJoined:hover {
+    border-color: #16a34a;
+    background: #ecfdf3;
+    box-shadow: none;
+    color: #087443;
+    cursor: default;
+    opacity: 1;
+}
+
 .bossRecordItem {
     display: grid;
     grid-template-columns: minmax(0, 1fr) 94px;
@@ -1508,6 +1522,13 @@ h1 {
     background: #e9edf4;
     color: #7b8494;
     cursor: not-allowed;
+}
+
+.recordJoinButton.isJoined:disabled {
+    border-color: #16a34a;
+    background: #ecfdf3;
+    color: #087443;
+    opacity: 1;
 }
 
 .participantRow {
