@@ -52,6 +52,7 @@ const joinPasswordInput = document.querySelector('#joinPasswordInput');
 const joinPhotoInput = document.querySelector('#joinPhotoInput');
 const joinPhotoButton = document.querySelector('#joinPhotoButton');
 const joinPhotoStatus = document.querySelector('#joinPhotoStatus');
+const joinPhotoDropZone = document.querySelector('#joinPhotoDropZone');
 const participantModal = document.querySelector('#participantModal');
 const closeParticipantModalButton = document.querySelector('#closeParticipantModalButton');
 const participantModalTitle = document.querySelector('#participantModalTitle');
@@ -108,6 +109,7 @@ const quickCutSubmittingBosses = new Set();
 let participantAddCandidates = [];
 let selectedParticipantAddMember = '';
 let selectedParticipantModalMode = 'participants';
+let isUploadingJoinPhoto = false;
 let bossAlarmAudioContext = null;
 let titleAlertTimer = null;
 let titleAlertKey = '';
@@ -1610,13 +1612,16 @@ function openJoinModal(record) {
     joinForm.querySelector('.bossModalPrimary').disabled = false;
     if (joinPhotoInput) joinPhotoInput.value = '';
     if (joinPhotoButton) joinPhotoButton.disabled = false;
-    if (joinPhotoStatus) joinPhotoStatus.textContent = '비번이 없으면 사진 인증으로 관리자 확인을 요청할 수 있습니다.';
+    if (joinPhotoDropZone) joinPhotoDropZone.classList.remove('isDragging', 'isUploading');
+    if (joinPhotoStatus) joinPhotoStatus.textContent = '사진 선택, 붙여넣기, 드래그로 인증을 올릴 수 있습니다.';
     joinModal.classList.remove('hidden');
     setTimeout(() => joinPasswordInput.focus(), 30);
 }
 
 function closeJoinModal() {
     selectedJoinRecord = null;
+    isUploadingJoinPhoto = false;
+    joinPhotoDropZone?.classList.remove('isDragging', 'isUploading');
     joinModal.classList.add('hidden');
 }
 
@@ -2006,13 +2011,40 @@ async function compressPhotoForProof(file) {
     return canvas.toDataURL('image/jpeg', 0.72);
 }
 
-async function submitJoinPhoto(file) {
+function photoFileFromList(files) {
+    return [...(files || [])].find((file) => file?.type?.startsWith('image/')) || null;
+}
+
+function photoFileFromItems(items) {
+    for (const item of [...(items || [])]) {
+        if (item.kind === 'file' && item.type?.startsWith('image/')) return item.getAsFile();
+    }
+    return null;
+}
+
+function setJoinPhotoUploadState(uploading, message = '') {
+    isUploadingJoinPhoto = uploading;
+    if (joinPhotoButton) joinPhotoButton.disabled = uploading;
+    joinPhotoDropZone?.classList.toggle('isUploading', uploading);
+    if (message && joinPhotoStatus) joinPhotoStatus.textContent = message;
+}
+
+function handleJoinPhotoFile(file, source = 'select') {
+    if (!file) {
+        showToast('사진 인증 확인', '이미지 파일을 선택하세요.', 'error');
+        return;
+    }
+    if (isUploadingJoinPhoto) return;
+    submitJoinPhoto(file, source);
+}
+
+async function submitJoinPhoto(file, source = 'select') {
     const memberName = requireMember();
     if (!memberName || !selectedJoinRecord || !file) return;
 
     const record = selectedJoinRecord;
-    joinPhotoButton.disabled = true;
-    if (joinPhotoStatus) joinPhotoStatus.textContent = '사진을 압축해서 올리는 중입니다...';
+    const sourceLabel = source === 'paste' ? '붙여넣은 사진' : source === 'drop' ? '드롭한 사진' : '선택한 사진';
+    setJoinPhotoUploadState(true, `${sourceLabel}을 압축해서 올리는 중입니다...`);
 
     try {
         const imageData = await compressPhotoForProof(file);
@@ -2035,7 +2067,7 @@ async function submitJoinPhoto(file) {
         if (joinPhotoStatus) joinPhotoStatus.textContent = '사진 인증에 실패했습니다. 다시 시도하거나 비번으로 입력하세요.';
         fetchState(true).catch(() => {});
     } finally {
-        if (joinPhotoButton) joinPhotoButton.disabled = false;
+        setJoinPhotoUploadState(false);
         if (joinPhotoInput) joinPhotoInput.value = '';
     }
 }
@@ -2331,10 +2363,60 @@ requiresParticipationInput.addEventListener('change', () => {
 });
 joinForm.addEventListener('submit', submitJoin);
 closeJoinModalButton.addEventListener('click', closeJoinModal);
-joinPhotoButton?.addEventListener('click', () => joinPhotoInput?.click());
+joinPhotoDropZone?.addEventListener('click', (event) => {
+    if (isUploadingJoinPhoto) return;
+    if (event.target === joinPhotoButton) return;
+    joinPhotoInput?.click();
+});
+joinPhotoDropZone?.addEventListener('keydown', (event) => {
+    if (!['Enter', ' '].includes(event.key)) return;
+    event.preventDefault();
+    if (isUploadingJoinPhoto) return;
+    joinPhotoInput?.click();
+});
+joinPhotoButton?.addEventListener('click', (event) => {
+    event.stopPropagation();
+    if (isUploadingJoinPhoto) return;
+    joinPhotoInput?.click();
+});
 joinPhotoInput?.addEventListener('change', () => {
     const file = joinPhotoInput.files?.[0];
-    if (file) submitJoinPhoto(file);
+    if (file) handleJoinPhotoFile(file, 'select');
+});
+['dragenter', 'dragover'].forEach((eventName) => {
+    joinPhotoDropZone?.addEventListener(eventName, (event) => {
+        event.preventDefault();
+        if (!isModalVisible(joinModal) || isUploadingJoinPhoto) return;
+        joinPhotoDropZone.classList.add('isDragging');
+        if (joinPhotoStatus) joinPhotoStatus.textContent = '사진을 놓으면 바로 인증 요청됩니다.';
+    });
+});
+['dragleave', 'dragend'].forEach((eventName) => {
+    joinPhotoDropZone?.addEventListener(eventName, () => {
+        joinPhotoDropZone.classList.remove('isDragging');
+    });
+});
+joinPhotoDropZone?.addEventListener('drop', (event) => {
+    event.preventDefault();
+    joinPhotoDropZone.classList.remove('isDragging');
+    if (!isModalVisible(joinModal)) return;
+    const file = photoFileFromList(event.dataTransfer?.files) || photoFileFromItems(event.dataTransfer?.items);
+    handleJoinPhotoFile(file, 'drop');
+});
+document.addEventListener('dragover', (event) => {
+    if (!isModalVisible(joinModal)) return;
+    event.preventDefault();
+});
+document.addEventListener('drop', (event) => {
+    if (!isModalVisible(joinModal)) return;
+    event.preventDefault();
+});
+document.addEventListener('paste', (event) => {
+    if (!isModalVisible(joinModal)) return;
+    const file = photoFileFromItems(event.clipboardData?.items);
+    if (!file) return;
+    event.preventDefault();
+    handleJoinPhotoFile(file, 'paste');
 });
 closeParticipantModalButton.addEventListener('click', closeParticipantModal);
 participantViewButton?.addEventListener('click', () => setParticipantModalMode('participants'));
