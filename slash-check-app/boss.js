@@ -345,6 +345,29 @@ function formatRemainWithSuffix(targetMs, now = getNowMs()) {
     return remain === '젠됨' ? remain : `${remain} 남음`;
 }
 
+function formatCooldownHours(value) {
+    const hours = Number(value);
+    if (!Number.isFinite(hours)) return '';
+    const rounded = Math.round(hours * 100) / 100;
+    return Number.isInteger(rounded) ? `${rounded}시간` : `${rounded}시간`;
+}
+
+function bossRuleText(boss) {
+    if (!boss) return '';
+    if (boss.타입 === '시간') {
+        const cooldown = formatCooldownHours(boss.쿨타임);
+        return cooldown ? `쿨 ${cooldown}` : '시간보스';
+    }
+    if (boss.타입 === '고정') {
+        const days = Array.isArray(boss.요일) && boss.요일.length > 0 ? boss.요일.join(', ') : '요일 미등록';
+        return `${days} ${boss.시간 || '시간 미등록'}`;
+    }
+    if (boss.타입 === '이벤트') {
+        return `${boss.반복 || '반복'} · ${boss.시간 || '시간 미등록'}`;
+    }
+    return '';
+}
+
 function formatDuration(ms) {
     if (ms <= 0) return '마감';
     const totalSec = Math.ceil(ms / 1000);
@@ -1305,13 +1328,7 @@ function renderBosses() {
         card.querySelector('.bossCutText').textContent = nextMs
             ? `${formatSpawnTimeForList(nextMs, now)} · ${formatRemain(nextMs, now)}`
             : boss.타입 === '시간' ? '컷 대기' : '일정 없음';
-        const metaText = record?.cutAt
-            ? `최근 컷 ${formatKstDateTime(record.cutAt)}`
-            : boss.타입 === '시간'
-                ? ''
-                : boss.타입 === '이벤트'
-                    ? `${boss.반복 || '격주'} · ${boss.기준일 || ''} 기준 · ${boss.시간 || ''}`
-                    : `${(boss.요일 || []).join(', ')} ${boss.시간 || ''}`;
+        const metaText = bossRuleText(boss);
         const metaEl = card.querySelector('.bossMeta');
         metaEl.textContent = metaText;
         metaEl.hidden = !metaText;
