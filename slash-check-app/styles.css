@@ -3865,18 +3865,28 @@ body {
     white-space: nowrap;
 }
 
+.discordIconButton,
 .notifyIconButton {
     position: relative;
     display: grid;
     place-items: center;
     flex: 0 0 auto;
-    width: 56px;
     height: 42px;
     border: 1px solid var(--line);
     border-radius: 10px;
     background: #ffffff;
     color: var(--text-soft);
     box-shadow: 0 1px 1px rgba(15, 23, 42, 0.03);
+}
+
+.discordIconButton {
+    width: 46px;
+    color: #5865f2;
+    text-decoration: none;
+}
+
+.notifyIconButton {
+    width: 56px;
 }
 
 .notifyIconButton::after {
@@ -3895,11 +3905,21 @@ body {
     text-align: center;
 }
 
+.discordIconButton svg,
 .notifyIconButton svg {
     width: 23px;
     height: 23px;
     fill: currentColor;
+}
+
+.notifyIconButton svg {
     transform: translateX(-4px);
+}
+
+.discordIconButton:hover {
+    border-color: rgba(88, 101, 242, 0.42);
+    background: #eef2ff;
+    color: #4752c4;
 }
 
 .notifyIconButton:hover:not(:disabled) {
@@ -6283,7 +6303,7 @@ body {
         align-self: start;
         justify-self: stretch;
         display: grid;
-        grid-template-columns: minmax(0, 1fr) 52px;
+        grid-template-columns: minmax(0, 1fr) 44px 52px;
         width: 100%;
         gap: 6px;
     }
@@ -6310,13 +6330,22 @@ body {
         line-height: 1;
     }
 
+    .discordIconButton,
     .notifyIconButton {
         grid-column: auto;
-        width: 52px;
         height: 38px;
         border-radius: 9px;
     }
 
+    .discordIconButton {
+        width: 44px;
+    }
+
+    .notifyIconButton {
+        width: 52px;
+    }
+
+    .discordIconButton svg,
     .notifyIconButton svg {
         width: 21px;
         height: 21px;

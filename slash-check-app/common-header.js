@@ -1,4 +1,5 @@
 (() => {
+    const DISCORD_INVITE_URL = 'https://discord.gg/UUn5qGAsyH';
     const MEMBER_KEY = 'slashCheckMemberName';
     const NOTIFY_ENABLED_KEY = 'slashCheckNotificationsEnabled';
     const memberButton = document.querySelector('#openProfileButton');
@@ -24,6 +25,27 @@
     function updateMemberLabel() {
         if (!memberLabel) return;
         memberLabel.textContent = cleanName(localStorage.getItem(MEMBER_KEY)) || '길드원 미선택';
+    }
+
+    function ensureDiscordButton() {
+        const actions = document.querySelector('.topbarActions');
+        if (!actions || actions.querySelector('.discordIconButton')) return;
+
+        const link = document.createElement('a');
+        link.className = 'discordIconButton';
+        link.href = DISCORD_INVITE_URL;
+        link.target = '_blank';
+        link.rel = 'noopener noreferrer';
+        link.title = '디스코드 바로가기';
+        link.setAttribute('aria-label', '디스코드 바로가기');
+        link.innerHTML = `
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M19.2 5.2A16 16 0 0 0 15.2 4l-.2.4a13 13 0 0 1 3.4 1.7 11.6 11.6 0 0 0-12.8 0A13 13 0 0 1 9 4.4L8.8 4a16 16 0 0 0-4 1.2C2.3 8.9 1.7 12.5 2 16c1.7 1.2 3.3 2 4.9 2.5.4-.5.7-1 1-1.6-.6-.2-1.1-.5-1.6-.8l.4-.3c3.2 1.5 6.6 1.5 9.7 0l.4.3c-.5.3-1 .6-1.6.8.3.6.6 1.1 1 1.6 1.6-.5 3.3-1.3 4.9-2.5.4-4.1-.7-7.7-2.9-10.8ZM8.7 13.8c-.9 0-1.7-.8-1.7-1.8s.8-1.8 1.7-1.8 1.7.8 1.7 1.8-.8 1.8-1.7 1.8Zm6.6 0c-.9 0-1.7-.8-1.7-1.8s.8-1.8 1.7-1.8S17 11 17 12s-.8 1.8-1.7 1.8Z"/>
+            </svg>
+        `;
+
+        if (notifyButton && notifyButton.parentElement === actions) actions.insertBefore(link, notifyButton);
+        else actions.append(link);
     }
 
     function toastHost() {
@@ -230,6 +252,7 @@
         });
     }
 
+    ensureDiscordButton();
     updateMemberLabel();
     updateNotifyButton();
     memberButton?.addEventListener('click', openProfileModal);
