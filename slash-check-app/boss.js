@@ -1389,8 +1389,6 @@ function renderBosses() {
         const spawnState = bossStateFromSpawn(nextMs, now);
         const card = bossCardTemplate.content.firstElementChild.cloneNode(true);
         card.classList.add(spawnState, bossTypeClass(boss));
-        const pendingProofCount = pendingParticipantProofCount(record);
-        card.classList.toggle('hasPhotoProofs', pendingProofCount > 0);
 
         card.querySelector('.bossName').textContent = boss.이름;
         card.querySelector('.bossLocation').textContent = displayBossLocation(boss.위치);
@@ -1404,17 +1402,15 @@ function renderBosses() {
         const metaEl = card.querySelector('.bossMeta');
         metaEl.textContent = metaText;
         metaEl.hidden = !metaText;
-        const participationOpen = isParticipationOpen(record, now);
-        const participationText = record?.requiresParticipation
-            ? ` · 참여 ${record.participants?.length || 0}명${pendingProofCount ? ` · 사진대기 ${pendingProofCount}건` : ''}${participationOpen ? ` · ${formatDuration(participationOpenMs(record) - now)}` : record.hasParticipantPassword ? ' · 마감' : ' · 비번 없음'}`
-            : '';
         const reporterEl = card.querySelector('.bossReporter');
         reporterEl.textContent = record?.reporterName
-            ? `컷 ${record.reporterName}${participationText}`
+            ? `컷 ${record.reporterName}`
             : '';
         reporterEl.hidden = !reporterEl.textContent;
 
         const cutButton = card.querySelector('.bossCutButton');
+        const actions = card.querySelector('.bossCardActions');
+        actions?.classList.add('singleAction');
         const lock = bossLock(boss.이름);
         if (boss.타입 === '이벤트') {
             cutButton.disabled = true;
@@ -1432,17 +1428,7 @@ function renderBosses() {
         });
 
         const joinButton = card.querySelector('.bossJoinButton');
-        const joinedByMe = hasParticipant(record);
-        const pendingByMe = hasPendingParticipantProof(record);
-        joinButton.disabled = boss.타입 === '이벤트' || joinedByMe || (!participationOpen && !pendingByMe);
-        joinButton.textContent = joinedByMe ? '참여함' : pendingByMe ? '인증대기' : participationOpen ? '참여' : record?.requiresParticipation ? '마감' : '-';
-        joinButton.classList.toggle('isJoined', joinedByMe);
-        joinButton.classList.toggle('isPending', pendingByMe);
-        joinButton.addEventListener('click', () => {
-            if (joinedByMe) return;
-            if (pendingByMe) openParticipantModal(record, 'participants');
-            else openJoinModal(record);
-        });
+        joinButton.hidden = true;
 
         card.addEventListener('click', (event) => {
             if (isBossCardControl(event.target)) return;

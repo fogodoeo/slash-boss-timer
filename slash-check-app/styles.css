@@ -1411,6 +1411,10 @@ h1 {
     gap: 6px;
 }
 
+.bossCardActions.singleAction {
+    grid-template-columns: 1fr;
+}
+
 .bossJoinButton,
 .bossModalPrimary {
     height: 40px;
