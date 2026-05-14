@@ -5693,7 +5693,7 @@ body {
     margin-bottom: 8px;
     border-color: #bfdbfe;
     background: linear-gradient(90deg, #eff6ff, #ffffff 64%);
-    padding: 12px;
+    padding: 9px;
 }
 
 .spawnedBossHead strong {
@@ -5731,7 +5731,7 @@ body {
     display: grid;
     place-items: center;
     justify-self: end;
-    min-width: 64px;
+    min-width: 68px;
     height: 30px;
     border: 0;
     border-radius: 7px;
@@ -6266,7 +6266,7 @@ body {
     }
 
     .bossQuickCutLabel {
-        min-width: 58px;
+        min-width: 64px;
         height: 28px;
         font-size: 11px;
     }

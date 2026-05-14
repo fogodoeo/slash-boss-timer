@@ -8,7 +8,6 @@ const bossAlertBanner = document.querySelector('#bossAlertBanner');
 const bossAlertTitle = document.querySelector('#bossAlertTitle');
 const bossAlertMeta = document.querySelector('#bossAlertMeta');
 const bossQuickPanel = document.querySelector('#spawnedBossPanel');
-const bossQuickSummary = document.querySelector('#spawnedBossSummary');
 const bossQuickList = document.querySelector('#spawnedBossList');
 const bossMainPanel = document.querySelector('.bossMainPanel');
 const bossSummary = document.querySelector('#bossSummary');
@@ -1163,9 +1162,9 @@ async function quickCutBoss(boss, options = {}) {
         state.bossCutRecords = data.records || [];
         if (state.bossCutLocks) delete state.bossCutLocks[boss.이름];
         render();
-        showToast(timeUncertain ? '멍 처리 완료' : '바로컷 완료', `.컷 ${boss.이름} ${timeValue}${timeUncertain ? ' · 불확실' : ''}`);
+        showToast(timeUncertain ? '멍 처리 완료' : '지금 컷 완료', `.컷 ${boss.이름} ${timeValue}${timeUncertain ? ' · 불확실' : ''}`);
     } catch (err) {
-        showToast(timeUncertain ? '멍 처리 실패' : '바로컷 실패', err.message, 'error');
+        showToast(timeUncertain ? '멍 처리 실패' : '지금 컷 실패', err.message, 'error');
         fetchState(true).catch(() => {});
     } finally {
         quickCutSubmittingBosses.delete(boss.이름);
@@ -1183,18 +1182,10 @@ function renderQuickBosses(timeline, now = getNowMs()) {
 
     if (items.length === 0) {
         bossQuickPanel?.classList.add('hidden');
-        if (bossQuickSummary) bossQuickSummary.textContent = '컷 대기 없음';
         return;
     }
 
     bossQuickPanel?.classList.remove('hidden');
-    const spawnedCount = items.filter((item) => item.spawnMs <= now).length;
-    const firstUpcoming = items.find((item) => item.spawnMs > now);
-    if (bossQuickSummary) {
-        bossQuickSummary.textContent = spawnedCount > 0
-            ? `지금 컷 가능 ${spawnedCount}개`
-            : `${firstUpcoming.boss.이름} ${formatRemainWithSuffix(firstUpcoming.spawnMs, now)}`;
-    }
 
     for (const item of items) {
         const card = document.createElement('article');
@@ -1217,7 +1208,8 @@ function renderQuickBosses(timeline, now = getNowMs()) {
         quickButton.type = 'button';
         quickButton.className = 'bossQuickCutLabel';
         quickButton.disabled = Boolean(lockedByOther || isSubmitting);
-        quickButton.textContent = lockedByOther ? '입력중' : isSubmitting ? '처리중' : '바로컷';
+        quickButton.textContent = lockedByOther ? '입력중' : isSubmitting ? '처리중' : '지금 컷';
+        quickButton.title = '현재 시간 기준으로 컷';
         const missButton = document.createElement('button');
         missButton.type = 'button';
         missButton.className = 'bossQuickCutLabel bossQuickMissLabel';
