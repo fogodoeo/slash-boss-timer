@@ -9,6 +9,9 @@ const bossAlertTitle = document.querySelector('#bossAlertTitle');
 const bossAlertMeta = document.querySelector('#bossAlertMeta');
 const bossQuickPanel = document.querySelector('#spawnedBossPanel');
 const bossQuickList = document.querySelector('#spawnedBossList');
+const bossLayout = document.querySelector('.bossLayout');
+const bossMainColumn = document.querySelector('.bossMainColumn');
+const bossSideColumn = document.querySelector('.bossSideColumn');
 const bossMainPanel = document.querySelector('.bossMainPanel');
 const bossSummary = document.querySelector('#bossSummary');
 const bossList = document.querySelector('#bossList');
@@ -359,6 +362,14 @@ function formatRemainWithSuffix(targetMs, now = getNowMs()) {
     return remain === '젠됨' ? remain : `${remain} 남음`;
 }
 
+function formatBoardRemain(targetMs, now = getNowMs()) {
+    const diff = targetMs - now;
+    if (diff <= 0) return '젠됨';
+    const totalMin = Math.ceil(diff / 60000);
+    if (totalMin >= 60) return `${Math.floor(totalMin / 60)}시간 남음`;
+    return `${totalMin}분 남음`;
+}
+
 function formatCooldownHours(value) {
     const hours = Number(value);
     if (!Number.isFinite(hours)) return '';
@@ -527,6 +538,26 @@ function syncBossListPanel() {
     if (toggleBossListButton) {
         toggleBossListButton.textContent = bossListOpen ? '목록 접기' : '목록 열기';
         toggleBossListButton.setAttribute('aria-expanded', String(bossListOpen));
+    }
+}
+
+const mobileBossOrderQuery = window.matchMedia('(max-width: 640px)');
+let bossMainPanelAnchor = null;
+
+function syncMobileBossOrder() {
+    if (!bossLayout || !bossMainColumn || !bossSideColumn || !bossMainPanel) return;
+    if (!bossMainPanelAnchor) {
+        bossMainPanelAnchor = document.createComment('boss-main-panel-anchor');
+        bossMainPanel.before(bossMainPanelAnchor);
+    }
+    if (mobileBossOrderQuery.matches) {
+        if (bossMainPanel.parentElement !== bossLayout || bossMainPanel.previousElementSibling !== bossSideColumn) {
+            bossSideColumn.after(bossMainPanel);
+        }
+        return;
+    }
+    if (bossMainPanel.parentElement !== bossMainColumn && bossMainPanelAnchor.parentNode) {
+        bossMainPanelAnchor.after(bossMainPanel);
     }
 }
 
@@ -1311,12 +1342,13 @@ function renderTimeline() {
         const uncertain = item.boss.타입 === '시간' && latest?.timeUncertain;
         const remainEl = row.querySelector('.timelineRemain');
         const remainText = document.createElement('span');
-        remainText.textContent = formatRemainWithSuffix(item.spawnMs, now);
+        remainText.className = 'timelineRemainText';
+        remainText.textContent = formatBoardRemain(item.spawnMs, now);
         remainEl.replaceChildren();
         if (uncertain) {
             const uncertainLabel = document.createElement('span');
-            uncertainLabel.className = 'timelineUncertain';
-            uncertainLabel.textContent = '* 불확실';
+            uncertainLabel.className = 'recordUncertainBadge timelineUncertain';
+            uncertainLabel.textContent = '불확실';
             remainEl.append(uncertainLabel);
         }
         remainEl.append(remainText);
@@ -2486,6 +2518,12 @@ deleteParticipantRecordButton.addEventListener('click', cancelParticipantRecord)
 addParticipantButton.addEventListener('click', addParticipantManually);
 
 syncBossListPanel();
+syncMobileBossOrder();
+if (mobileBossOrderQuery.addEventListener) {
+    mobileBossOrderQuery.addEventListener('change', syncMobileBossOrder);
+} else {
+    mobileBossOrderQuery.addListener?.(syncMobileBossOrder);
+}
 setSelectedMember(selectedMember);
 updateNotifyButton();
 loadBosses().then(() => {

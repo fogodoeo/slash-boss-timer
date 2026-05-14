@@ -6000,13 +6000,19 @@ body {
     align-items: center;
     justify-content: flex-end;
     gap: 6px;
+    min-width: 126px;
     white-space: nowrap;
 }
 
+.bossPage .timelineRemainText {
+    display: inline-block;
+    min-width: 78px;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+}
+
 .bossPage .timelineUncertain {
-    color: #d97706;
-    font-size: 10.5px;
-    font-weight: 1000;
+    align-self: center;
 }
 
 .bossPage .timelineTime {
@@ -6337,7 +6343,7 @@ body {
     }
 
     .bossPage .timelineItem {
-        grid-template-columns: 54px minmax(0, 1fr) 112px;
+        grid-template-columns: 54px minmax(0, 1fr) 122px;
         gap: 5px;
         min-height: 26px;
         padding: 2px 6px;
@@ -6358,10 +6364,15 @@ body {
 
     .bossPage .timelineRemain {
         gap: 4px;
+        min-width: 0;
+    }
+
+    .bossPage .timelineRemainText {
+        min-width: 68px;
     }
 
     .bossPage .timelineUncertain {
-        font-size: 9px;
+        font-size: 10px !important;
     }
 
     .bossPage .timelineDateDivider {
