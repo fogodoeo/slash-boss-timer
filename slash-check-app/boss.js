@@ -1463,6 +1463,12 @@ function renderRecords() {
             ? `${record.bossName} · ${bossCutClock(record)} · 취소됨`
             : `${record.bossName} · ${bossCutClock(record)}`;
         title.replaceChildren(titleText);
+        if (record.timeUncertain && !canceled) {
+            const uncertainBadge = document.createElement('span');
+            uncertainBadge.className = 'recordUncertainBadge';
+            uncertainBadge.textContent = '불확실';
+            title.append(uncertainBadge);
+        }
         if (joinedByMe && !canceled) {
             const joinedMark = document.createElement('span');
             joinedMark.className = 'recordJoinedCheck';

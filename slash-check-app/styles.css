@@ -1552,6 +1552,20 @@ h1 {
     line-height: 1;
 }
 
+.recordUncertainBadge {
+    display: inline-grid;
+    place-items: center;
+    flex: 0 0 auto;
+    height: 18px;
+    border-radius: 999px;
+    background: #fff7ed;
+    color: #9a3412 !important;
+    padding: 0 7px;
+    font-size: 11px !important;
+    font-weight: 950 !important;
+    line-height: 1;
+}
+
 .bossRecordItem.canceled {
     border-color: #e3e7ef;
     background: #f1f4f8;
