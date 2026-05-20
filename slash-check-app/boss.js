@@ -101,6 +101,33 @@ const SPAWNED_KEEP_MS = 60 * 60 * 1000;
 const SOON_MS = 10 * 60 * 1000;
 const BOSS_ALERT_MS = 10 * 60 * 1000;
 const ORIGINAL_TITLE = document.title;
+const TIME_BOSS_ORDER_SOURCE = [
+    ['베나투스', '베나'],
+    ['비오렌트', '비오'],
+    ['레이디달리아', '레달'],
+    ['에고'],
+    ['리베라', '리베'],
+    ['언두미엘', '언두'],
+    ['아라네오', '아라'],
+    ['아멘티스', '아멘'],
+    ['장군'],
+    ['가레스', '가레'],
+    ['남작'],
+    ['카테나', '카테'],
+    ['슈라이어', '슈라'],
+    ['라르바', '라르'],
+    ['티토르', '티토'],
+    ['와니타스', '와니'],
+    ['듀플리칸', '듀플'],
+    ['메투스', '메투'],
+    ['세크레타', '세크'],
+    ['수포르', '수포'],
+    ['오르도', '오르'],
+    ['아스타', '아스']
+];
+const TIME_BOSS_ORDER = new Map(
+    TIME_BOSS_ORDER_SOURCE.flatMap((names, index) => names.map((name) => [name, index]))
+);
 let state = { now: new Date().toISOString(), members: [], bossCuts: {}, bossCutRecords: [], bossCutLocks: {}, bossParticipationWindowMin: 60 };
 let bosses = [];
 let selectedMember = localStorage.getItem(MEMBER_KEY) || '';
@@ -772,6 +799,36 @@ function bossTypeClass(boss) {
     return 'timeBoss';
 }
 
+function configuredBossIndex(boss) {
+    const index = bosses.findIndex((item) => (
+        item.이름 === boss?.이름
+        || item.애칭 === boss?.애칭
+        || item.이름 === boss?.애칭
+        || item.애칭 === boss?.이름
+    ));
+    return index === -1 ? Number.MAX_SAFE_INTEGER : index;
+}
+
+function preferredBossOrder(boss) {
+    if (boss?.타입 === '시간') {
+        const ordered = TIME_BOSS_ORDER.get(boss.이름) ?? TIME_BOSS_ORDER.get(boss.애칭);
+        if (ordered !== undefined) return ordered;
+    }
+    return TIME_BOSS_ORDER.size + configuredBossIndex(boss);
+}
+
+function compareBossDisplayOrder(a, b) {
+    const orderDiff = preferredBossOrder(a) - preferredBossOrder(b);
+    if (orderDiff) return orderDiff;
+    const configDiff = configuredBossIndex(a) - configuredBossIndex(b);
+    if (configDiff) return configDiff;
+    return String(a?.이름 || '').localeCompare(String(b?.이름 || ''), 'ko');
+}
+
+function compareTimelineItems(a, b) {
+    return a.spawnMs - b.spawnMs || compareBossDisplayOrder(a.boss, b.boss);
+}
+
 function eventBaseSpawnMs(boss) {
     const date = String(boss?.기준일 || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
     const [hour, minute] = String(boss?.시간 || '').split(':').map(Number);
@@ -896,7 +953,7 @@ function buildTimeline() {
         }
     }
 
-    return items.sort((a, b) => a.spawnMs - b.spawnMs || a.boss.이름.localeCompare(b.boss.이름, 'ko'));
+    return items.sort(compareTimelineItems);
 }
 
 function activeParticipationRecords() {
@@ -923,7 +980,7 @@ function alertItems(items, now = getNowMs()) {
             const diff = item.spawnMs - now;
             return diff >= 0 && diff <= BOSS_ALERT_MS;
         })
-        .sort((a, b) => a.spawnMs - b.spawnMs);
+        .sort(compareTimelineItems);
 }
 
 function leadingAlertItem(items, now = getNowMs()) {
@@ -939,7 +996,10 @@ function focusBossItems(items, now = getNowMs()) {
         .sort((a, b) => {
             const aSpawned = a.spawnMs <= now ? 0 : 1;
             const bSpawned = b.spawnMs <= now ? 0 : 1;
-            return aSpawned - bSpawned || Math.abs(a.spawnMs - now) - Math.abs(b.spawnMs - now) || a.spawnMs - b.spawnMs;
+            return aSpawned - bSpawned
+                || Math.abs(a.spawnMs - now) - Math.abs(b.spawnMs - now)
+                || a.spawnMs - b.spawnMs
+                || compareBossDisplayOrder(a.boss, b.boss);
         });
 }
 
@@ -1208,7 +1268,7 @@ function renderQuickBosses(timeline, now = getNowMs()) {
 
     const items = timeline
         .filter((item) => item.spawnMs <= now && item.boss.타입 !== '이벤트')
-        .sort((a, b) => a.spawnMs - b.spawnMs || a.boss.이름.localeCompare(b.boss.이름, 'ko'));
+        .sort(compareTimelineItems);
     bossQuickList.replaceChildren();
 
     if (items.length === 0) {
@@ -1393,7 +1453,7 @@ function renderBosses() {
     const visible = bosses.filter(bossMatches).sort((a, b) => {
         const aNext = bossNextSpawnMs(a) || Number.MAX_SAFE_INTEGER;
         const bNext = bossNextSpawnMs(b) || Number.MAX_SAFE_INTEGER;
-        return aNext - bNext || a.이름.localeCompare(b.이름, 'ko');
+        return aNext - bNext || compareBossDisplayOrder(a, b);
     });
 
     bossSummary.textContent = `${visible.length}개 / 전체 ${bosses.length}개`;
