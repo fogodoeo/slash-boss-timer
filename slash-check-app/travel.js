@@ -666,5 +666,5 @@
     window.setInterval(() => {
         if (!pin || !pinOverlay.classList.contains('hidden')) return;
         loadExpenses().catch(() => {});
-    }, 15000);
+    }, 3000);
 })();
