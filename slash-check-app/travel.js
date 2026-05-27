@@ -34,6 +34,7 @@
     const modalReceiptLink = document.querySelector('#modalReceiptLink');
     const modalCloseButton = document.querySelector('#modalCloseButton');
     const receiptInputs = [receiptGalleryInput].filter(Boolean);
+    const bottomNavLinks = Array.from(document.querySelectorAll('.bottomNav a'));
 
     let pin = sessionStorage.getItem(PIN_KEY) || '';
     let receiptDataUrl = '';
@@ -553,6 +554,13 @@
         document.body.classList.remove('cameraOpen');
     }
 
+    function setActiveNav(targetHash = '#receiptPanel') {
+        if (!bottomNavLinks.length) return;
+        bottomNavLinks.forEach((link) => {
+            link.classList.toggle('active', link.getAttribute('href') === targetHash);
+        });
+    }
+
     function resetManualForm() {
         manualForm.reset();
         document.querySelector('#manualDate').value = todayKst();
@@ -816,6 +824,33 @@
         if (event.target === receiptModal) closeReceiptModal();
     });
 
+    bottomNavLinks.forEach((link) => {
+        link.addEventListener('click', () => setActiveNav(link.getAttribute('href')));
+    });
+    window.addEventListener('hashchange', () => {
+        if (location.hash) setActiveNav(location.hash);
+    });
+
+    if ('IntersectionObserver' in window && bottomNavLinks.length) {
+        const navTargets = bottomNavLinks
+            .map((link) => document.querySelector(link.getAttribute('href')))
+            .filter(Boolean);
+        const navObserver = new IntersectionObserver((entries) => {
+            if (location.hash && bottomNavLinks.some((link) => link.getAttribute('href') === location.hash)) {
+                setActiveNav(location.hash);
+                return;
+            }
+            const visible = entries
+                .filter((entry) => entry.isIntersecting)
+                .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top)[0];
+            if (visible?.target?.id) setActiveNav(`#${visible.target.id}`);
+        }, {
+            rootMargin: '-34% 0px -54% 0px',
+            threshold: 0
+        });
+        navTargets.forEach((target) => navObserver.observe(target));
+    }
+
     rateInput.addEventListener('input', () => {
         localStorage.setItem(RATE_KEY, String(rate()));
         render();
@@ -844,6 +879,7 @@
     document.querySelector('#quickManualDate').value = todayKst();
     document.querySelector('#manualDate').value = todayKst();
     rateInput.value = localStorage.getItem(RATE_KEY) || '9.5';
+    setActiveNav(location.hash || '#receiptPanel');
     render();
 
     if (pin) {
