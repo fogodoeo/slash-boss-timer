@@ -30,6 +30,7 @@
     const receiptModal = document.querySelector('#receiptModal');
     const modalTitle = document.querySelector('#modalTitle');
     const modalReceiptImage = document.querySelector('#modalReceiptImage');
+    const modalExpenseSummary = document.querySelector('#modalExpenseSummary');
     const modalAiNote = document.querySelector('#modalAiNote');
     const modalReceiptLink = document.querySelector('#modalReceiptLink');
     const modalCloseButton = document.querySelector('#modalCloseButton');
@@ -100,6 +101,43 @@
         const value = number(amount);
         const sign = value > 0 ? '+' : value < 0 ? '-' : '';
         return `${sign}${formatCurrencyAmount(currency, Math.abs(value))}`;
+    }
+
+    function expenseLineItems(item) {
+        const list = Array.isArray(item.lineItems) ? item.lineItems : [];
+        return list
+            .map((line) => ({
+                name: String(line?.name || '').trim(),
+                amount: number(line?.amount),
+                currency: line?.currency || item.currency || 'JPY',
+                quantity: String(line?.quantity || '').trim()
+            }))
+            .filter((line) => line.name || line.amount > 0)
+            .slice(0, 5);
+    }
+
+    function lineItemsHtml(item) {
+        const lines = expenseLineItems(item);
+        if (!lines.length) return '';
+        return `
+            <div class="entryItemList">
+                ${lines.map((line) => {
+                    const label = line.quantity ? `${line.name || '품목 확인 필요'} · ${line.quantity}` : (line.name || '품목 확인 필요');
+                    const amount = line.amount > 0 ? formatCurrencyAmount(line.currency, line.amount) : '금액 확인';
+                    return `
+                        <div class="entryItemRow">
+                            <span class="entryItemName">${escapeHtml(label)}</span>
+                            <span class="entryItemAmount">${escapeHtml(amount)}</span>
+                        </div>
+                    `;
+                }).join('')}
+            </div>
+        `;
+    }
+
+    function itemFallbackText(item) {
+        const text = String(item.item || '').trim();
+        return text && !/분석 대기/.test(text) ? text : '';
     }
 
     function receiptUrl(item) {
@@ -395,7 +433,8 @@
 
         travelList.innerHTML = expenses.map((item) => {
             const title = escapeHtml(item.merchant || item.item || '결제 내역');
-            const sub = escapeHtml(item.item && item.merchant ? item.item : item.memo || '');
+            const sub = escapeHtml(itemFallbackText(item));
+            const detailRows = lineItemsHtml(item);
             const receiptImage = receiptUrl(item);
             const receipt = receiptImage
                 ? `<a class="receiptLink" href="${escapeHtml(receiptImage)}" target="_blank" rel="noopener noreferrer">원본</a>`
@@ -428,7 +467,8 @@
                                     <b>${title}</b>
                                     <div class="travelEntryMeta">${escapeHtml(item.date)}${timeText} · ${escapeHtml(item.payer)} · ${escapeHtml(item.method)}</div>
                                     ${location}
-                                    ${sub ? `<div class="travelEntryMeta">${sub}</div>` : ''}
+                                    ${detailRows}
+                                    ${!detailRows && sub ? `<div class="entryItemFallback">${sub}</div>` : ''}
                                 </div>
                                 <div class="travelAmount">${escapeHtml(formatCurrencyAmount(item.currency, item.amount))}</div>
                             </div>
@@ -542,6 +582,21 @@
         if (!receiptModal || !item || !imageUrl) return;
         modalTitle.textContent = item.merchant || item.item || '영수증';
         modalReceiptImage.src = imageUrl;
+        if (modalExpenseSummary) {
+            const details = lineItemsHtml(item);
+            const fallback = itemFallbackText(item);
+            modalExpenseSummary.innerHTML = `
+                <div class="travelEntryTop">
+                    <div>
+                        <b>${escapeHtml(item.merchant || '상호 확인 필요')}</b>
+                        <div class="travelEntryMeta">${escapeHtml(item.date || '')}${item.paymentTime ? ` ${escapeHtml(item.paymentTime)}` : ''} · ${escapeHtml(item.category || '')}</div>
+                    </div>
+                    <div class="travelAmount">${escapeHtml(formatCurrencyAmount(item.currency, item.amount))}</div>
+                </div>
+                ${details}
+                ${!details && fallback ? `<div class="entryItemFallback">${escapeHtml(fallback)}</div>` : ''}
+            `;
+        }
         modalAiNote.textContent = item.aiNote || 'AI 코멘트 없음';
         modalReceiptLink.href = imageUrl;
         receiptModal.classList.remove('hidden');
@@ -578,9 +633,12 @@
 
     function csvText() {
         const rows = [
-            ['date', 'time', 'location', 'payer', 'transaction_type', 'category', 'merchant', 'item', 'currency', 'amount', 'krw', 'budget_impact_krw', 'method', 'ic_card', 'ic_balance_currency', 'ic_balance', 'status', 'confidence', 'memo', 'receipt']
+            ['date', 'time', 'location', 'payer', 'transaction_type', 'category', 'merchant', 'item', 'line_items', 'currency', 'amount', 'krw', 'budget_impact_krw', 'method', 'ic_card', 'ic_balance_currency', 'ic_balance', 'status', 'confidence', 'memo', 'receipt']
         ];
         for (const item of expenses) {
+            const lineItemText = expenseLineItems(item)
+                .map((line) => `${line.name || '품목'} ${line.amount > 0 ? formatCurrencyAmount(line.currency, line.amount) : ''}`.trim())
+                .join(' / ');
             rows.push([
                 item.date,
                 item.paymentTime || '',
@@ -590,6 +648,7 @@
                 item.category,
                 item.merchant,
                 item.item,
+                lineItemText,
                 item.currency,
                 item.amount,
                 Math.round(toKrw(item)),

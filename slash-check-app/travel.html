@@ -679,6 +679,47 @@
             line-height: 1.45;
         }
 
+        .entryItemList {
+            display: grid;
+            gap: 5px;
+            margin-top: 8px;
+        }
+
+        .entryItemRow {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto;
+            gap: 10px;
+            align-items: baseline;
+            min-height: 28px;
+            border-radius: 7px;
+            padding: 5px 8px;
+            background: #f8fafc;
+        }
+
+        .entryItemName {
+            min-width: 0;
+            color: var(--text);
+            font-size: 13px;
+            font-weight: 850;
+            overflow-wrap: anywhere;
+        }
+
+        .entryItemAmount {
+            color: var(--text-soft);
+            font-size: 12px;
+            font-weight: 900;
+            white-space: nowrap;
+        }
+
+        .entryItemFallback {
+            margin-top: 7px;
+            color: var(--text-soft);
+            font-size: 13px;
+            font-weight: 850;
+            line-height: 1.45;
+            overflow-wrap: anywhere;
+        }
+
         .travelAmount {
             color: var(--blue);
             font-size: 17px;
@@ -799,6 +840,15 @@
             color: var(--muted);
             font-size: 12px;
             font-weight: 900;
+        }
+
+        .modalExpenseSummary {
+            display: grid;
+            gap: 6px;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            padding: 10px;
+            background: #fff;
         }
 
         .receiptDialogFoot {
@@ -1410,6 +1460,7 @@
             </div>
             <div class="receiptDialogBody">
                 <img id="modalReceiptImage" class="modalReceiptImage" alt="영수증 이미지">
+                <div id="modalExpenseSummary" class="modalExpenseSummary"></div>
                 <div class="aiNoteBox">
                     <span>AI 코멘트</span>
                     <p id="modalAiNote"></p>

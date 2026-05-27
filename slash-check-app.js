@@ -1785,12 +1785,37 @@ function normalizeTravelWallets(value) {
     return [...map.values()].slice(0, 20);
 }
 
+function normalizeTravelLineItems(value, fallbackCurrency = 'JPY') {
+    const source = Array.isArray(value) ? value : [];
+    return source
+        .map((item) => {
+            const name = cleanText(item?.name || item?.item || item?.menu || item?.title, 80);
+            const amount = normalizeTravelAmount(item?.amount ?? item?.price ?? 0);
+            const quantityText = cleanText(item?.quantity || item?.qty || '', 20);
+            const currency = item?.currency ? normalizeTravelCurrency(item.currency) : fallbackCurrency;
+            if (!name && amount <= 0) return null;
+            return {
+                name: name || '품목 확인 필요',
+                amount,
+                currency,
+                quantity: quantityText
+            };
+        })
+        .filter(Boolean)
+        .slice(0, 12);
+}
+
 function normalizeTravelExpense(value, existing = null) {
     const date = cleanDate(value?.date) || todayKstDate();
     const amount = normalizeTravelAmount(value?.amount);
+    const currency = normalizeTravelCurrency(value?.currency || existing?.currency || 'JPY');
     const nowIso = new Date().toISOString();
     const receipt = value?.receipt || existing?.receipt || null;
     const analysisStatus = cleanText(value?.analysisStatus || existing?.analysisStatus || (receipt ? '분석대기' : '수동'), 30);
+    const lineItems = normalizeTravelLineItems(
+        value?.lineItems || value?.aiRaw?.lineItems || existing?.lineItems || existing?.aiRaw?.lineItems || [],
+        currency
+    );
 
     return {
         id: cleanText(value?.id || existing?.id, 80) || randomUUID(),
@@ -1799,8 +1824,9 @@ function normalizeTravelExpense(value, existing = null) {
         category: cleanText(value?.category || existing?.category || '식사', 30),
         merchant: cleanText(value?.merchant || existing?.merchant || '', 80),
         item: cleanText(value?.item || existing?.item || '', 120),
-        currency: normalizeTravelCurrency(value?.currency || existing?.currency || 'JPY'),
+        currency,
         amount,
+        lineItems,
         paymentTime: normalizeTravelTime(value?.paymentTime || existing?.paymentTime || ''),
         location: cleanText(value?.location || existing?.location || '', 120),
         method: cleanText(value?.method || existing?.method || '카드', 30),

@@ -28,9 +28,12 @@ const RECEIPT_OUTPUT_CONTRACT = [
     'Output contract:',
     'Return exactly one JSON object. Do not include markdown, comments, code fences, explanation, or extra keys.',
     'Every key below must be present and must use these exact key names and value types.',
-    '{"date":"YYYY-MM-DD or empty string","paymentTime":"HH:MM or empty string","location":"visible branch/address/station/place or empty string","merchant":"visible merchant/store name or 상호 확인 필요","transactionType":"지출|현금인출|IC충전|환전|환급|정산이동|수수료|기타","category":"식사|카페|교통|관광|편의점|쇼핑|숙소|기타","item":"아침|점심|저녁|식사|카페|간식|택시|버스|JR/철도|교통카드|입장료|온천/관광|편의점|기념품|숙소 추가요금|기타","currency":"JPY|KRW","amount":integer_without_comma,"method":"카드|현금|교통카드|기타","icCard":"ICOCA|Suica|PASMO|PiTaPa|TOICA|manaca|Kitaca|SUGOCA|nimoca|はやかけん|기타|empty string","icBalance":integer_without_comma_or_0,"icBalanceCurrency":"JPY|KRW|empty string","confidence":number_0_to_1,"aiNote":"short Korean reason; mention 확인필요 if uncertain"}',
+    '{"date":"YYYY-MM-DD or empty string","paymentTime":"HH:MM or empty string","location":"visible branch/address/station/place or empty string","merchant":"visible merchant/store name or 상호 확인 필요","transactionType":"지출|현금인출|IC충전|환전|환급|정산이동|수수료|기타","category":"식사|카페|교통|관광|편의점|쇼핑|숙소|기타","item":"아침|점심|저녁|식사|카페|간식|택시|버스|JR/철도|교통카드|입장료|온천/관광|편의점|기념품|숙소 추가요금|기타","lineItems":[{"name":"visible menu/product/fare name","amount":integer_without_comma_or_0,"currency":"JPY|KRW","quantity":"visible quantity or empty string"}],"currency":"JPY|KRW","amount":integer_without_comma,"method":"카드|현금|교통카드|기타","icCard":"ICOCA|Suica|PASMO|PiTaPa|TOICA|manaca|Kitaca|SUGOCA|nimoca|はやかけん|기타|empty string","icBalance":integer_without_comma_or_0,"icBalanceCurrency":"JPY|KRW|empty string","confidence":number_0_to_1,"aiNote":"short Korean reason; mention 확인필요 if uncertain"}',
     'transactionType, category, item, currency, method, icCard, and icBalanceCurrency must be chosen only from the allowed values.',
     'amount must be a plain integer number without comma, currency symbol, or decimal.',
+    'lineItems is for visible menu/product/fare detail. Extract up to 8 readable line items with their individual amounts when the receipt shows them. If the receipt only shows a total or line details are unreadable, return an empty array.',
+    'For restaurant/cafe/convenience receipts, lineItems should answer "what was bought and how much was it" as much as the image allows.',
+    'Do not put subtotal, tax, discount, coupon, payment method, or total rows in lineItems unless they are the only readable paid item.',
     'transactionType rules: ordinary purchases/fares/meals are 지출. Seven Bank ATM, ATM withdrawal, cash withdrawal, 현금화, 출금, セブン銀行 withdrawals are 현금인출. IC card recharge/top-up/charge, チャージ, 入金, 충전 are IC충전. Currency exchange/Hana Money conversion is 환전. Refunds are 환급. Standalone fees are 수수료. Money movement between wallets is 정산이동.',
     '현금인출, IC충전, 환전, and 정산이동 are fund movements, not spending. Keep the full movement amount in amount, but use the correct transactionType so the ledger excludes it from spending totals.',
     'If an ATM receipt has a separately visible fee, classify the main transaction as 현금인출 and mention the fee amount in aiNote unless the receipt is only for the fee.',
@@ -304,6 +307,26 @@ function normalizeAmount(value) {
     return Math.max(0, Math.round(Number(String(value ?? '').replace(/,/g, '')) || 0));
 }
 
+function normalizeLineItems(value, currency) {
+    const source = Array.isArray(value) ? value : [];
+    return source
+        .map((item) => {
+            const name = clean(item?.name || item?.item || item?.menu || item?.title).replace(/\s+/g, ' ').slice(0, 80);
+            const amount = normalizeAmount(item?.amount ?? item?.price ?? 0);
+            const itemCurrency = clean(item?.currency).toUpperCase() === 'KRW' ? 'KRW' : currency;
+            const quantity = clean(item?.quantity || item?.qty).replace(/\s+/g, ' ').slice(0, 20);
+            if (!name && amount <= 0) return null;
+            return {
+                name: name || '품목 확인 필요',
+                amount,
+                currency: itemCurrency,
+                quantity
+            };
+        })
+        .filter(Boolean)
+        .slice(0, 8);
+}
+
 function normalizeIcCard(value) {
     const text = clean(value);
     if (!text) return '';
@@ -379,6 +402,7 @@ function normalizeClassification(data, expense) {
     const confidence = Math.max(0, Math.min(1, Number(data.confidence) || 0));
     const category = normalizeEnum(data.category, CATEGORY_VALUES, '기타');
     const item = normalizeItem(data.item, category);
+    const lineItems = normalizeLineItems(data.lineItems, currency);
     const method = normalizeEnum(data.method, METHOD_VALUES, '카드');
     const transactionType = normalizeTransactionType(data.transactionType, data);
     const icCard = normalizeIcCard(data.icCard);
@@ -394,6 +418,7 @@ function normalizeClassification(data, expense) {
         category,
         merchant: clean(data.merchant, '상호 확인 필요').slice(0, 80),
         item,
+        lineItems,
         currency,
         amount,
         paymentTime: normalizeTime(data.paymentTime),
@@ -421,6 +446,7 @@ async function markFailed(expense, error) {
             category: expense.category || '기타',
             merchant: expense.merchant || '',
             item: expense.item || '영수증 AI 분석 실패',
+            lineItems: expense.lineItems || [],
             currency: expense.currency || 'JPY',
             amount: expense.amount || 0,
             paymentTime: expense.paymentTime || '',
