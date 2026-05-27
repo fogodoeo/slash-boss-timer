@@ -93,18 +93,6 @@
         render();
     }
 
-    function suggestCategory() {
-        const text = `${document.querySelector('#merchantInput').value} ${document.querySelector('#itemInput').value}`.toLowerCase();
-        const categoryInput = document.querySelector('#categoryInput');
-        if (/(taxi|택시|bus|버스|jr|train|station|역|교통|icoca|suica)/i.test(text)) categoryInput.value = '교통';
-        else if (/(cafe|coffee|카페|커피|茶|喫茶|kagerou|카게로우)/i.test(text)) categoryInput.value = '카페';
-        else if (/(lawson|family|7-eleven|편의점|ローソン|ファミ|セブン)/i.test(text)) categoryInput.value = '편의점';
-        else if (/(ticket|입장|관광|폭포|온천|boat|glass)/i.test(text)) categoryInput.value = '관광';
-        else if (/(hotel|숙소|호텔)/i.test(text)) categoryInput.value = '숙소';
-        else if (/(shop|쇼핑|gift|기념품|market|시장)/i.test(text)) categoryInput.value = '쇼핑';
-        else categoryInput.value = '식사';
-    }
-
     async function compressImage(file) {
         if (!file) return '';
         if (!/^image\/(jpeg|png|webp)$/.test(file.type)) {
@@ -151,6 +139,10 @@
             const receipt = item.receipt?.id
                 ? `<a class="receiptLink" href="/api/travel/receipt/${encodeURIComponent(item.receipt.id)}?pin=${encodeURIComponent(pin)}" target="_blank" rel="noopener noreferrer">영수증</a>`
                 : '';
+            const status = escapeHtml(item.analysisStatus || (item.amount > 0 ? '완료' : '분석대기'));
+            const confidence = Number(item.confidence || 0) > 0
+                ? `<span>신뢰도 ${Math.round(Number(item.confidence || 0) * 100)}%</span>`
+                : '';
             return `
                 <article class="travelEntry" data-id="${escapeHtml(item.id)}">
                     <div class="travelEntryTop">
@@ -162,10 +154,13 @@
                         <div class="travelAmount">${escapeHtml(item.currency)} ${Number(item.amount || 0).toLocaleString('ko-KR')}</div>
                     </div>
                     <div class="travelTags">
+                        <span>${status}</span>
                         <span>${escapeHtml(item.category)}</span>
                         <span>${formatKrw(toKrw(item))}</span>
+                        ${confidence}
                         ${receipt}
                     </div>
+                    ${item.aiNote ? `<div class="travelEntryMeta">${escapeHtml(item.aiNote)}</div>` : ''}
                     ${item.memo ? `<div class="travelEntryMeta">${escapeHtml(item.memo)}</div>` : ''}
                     <button class="travelDangerButton" type="button" data-delete="${escapeHtml(item.id)}">삭제</button>
                 </article>
@@ -177,12 +172,6 @@
         return {
             date: document.querySelector('#dateInput').value || todayKst(),
             payer: document.querySelector('#payerInput').value,
-            category: document.querySelector('#categoryInput').value,
-            merchant: document.querySelector('#merchantInput').value.trim(),
-            item: document.querySelector('#itemInput').value.trim(),
-            currency: document.querySelector('#currencyInput').value,
-            amount: number(document.querySelector('#amountInput').value),
-            method: document.querySelector('#methodInput').value,
             memo: document.querySelector('#memoInput').value.trim(),
             receiptImage: receiptDataUrl
         };
@@ -191,10 +180,7 @@
     function resetForm() {
         expenseForm.reset();
         document.querySelector('#dateInput').value = todayKst();
-        document.querySelector('#currencyInput').value = 'JPY';
         document.querySelector('#payerInput').value = '공금';
-        document.querySelector('#categoryInput').value = '식사';
-        document.querySelector('#methodInput').value = '카드';
         receiptDataUrl = '';
         photoPreview.removeAttribute('src');
         photoPreview.classList.remove('show');
@@ -202,7 +188,7 @@
 
     function csvText() {
         const rows = [
-            ['date', 'payer', 'category', 'merchant', 'item', 'currency', 'amount', 'krw', 'method', 'memo', 'receipt']
+            ['date', 'payer', 'category', 'merchant', 'item', 'currency', 'amount', 'krw', 'method', 'status', 'confidence', 'memo', 'receipt']
         ];
         for (const item of expenses) {
             rows.push([
@@ -215,6 +201,8 @@
                 item.amount,
                 Math.round(toKrw(item)),
                 item.method,
+                item.analysisStatus || '',
+                item.confidence || '',
                 item.memo,
                 item.receipt?.id ? 'yes' : ''
             ]);
@@ -237,20 +225,20 @@
     expenseForm.addEventListener('submit', async (event) => {
         event.preventDefault();
         const payload = formPayload();
-        if (!payload.amount) {
-            showStatus('금액을 입력하세요.', 'error');
+        if (!payload.receiptImage) {
+            showStatus('영수증 사진을 선택하세요.', 'error');
             return;
         }
         try {
-            showStatus('저장 중...');
-            const data = await api('/api/travel/expenses', {
+            showStatus('업로드 중...');
+            const data = await api('/api/travel/receipts', {
                 method: 'POST',
                 body: JSON.stringify(payload)
             });
             expenses = Array.isArray(data.expenses) ? data.expenses : expenses;
             resetForm();
             render();
-            showStatus('등록했습니다.');
+            showStatus('업로드했습니다. AI 워커가 분석하면 자동 반영됩니다.');
         } catch (err) {
             showStatus(err.message, 'error');
         }
@@ -275,9 +263,6 @@
             showStatus(err.message, 'error');
         }
     });
-
-    document.querySelector('#merchantInput').addEventListener('input', suggestCategory);
-    document.querySelector('#itemInput').addEventListener('input', suggestCategory);
 
     travelList.addEventListener('click', async (event) => {
         const id = event.target.dataset.delete;
@@ -330,4 +315,9 @@
             pinOverlay.classList.remove('hidden');
         });
     }
+
+    window.setInterval(() => {
+        if (!pin || !pinOverlay.classList.contains('hidden')) return;
+        loadExpenses().catch(() => {});
+    }, 15000);
 })();

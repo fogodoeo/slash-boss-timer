@@ -1724,6 +1724,8 @@ function normalizeTravelExpense(value, existing = null) {
     const date = cleanDate(value?.date) || todayKstDate();
     const amount = normalizeTravelAmount(value?.amount);
     const nowIso = new Date().toISOString();
+    const receipt = value?.receipt || existing?.receipt || null;
+    const analysisStatus = cleanText(value?.analysisStatus || existing?.analysisStatus || (receipt ? '분석대기' : '수동'), 30);
 
     return {
         id: cleanText(value?.id || existing?.id, 80) || randomUUID(),
@@ -1736,7 +1738,11 @@ function normalizeTravelExpense(value, existing = null) {
         amount,
         method: cleanText(value?.method || existing?.method || '카드', 30),
         memo: cleanText(value?.memo || existing?.memo || '', 300),
-        receipt: value?.receipt || existing?.receipt || null,
+        receipt,
+        analysisStatus,
+        confidence: Math.max(0, Math.min(1, Number(value?.confidence ?? existing?.confidence ?? 0) || 0)),
+        aiNote: cleanText(value?.aiNote || existing?.aiNote || '', 300),
+        aiRaw: value?.aiRaw || existing?.aiRaw || null,
         createdAt: existing?.createdAt || nowIso,
         updatedAt: nowIso
     };
@@ -1746,7 +1752,7 @@ function normalizeTravelExpenses(value) {
     const items = Array.isArray(value) ? value : [];
     return items
         .map((item) => normalizeTravelExpense(item, item))
-        .filter((item) => item.amount > 0 || item.merchant || item.item || item.memo)
+        .filter((item) => item.amount > 0 || item.merchant || item.item || item.memo || item.receipt)
         .slice(0, 1000);
 }
 
@@ -1931,7 +1937,49 @@ async function handleApi(req, res, url) {
             }
         }
 
-        const expense = normalizeTravelExpense({ ...body, receipt });
+        const expense = normalizeTravelExpense({
+            ...body,
+            receipt,
+            analysisStatus: receipt ? '분석대기' : '수동'
+        });
+        travelState.expenses.unshift(expense);
+        travelState.expenses = normalizeTravelExpenses(travelState.expenses);
+        await saveTravelState();
+        sendJson(res, 200, { ...publicTravelState(), saved: expense });
+        return true;
+    }
+
+    if (url.pathname === '/api/travel/receipts' && req.method === 'POST') {
+        const body = await readJson(req);
+        if (rejectInvalidTravelPin(req, res, url, body)) return true;
+
+        if (!body.receiptImage) {
+            sendJson(res, 400, { error: '영수증 사진이 필요합니다.' });
+            return true;
+        }
+
+        let receipt;
+        try {
+            receipt = await storeTravelReceipt(body.receiptImage);
+        } catch (err) {
+            sendJson(res, err.statusCode || 400, { error: err.message || '영수증 사진 저장에 실패했습니다.' });
+            return true;
+        }
+
+        const expense = normalizeTravelExpense({
+            date: body.date,
+            payer: body.payer || '공금',
+            category: '분석대기',
+            merchant: '',
+            item: '영수증 AI 분석 대기',
+            currency: 'JPY',
+            amount: 0,
+            method: '카드',
+            memo: cleanText(body.memo, 300),
+            receipt,
+            analysisStatus: '분석대기',
+            confidence: 0
+        });
         travelState.expenses.unshift(expense);
         travelState.expenses = normalizeTravelExpenses(travelState.expenses);
         await saveTravelState();
@@ -3511,7 +3559,8 @@ async function serveStatic(req, res) {
     const url = new URL(req.url, `http://${req.headers.host}`);
     const routeAliases = {
         '/gecko': '/gecko.html',
-        '/travel': '/travel.html'
+        '/travel': '/travel.html',
+        '/receipts': '/travel.html'
     };
     const routePath = routeAliases[url.pathname] || url.pathname;
     const safePath = routePath === '/' ? '/index.html' : decodeURIComponent(routePath);

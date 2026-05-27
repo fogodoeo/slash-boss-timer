@@ -8,7 +8,8 @@
     "start:slash": "node slash-check-app.js",
     "start:boss": "node local-boss-app.js",
     "start:bot": "node index.js",
-    "check": "node --check slash-check-app.js && node --check slash-check-app/common-header.js && node --check slash-check-app/boss-alert-monitor.js && node --check slash-check-app/app.js && node --check slash-check-app/analytics.js && node --check slash-check-app/boss.js && node --check slash-check-app/boss-ranking.js && node --check slash-check-app/boss-analytics.js && node --check slash-check-app/boss-log.js && node --check slash-check-app/ranking.js && node --check slash-check-app/gecko.js && node --check slash-check-app/admin.js && node --check slash-check-app/travel.js"
+    "travel:worker": "node tools/travel-receipt-worker.js",
+    "check": "node --check slash-check-app.js && node --check slash-check-app/common-header.js && node --check slash-check-app/boss-alert-monitor.js && node --check slash-check-app/app.js && node --check slash-check-app/analytics.js && node --check slash-check-app/boss.js && node --check slash-check-app/boss-ranking.js && node --check slash-check-app/boss-analytics.js && node --check slash-check-app/boss-log.js && node --check slash-check-app/ranking.js && node --check slash-check-app/gecko.js && node --check slash-check-app/admin.js && node --check slash-check-app/travel.js && node --check tools/travel-receipt-worker.js"
   },
   "engines": {
     "node": ">=20"

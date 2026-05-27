@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>시라하마 여행 정산</title>
+    <title>시라하마 영수증 AI 정산</title>
     <link rel="icon" href="./favicon.svg" type="image/svg+xml">
     <link rel="stylesheet" href="./styles.css">
     <style>
@@ -346,8 +346,8 @@
         <section class="pinCard">
             <div class="pinCardHead">
                 <span class="eyebrow">PRIVATE</span>
-                <h1>여행 정산</h1>
-                <p>가족여행 결제 내역과 영수증 사진을 임시로 기록하는 페이지입니다.</p>
+                <h1>영수증 AI 정산</h1>
+                <p>영수증 사진만 올리면 로컬 AI 워커가 판독해서 결제 내역으로 채웁니다.</p>
             </div>
             <form id="pinForm" class="pinBox">
                 <label>
@@ -364,11 +364,10 @@
         <header class="travelTop">
             <div>
                 <span class="eyebrow">2026 시라하마 가족여행</span>
-                <h1>실시간 결제 내역</h1>
-                <p class="pageDesc">사진은 서버에 저장하고, 금액과 카테고리는 바로 합산합니다. 여행 후 서버를 내리면 됩니다.</p>
+                <h1>영수증 AI 정산</h1>
+                <p class="pageDesc">사진만 올리면 분석 대기열에 저장됩니다. PC의 로컬 워커가 ima2 OAuth 자원으로 판독한 뒤 자동으로 분류합니다.</p>
             </div>
             <div class="travelActions">
-                <a class="travelGhostButton" href="./">보스 타이머</a>
                 <button id="exportCsvButton" class="travelGhostButton" type="button">CSV 복사</button>
                 <button id="lockButton" class="travelDangerButton" type="button">잠그기</button>
             </div>
@@ -402,11 +401,17 @@
                 <div class="travelPanelHead">
                     <div>
                         <span class="label">영수증 추가</span>
-                        <strong>결제 내역 입력</strong>
+                        <strong>사진만 업로드</strong>
                     </div>
                     <span id="saveStatus" class="statusLine"></span>
                 </div>
                 <form id="expenseForm" class="travelForm">
+                    <label>
+                        <span>영수증 사진</span>
+                        <input id="receiptInput" type="file" accept="image/jpeg,image/png,image/webp" capture="environment" required>
+                    </label>
+                    <img id="photoPreview" class="photoPreview" alt="영수증 미리보기">
+
                     <div class="two">
                         <label>
                             <span>날짜</span>
@@ -424,67 +429,12 @@
                         </label>
                     </div>
 
-                    <div class="two">
-                        <label>
-                            <span>카테고리</span>
-                            <select id="categoryInput">
-                                <option>식사</option>
-                                <option>카페</option>
-                                <option>교통</option>
-                                <option>관광</option>
-                                <option>편의점</option>
-                                <option>쇼핑</option>
-                                <option>숙소</option>
-                                <option>기타</option>
-                            </select>
-                        </label>
-                        <label>
-                            <span>결제수단</span>
-                            <select id="methodInput">
-                                <option>카드</option>
-                                <option>현금</option>
-                                <option>교통카드</option>
-                                <option>기타</option>
-                            </select>
-                        </label>
-                    </div>
-
                     <label>
-                        <span>상호명</span>
-                        <input id="merchantInput" type="text" autocomplete="off" placeholder="예: 야마노우치, 카게로우 카페">
+                        <span>메모 선택</span>
+                        <textarea id="memoInput" placeholder="필요할 때만 입력: 공금/개인, 확인 필요 등"></textarea>
                     </label>
 
-                    <label>
-                        <span>항목</span>
-                        <input id="itemInput" type="text" autocomplete="off" placeholder="예: 점심, 택시, 카페">
-                    </label>
-
-                    <div class="two">
-                        <label>
-                            <span>통화</span>
-                            <select id="currencyInput">
-                                <option value="JPY">JPY</option>
-                                <option value="KRW">KRW</option>
-                            </select>
-                        </label>
-                        <label>
-                            <span>금액</span>
-                            <input id="amountInput" type="number" min="0" inputmode="numeric" placeholder="숫자만">
-                        </label>
-                    </div>
-
-                    <label>
-                        <span>영수증 사진</span>
-                        <input id="receiptInput" type="file" accept="image/jpeg,image/png,image/webp" capture="environment">
-                    </label>
-                    <img id="photoPreview" class="photoPreview" alt="영수증 미리보기">
-
-                    <label>
-                        <span>메모</span>
-                        <textarea id="memoInput" placeholder="예: 3인 점심, 현금 결제, 확인 필요"></textarea>
-                    </label>
-
-                    <button class="travelButton" type="submit">등록</button>
+                    <button class="travelButton" type="submit">영수증 업로드</button>
                 </form>
             </article>
 
