@@ -730,7 +730,10 @@
         .travelTags {
             display: flex;
             flex-wrap: wrap;
+            justify-content: flex-end;
             gap: 6px;
+            border-top: 1px solid var(--line-soft);
+            padding-top: 8px;
         }
 
         .travelTags span,
@@ -745,16 +748,6 @@
             font-size: 12px;
             font-weight: 800;
             text-decoration: none;
-        }
-
-        .travelTags .tagType {
-            background: #eef7f1;
-            color: #146c43;
-        }
-
-        .travelTags .tagImpact {
-            background: #fff8e6;
-            color: #8a5a00;
         }
 
         .travelTags .tagStatus {
@@ -772,6 +765,12 @@
             background: #eef4ff;
             color: var(--blue);
             cursor: pointer;
+        }
+
+        .travelTags .travelDangerButton {
+            min-height: 28px;
+            padding: 3px 9px;
+            font-size: 12px;
         }
 
         .receiptModal {
@@ -1135,9 +1134,8 @@
                 padding: 10px;
             }
 
-            .travelEntry > .travelDangerButton {
+            .travelTags .travelDangerButton {
                 min-height: 34px;
-                justify-self: end;
                 padding: 0 12px;
             }
 
@@ -1311,7 +1309,7 @@
                     <form id="quickManualForm" class="travelForm quickManualForm">
                         <label>
                             <span>내용</span>
-                            <textarea id="quickManualText" placeholder="예: 버스 660엔 이코카"></textarea>
+                            <textarea id="quickManualText" placeholder="예: 버스 660엔 이코카&#10;카페 1200엔 카드&#10;편의점 890엔"></textarea>
                         </label>
                         <div class="two">
                             <label>

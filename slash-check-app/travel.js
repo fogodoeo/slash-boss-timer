@@ -436,9 +436,6 @@
             const sub = escapeHtml(itemFallbackText(item));
             const detailRows = lineItemsHtml(item);
             const receiptImage = receiptUrl(item);
-            const receipt = receiptImage
-                ? `<a class="receiptLink" href="${escapeHtml(receiptImage)}" target="_blank" rel="noopener noreferrer">원본</a>`
-                : '';
             const thumbnail = receiptImage
                 ? `<button class="receiptThumb" type="button" data-receipt-modal="${escapeHtml(item.id)}" aria-label="${title} 영수증 보기"><img src="${escapeHtml(receiptImage)}" alt=""></button>`
                 : '<div class="receiptThumb empty">사진</div>';
@@ -446,20 +443,19 @@
             const statusTag = ['분석대기', '문장분석대기', '분석중', '확인필요', '분석실패'].includes(item.analysisStatus)
                 ? `<span class="tagStatus">${status}</span>`
                 : '';
-            const aiButton = receiptImage
-                ? `<button class="receiptLink aiNoteButton" type="button" data-receipt-modal="${escapeHtml(item.id)}">AI</button>`
-                : '';
-            const reanalyzeButton = receiptImage
-                ? `<button class="receiptLink aiNoteButton" type="button" data-reanalyze="${escapeHtml(item.id)}">품목 재분석</button>`
+            const needsLineItemReanalysis = receiptImage
+                && !expenseLineItems(item).length
+                && !['분석대기', '문장분석대기', '분석중'].includes(item.analysisStatus);
+            const reanalyzeButton = needsLineItemReanalysis
+                ? `<button class="receiptLink aiNoteButton" type="button" data-reanalyze="${escapeHtml(item.id)}">재분석</button>`
                 : '';
             const timeText = item.paymentTime ? ` ${escapeHtml(item.paymentTime)}` : '';
             const location = item.location ? `<div class="travelEntryMeta">${escapeHtml(item.location)}</div>` : '';
             const icBalance = Number(item.icBalance || 0) > 0
-                ? `<span>${escapeHtml(item.icCard || 'IC')} ${escapeHtml(formatCurrencyAmount(item.icBalanceCurrency || item.currency || 'JPY', item.icBalance))}</span>`
+                ? `<div class="travelEntryMeta">${escapeHtml(item.icCard || 'IC')} 잔액 ${escapeHtml(formatCurrencyAmount(item.icBalanceCurrency || item.currency || 'JPY', item.icBalance))}</div>`
                 : '';
             const type = transactionType(item);
-            const impact = budgetImpactKrw(item);
-            const impactLabel = impact === 0 ? '제외' : formatKrw(impact);
+            const typeText = type === '지출' ? '' : ` · ${escapeHtml(type)}`;
             return `
                 <article class="travelEntry" data-id="${escapeHtml(item.id)}">
                     <div class="travelEntryBody">
@@ -468,8 +464,9 @@
                             <div class="travelEntryTop">
                                 <div>
                                     <b>${title}</b>
-                                    <div class="travelEntryMeta">${escapeHtml(item.date)}${timeText} · ${escapeHtml(item.payer)} · ${escapeHtml(item.method)}</div>
+                                    <div class="travelEntryMeta">${escapeHtml(item.date)}${timeText} · ${escapeHtml(item.payer)} · ${escapeHtml(item.method)}${typeText}</div>
                                     ${location}
+                                    ${icBalance}
                                     ${detailRows}
                                     ${!detailRows && sub ? `<div class="entryItemFallback">${sub}</div>` : ''}
                                 </div>
@@ -478,16 +475,11 @@
                         </div>
                     </div>
                     <div class="travelTags">
-                        <span class="tagType">${escapeHtml(type)}</span>
-                        <span class="tagImpact">${escapeHtml(impactLabel)}</span>
-                        ${icBalance}
                         ${statusTag}
-                        ${receipt}
-                        ${aiButton}
                         ${reanalyzeButton}
+                        <button class="travelDangerButton" type="button" data-delete="${escapeHtml(item.id)}">삭제</button>
                     </div>
                     ${item.memo ? `<div class="travelEntryMeta">${escapeHtml(item.memo)}</div>` : ''}
-                    <button class="travelDangerButton" type="button" data-delete="${escapeHtml(item.id)}">삭제</button>
                 </article>
             `;
         }).join('');
@@ -512,6 +504,14 @@
             payer: document.querySelector('#quickManualPayer').value || '공금',
             text: document.querySelector('#quickManualText').value.trim()
         };
+    }
+
+    function quickManualLines(text) {
+        return String(text || '')
+            .split(/\n+/)
+            .map((line) => line.replace(/^\s*[-*•]+\s*/, '').trim())
+            .filter(Boolean)
+            .slice(0, 20);
     }
 
     function manualMethod() {
@@ -786,21 +786,25 @@
     quickManualForm.addEventListener('submit', async (event) => {
         event.preventDefault();
         const payload = quickManualPayload();
-        if (!payload.text) {
+        const lines = quickManualLines(payload.text);
+        if (!lines.length) {
             showStatus('내용 필요', 'error');
             return;
         }
         try {
-            showStatus('저장 중');
-            const data = await api('/api/travel/text-expenses', {
-                method: 'POST',
-                body: JSON.stringify(payload)
-            });
-            expenses = Array.isArray(data.expenses) ? data.expenses : expenses;
-            wallets = Array.isArray(data.wallets) ? data.wallets : wallets;
+            showStatus(lines.length > 1 ? `${lines.length}건 저장 중` : '저장 중');
+            let latest = null;
+            for (const line of lines) {
+                latest = await api('/api/travel/text-expenses', {
+                    method: 'POST',
+                    body: JSON.stringify({ ...payload, text: line })
+                });
+            }
+            expenses = Array.isArray(latest?.expenses) ? latest.expenses : expenses;
+            wallets = Array.isArray(latest?.wallets) ? latest.wallets : wallets;
             resetQuickManualForm();
             render();
-            showStatus('분석 대기');
+            showStatus(lines.length > 1 ? `${lines.length}건 분석 대기` : '분석 대기');
         } catch (err) {
             showStatus(err.message, 'error');
         }
