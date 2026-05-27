@@ -14,11 +14,13 @@
     const travelList = document.querySelector('#travelList');
     const rateInput = document.querySelector('#rateInput');
     const saveStatus = document.querySelector('#saveStatus');
-    const receiptInput = document.querySelector('#receiptInput');
+    const receiptCameraInput = document.querySelector('#receiptCameraInput');
+    const receiptGalleryInput = document.querySelector('#receiptGalleryInput');
     const photoPreview = document.querySelector('#photoPreview');
     const receiptFileName = document.querySelector('#receiptFileName');
     const walletList = document.querySelector('#walletList');
     const walletStatus = document.querySelector('#walletStatus');
+    const receiptInputs = [receiptCameraInput, receiptGalleryInput].filter(Boolean);
 
     let pin = sessionStorage.getItem(PIN_KEY) || '';
     let receiptDataUrl = '';
@@ -429,6 +431,9 @@
         document.querySelector('#payerInput').value = '공금';
         receiptDataUrl = '';
         receiptFileName.textContent = '없음';
+        receiptInputs.forEach((input) => {
+            input.value = '';
+        });
         photoPreview.removeAttribute('src');
         photoPreview.classList.remove('show');
     }
@@ -479,20 +484,7 @@
         return rows.map((row) => row.map((cell) => `"${String(cell ?? '').replace(/"/g, '""')}"`).join(',')).join('\n');
     }
 
-    pinForm.addEventListener('submit', async (event) => {
-        event.preventDefault();
-        setPinStatus('확인 중...');
-        try {
-            await unlock(pinInput.value);
-            setPinStatus('');
-        } catch (err) {
-            sessionStorage.removeItem(PIN_KEY);
-            setPinStatus(err.message, 'error');
-        }
-    });
-
-    expenseForm.addEventListener('submit', async (event) => {
-        event.preventDefault();
+    async function submitReceipt() {
         const payload = formPayload();
         if (!payload.receiptImage) {
             showStatus('사진 필요', 'error');
@@ -511,6 +503,48 @@
         } catch (err) {
             showStatus(err.message, 'error');
         }
+    }
+
+    async function handleReceiptFile(input) {
+        const file = input.files?.[0];
+        if (!file) {
+            receiptDataUrl = '';
+            receiptFileName.textContent = '없음';
+            photoPreview.classList.remove('show');
+            return;
+        }
+        try {
+            showStatus('준비 중');
+            receiptDataUrl = await compressImage(file);
+            receiptFileName.textContent = file.name || '선택됨';
+            photoPreview.src = receiptDataUrl;
+            photoPreview.classList.add('show');
+            await submitReceipt();
+        } catch (err) {
+            receiptDataUrl = '';
+            receiptFileName.textContent = '없음';
+            receiptInputs.forEach((item) => {
+                item.value = '';
+            });
+            showStatus(err.message, 'error');
+        }
+    }
+
+    pinForm.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        setPinStatus('확인 중...');
+        try {
+            await unlock(pinInput.value);
+            setPinStatus('');
+        } catch (err) {
+            sessionStorage.removeItem(PIN_KEY);
+            setPinStatus(err.message, 'error');
+        }
+    });
+
+    expenseForm.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        await submitReceipt();
     });
 
     quickManualForm.addEventListener('submit', async (event) => {
@@ -559,27 +593,8 @@
         }
     });
 
-    receiptInput.addEventListener('change', async () => {
-        const file = receiptInput.files?.[0];
-        if (!file) {
-            receiptDataUrl = '';
-            receiptFileName.textContent = '없음';
-            photoPreview.classList.remove('show');
-            return;
-        }
-        try {
-            showStatus('준비 중');
-            receiptDataUrl = await compressImage(file);
-            receiptFileName.textContent = file.name || '선택됨';
-            photoPreview.src = receiptDataUrl;
-            photoPreview.classList.add('show');
-            showStatus('준비됨');
-        } catch (err) {
-            receiptDataUrl = '';
-            receiptFileName.textContent = '없음';
-            receiptInput.value = '';
-            showStatus(err.message, 'error');
-        }
+    receiptInputs.forEach((input) => {
+        input.addEventListener('change', () => handleReceiptFile(input));
     });
 
     walletList.addEventListener('click', async (event) => {

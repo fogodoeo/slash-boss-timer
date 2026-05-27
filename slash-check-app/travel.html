@@ -372,6 +372,59 @@
             overflow-wrap: anywhere;
         }
 
+        .mobileCapture {
+            display: none;
+        }
+
+        .captureBox {
+            display: grid;
+            gap: 10px;
+        }
+
+        .captureActions {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) minmax(104px, .34fr);
+            gap: 10px;
+        }
+
+        .captureButton,
+        .captureSecondary {
+            display: inline-flex;
+            min-height: 68px;
+            align-items: center;
+            justify-content: center;
+            border-radius: 8px;
+            font-weight: 950;
+            cursor: pointer;
+            text-align: center;
+        }
+
+        .captureButton {
+            border: 1px solid var(--blue);
+            background: var(--blue);
+            color: #fff;
+            font-size: 20px;
+        }
+
+        .captureSecondary {
+            border: 1px solid var(--line);
+            background: #fff;
+            color: var(--text);
+            font-size: 15px;
+        }
+
+        .captureFile {
+            min-height: 34px;
+            border: 1px dashed #b8c7dc;
+            border-radius: 8px;
+            padding: 7px 10px;
+            background: #f8fbff;
+            color: var(--text-soft);
+            font-size: 13px;
+            font-weight: 800;
+            overflow-wrap: anywhere;
+        }
+
         .travelForm .two {
             display: grid;
             grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -722,6 +775,22 @@
                 margin-left: -2px;
                 margin-right: -2px;
             }
+
+            .mobileCapture {
+                display: grid;
+                grid-template-columns: minmax(0, 1fr) minmax(94px, .35fr);
+                gap: 8px;
+                margin-bottom: 10px;
+            }
+
+            .mobileCapture .captureButton,
+            .mobileCapture .captureSecondary {
+                min-height: 58px;
+            }
+
+            .mobileCapture .captureButton {
+                font-size: 19px;
+            }
         }
     </style>
 </head>
@@ -761,6 +830,11 @@
             <a href="#ledgerPanel">내역</a>
         </nav>
 
+        <section class="mobileCapture" aria-label="빠른 영수증 추가">
+            <label class="captureButton" for="receiptCameraInput">촬영하기</label>
+            <label class="captureSecondary" for="receiptGalleryInput">앨범</label>
+        </section>
+
         <section class="travelGrid" aria-label="정산 요약">
             <article class="travelMetric primaryMetric">
                 <span>남은 예산</span>
@@ -794,11 +868,15 @@
                     <span id="saveStatus" class="statusLine"></span>
                 </div>
                 <form id="expenseForm" class="travelForm">
-                    <label class="fileDrop" for="receiptInput">
-                        <span class="fileDropTitle">사진</span>
-                        <span id="receiptFileName" class="fileDropName">없음</span>
-                        <input id="receiptInput" type="file" accept="image/jpeg,image/png,image/webp" capture="environment" required>
-                    </label>
+                    <div class="captureBox">
+                        <div class="captureActions">
+                            <label class="captureButton" for="receiptCameraInput">촬영하기</label>
+                            <label class="captureSecondary" for="receiptGalleryInput">앨범</label>
+                        </div>
+                        <div id="receiptFileName" class="captureFile">없음</div>
+                        <input id="receiptCameraInput" type="file" accept="image/jpeg,image/png,image/webp" capture="environment">
+                        <input id="receiptGalleryInput" type="file" accept="image/jpeg,image/png,image/webp">
+                    </div>
                     <img id="photoPreview" class="photoPreview" alt="영수증 미리보기">
 
                     <div class="two">
