@@ -9,6 +9,7 @@
     const pinInput = document.querySelector('#pinInput');
     const pinStatus = document.querySelector('#pinStatus');
     const expenseForm = document.querySelector('#expenseForm');
+    const quickManualForm = document.querySelector('#quickManualForm');
     const manualForm = document.querySelector('#manualForm');
     const travelList = document.querySelector('#travelList');
     const rateInput = document.querySelector('#rateInput');
@@ -345,6 +346,14 @@
         return document.querySelector('#manualTransactionType').value || '지출';
     }
 
+    function quickManualPayload() {
+        return {
+            date: document.querySelector('#quickManualDate').value || todayKst(),
+            payer: document.querySelector('#quickManualPayer').value || '공금',
+            text: document.querySelector('#quickManualText').value.trim()
+        };
+    }
+
     function manualMethod() {
         return document.querySelector('#manualMethod').value || '현금';
     }
@@ -408,6 +417,12 @@
         document.querySelector('#manualTransactionType').value = '지출';
     }
 
+    function resetQuickManualForm() {
+        quickManualForm.reset();
+        document.querySelector('#quickManualDate').value = todayKst();
+        document.querySelector('#quickManualPayer').value = '공금';
+    }
+
     function csvText() {
         const rows = [
             ['date', 'time', 'location', 'payer', 'transaction_type', 'category', 'merchant', 'item', 'currency', 'amount', 'krw', 'budget_impact_krw', 'method', 'ic_card', 'ic_balance_currency', 'ic_balance', 'status', 'confidence', 'memo', 'receipt']
@@ -468,6 +483,29 @@
             resetForm();
             render();
             showStatus('업로드했습니다. AI 워커가 분석하면 자동 반영됩니다.');
+        } catch (err) {
+            showStatus(err.message, 'error');
+        }
+    });
+
+    quickManualForm.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const payload = quickManualPayload();
+        if (!payload.text) {
+            showStatus('거래 내용을 입력하세요.', 'error');
+            return;
+        }
+        try {
+            showStatus('문장 거래 저장 중...');
+            const data = await api('/api/travel/text-expenses', {
+                method: 'POST',
+                body: JSON.stringify(payload)
+            });
+            expenses = Array.isArray(data.expenses) ? data.expenses : expenses;
+            wallets = Array.isArray(data.wallets) ? data.wallets : wallets;
+            resetQuickManualForm();
+            render();
+            showStatus('저장했습니다. AI 워커가 거래로 바꿉니다.');
         } catch (err) {
             showStatus(err.message, 'error');
         }
@@ -587,6 +625,7 @@
     });
 
     document.querySelector('#dateInput').value = todayKst();
+    document.querySelector('#quickManualDate').value = todayKst();
     document.querySelector('#manualDate').value = todayKst();
     rateInput.value = localStorage.getItem(RATE_KEY) || '9.5';
     render();

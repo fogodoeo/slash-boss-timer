@@ -135,6 +135,56 @@ async function classifyReceipt(imageDataUrl, expense) {
     return normalizeClassification(parseJson(text), expense);
 }
 
+async function classifyTextExpense(inputText, expense) {
+    const developer = [
+        'You classify casual Korean/Japanese travel expense notes into a private family trip expense ledger.',
+        'Return one compact JSON object only. No markdown.',
+        'The user text is the source of truth. Use the trip context only as a bias for places, categories, and likely currency.',
+        'Parse casual wording such as "방금 버스 660엔 이코카", "세븐뱅크 2만엔 뽑음", "카페 2420엔 카드", or "ICOCA 3000엔 현금 충전 잔액 4500엔".',
+        'If the user says 방금/지금/today without an explicit date, use the existing upload date.',
+        'If the user says 엔/円, currency is JPY. If 원/KRW, currency is KRW. If currency is missing during the Japan trip, prefer JPY.',
+        'For amounts like 2만엔, convert to 20000. For 3천엔, convert to 3000.',
+        'If the text says 이코카/ICOCA/Suica/PASMO/IC카드로 결제, use method 교통카드 and transactionType 지출 unless it says 충전.',
+        'If the text says IC카드/이코카/ICOCA 충전/top-up/チャージ, use transactionType IC충전. Use method 현금 unless the text clearly says card payment.',
+        'If the text says 세븐뱅크/ATM/뽑음/출금/현금화, use transactionType 현금인출.',
+        'If the text says 하나머니에서 엔화로 바꿈/환전, use transactionType 환전.',
+        'If the text says 취소/환불/환급, use transactionType 환급.',
+        'If a remaining IC balance is mentioned, fill icBalance and icBalanceCurrency.',
+        'If uncertain, keep confidence below 0.7 and explain briefly in aiNote.',
+        RECEIPT_OUTPUT_CONTRACT,
+        `Categories must be one of: ${CATEGORY_VALUES.join(', ')}.`,
+        `Items must be one of: ${ITEM_VALUES.join(', ')}.`,
+        `Transaction types must be one of: ${TRANSACTION_TYPE_VALUES.join(', ')}.`,
+        `Method must be one of: ${METHOD_VALUES.join(', ')}.`,
+        `IC card must be one of: ${IC_CARD_VALUES.map((value) => value || 'empty string').join(', ')}.`
+    ].join('\n');
+
+    const userText = [
+        'Trip context:',
+        TRAVEL_CONTEXT,
+        '',
+        RECEIPT_OUTPUT_CONTRACT,
+        '',
+        'Classify this user-entered transaction note and return the JSON object now.',
+        `Existing upload date: ${expense.date || ''}`,
+        `Existing payer: ${expense.payer || ''}`,
+        `User text: ${inputText}`
+    ].join('\n');
+
+    const body = {
+        model: MODEL,
+        input: [
+            { role: 'developer', content: developer },
+            { role: 'user', content: userText }
+        ],
+        reasoning: { effort: 'low' },
+        stream: true
+    };
+
+    const text = await responses(body);
+    return normalizeClassification(parseJson(text), expense);
+}
+
 async function responses(body) {
     const res = await fetch(`${OAUTH_URL}/v1/responses`, {
         method: 'POST',
@@ -385,8 +435,10 @@ async function processOne(expense) {
             method: 'POST',
             body: JSON.stringify({ ...expense, analysisStatus: '분석중', aiNote: '로컬 AI 워커 분석 중' })
         });
-        const dataUrl = await fetchReceiptDataUrl(expense);
-        const classified = await classifyReceipt(dataUrl, expense);
+        const textInput = clean(expense.aiRaw?.inputText || expense.memo || '');
+        const classified = expense.analysisStatus === '문장분석대기' && textInput
+            ? await classifyTextExpense(textInput, expense)
+            : await classifyReceipt(await fetchReceiptDataUrl(expense), expense);
         await api('/api/travel/expenses/update', {
             method: 'POST',
             body: JSON.stringify(classified)
@@ -402,9 +454,10 @@ async function tick() {
     const data = await api('/api/travel/expenses');
     const expenses = Array.isArray(data.expenses) ? data.expenses : [];
     const pending = expenses.filter((item) => {
-        if (!item.receipt?.id) return false;
-        if (item.analysisStatus === '분석대기') return true;
-        return RETRY_FAILED && item.analysisStatus === '분석실패';
+        if (item.receipt?.id && item.analysisStatus === '분석대기') return true;
+        if (!item.receipt?.id && item.analysisStatus === '문장분석대기') return true;
+        if (!RETRY_FAILED || item.analysisStatus !== '분석실패') return false;
+        return Boolean(item.receipt?.id || item.aiRaw?.inputText || item.memo);
     });
     if (!pending.length) {
         console.log(`[travel-worker] no pending receipts (${new Date().toLocaleTimeString()})`);

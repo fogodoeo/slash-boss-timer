@@ -420,6 +420,28 @@
             padding-top: 2px;
         }
 
+        .quickManualForm {
+            display: grid;
+            gap: 10px;
+            padding-top: 2px;
+        }
+
+        .quickManualForm textarea {
+            min-height: 96px;
+        }
+
+        .manualAdvanced {
+            margin-top: 10px;
+            border-top: 1px solid var(--line-soft);
+            padding-top: 2px;
+        }
+
+        .manualAdvanced summary {
+            min-height: 42px;
+            color: var(--muted);
+            font-size: 13px;
+        }
+
         .photoPreview {
             display: none;
             width: 100%;
@@ -807,8 +829,33 @@
                     <button class="travelButton full" type="submit">영수증 업로드</button>
                 </form>
                 <details class="manualEntry">
-                    <summary>수동 거래 입력</summary>
-                    <form id="manualForm" class="travelForm manualForm">
+                    <summary>글로 거래 입력</summary>
+                    <form id="quickManualForm" class="travelForm quickManualForm">
+                        <label>
+                            <span>거래 내용</span>
+                            <textarea id="quickManualText" placeholder="예: 방금 버스 660엔 이코카&#10;예: 세븐뱅크 2만엔 뽑음&#10;예: 카페 2420엔 카드"></textarea>
+                        </label>
+                        <div class="two">
+                            <label>
+                                <span>날짜</span>
+                                <input id="quickManualDate" type="date">
+                            </label>
+                            <label>
+                                <span>결제자</span>
+                                <select id="quickManualPayer">
+                                    <option>공금</option>
+                                    <option>본인</option>
+                                    <option>엄마</option>
+                                    <option>아빠</option>
+                                    <option>기타</option>
+                                </select>
+                            </label>
+                        </div>
+                        <button class="travelButton full" type="submit">AI로 거래 입력</button>
+                    </form>
+                    <details class="manualAdvanced">
+                        <summary>세부 직접 입력</summary>
+                        <form id="manualForm" class="travelForm manualForm">
                         <div class="two">
                             <label>
                                 <span>거래유형</span>
@@ -886,7 +933,8 @@
                             <textarea id="manualMemo" placeholder="필요할 때만 입력"></textarea>
                         </label>
                         <button class="travelGhostButton" type="submit">수동 거래 저장</button>
-                    </form>
+                        </form>
+                    </details>
                 </details>
             </article>
 

@@ -2082,6 +2082,37 @@ async function handleApi(req, res, url) {
         return true;
     }
 
+    if (url.pathname === '/api/travel/text-expenses' && req.method === 'POST') {
+        const body = await readJson(req);
+        if (rejectInvalidTravelPin(req, res, url, body)) return true;
+
+        const inputText = cleanText(body.text || body.memo, 500);
+        if (!inputText) {
+            sendJson(res, 400, { error: '거래 내용을 입력하세요.' });
+            return true;
+        }
+
+        const expense = normalizeTravelExpense({
+            date: body.date,
+            payer: body.payer || '공금',
+            category: '분석대기',
+            merchant: '',
+            item: '문장 AI 분석 대기',
+            currency: 'JPY',
+            amount: 0,
+            method: '기타',
+            memo: inputText,
+            analysisStatus: '문장분석대기',
+            confidence: 0,
+            aiRaw: { inputText }
+        });
+        travelState.expenses.unshift(expense);
+        travelState.expenses = normalizeTravelExpenses(travelState.expenses);
+        await saveTravelState();
+        sendJson(res, 200, { ...publicTravelState(), saved: expense });
+        return true;
+    }
+
     if (url.pathname === '/api/travel/expenses/update' && req.method === 'POST') {
         const body = await readJson(req);
         if (rejectInvalidTravelPin(req, res, url, body)) return true;
