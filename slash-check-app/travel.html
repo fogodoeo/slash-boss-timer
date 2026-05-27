@@ -457,7 +457,7 @@
         .cameraPanel {
             position: fixed;
             inset: 0;
-            z-index: 60;
+            z-index: 90;
             display: grid;
             grid-template-rows: auto minmax(0, 1fr) auto;
             gap: 12px;
@@ -884,6 +884,10 @@
 
         body.cameraOpen {
             overflow: hidden;
+        }
+
+        body.cameraOpen .bottomNav {
+            display: none;
         }
 
         @media (max-width: 900px) {
