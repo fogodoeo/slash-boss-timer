@@ -2158,6 +2158,36 @@ async function handleApi(req, res, url) {
         return true;
     }
 
+    if (url.pathname === '/api/travel/expenses/reanalyze' && req.method === 'POST') {
+        const body = await readJson(req);
+        if (rejectInvalidTravelPin(req, res, url, body)) return true;
+
+        const id = cleanText(body.id, 80);
+        const existing = travelState.expenses.find((item) => item.id === id);
+        if (!existing) {
+            sendJson(res, 404, { error: '재분석할 결제 내역을 찾을 수 없습니다.' });
+            return true;
+        }
+
+        const canAnalyzeText = Boolean(existing.aiRaw?.inputText || existing.memo);
+        if (!existing.receipt?.id && !canAnalyzeText) {
+            sendJson(res, 400, { error: '재분석할 영수증 사진이나 문장 입력이 없습니다.' });
+            return true;
+        }
+
+        const next = normalizeTravelExpense({
+            ...existing,
+            lineItems: [],
+            analysisStatus: existing.receipt?.id ? '분석대기' : '문장분석대기',
+            confidence: 0,
+            aiNote: '품목 상세 재분석 대기'
+        }, existing);
+        travelState.expenses = travelState.expenses.map((item) => item.id === id ? next : item);
+        await saveTravelState();
+        sendJson(res, 200, { ...publicTravelState(), saved: next });
+        return true;
+    }
+
     if (url.pathname === '/api/travel/expenses/delete' && req.method === 'POST') {
         const body = await readJson(req);
         if (rejectInvalidTravelPin(req, res, url, body)) return true;

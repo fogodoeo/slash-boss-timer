@@ -449,6 +449,9 @@
             const aiButton = receiptImage
                 ? `<button class="receiptLink aiNoteButton" type="button" data-receipt-modal="${escapeHtml(item.id)}">AI</button>`
                 : '';
+            const reanalyzeButton = receiptImage
+                ? `<button class="receiptLink aiNoteButton" type="button" data-reanalyze="${escapeHtml(item.id)}">품목 재분석</button>`
+                : '';
             const timeText = item.paymentTime ? ` ${escapeHtml(item.paymentTime)}` : '';
             const location = item.location ? `<div class="travelEntryMeta">${escapeHtml(item.location)}</div>` : '';
             const icBalance = Number(item.icBalance || 0) > 0
@@ -481,6 +484,7 @@
                         ${statusTag}
                         ${receipt}
                         ${aiButton}
+                        ${reanalyzeButton}
                     </div>
                     ${item.memo ? `<div class="travelEntryMeta">${escapeHtml(item.memo)}</div>` : ''}
                     <button class="travelDangerButton" type="button" data-delete="${escapeHtml(item.id)}">삭제</button>
@@ -860,6 +864,24 @@
         if (modalId) {
             const item = expenses.find((expense) => expense.id === modalId);
             openReceiptModal(item);
+            return;
+        }
+        const reanalyzeId = event.target.closest('[data-reanalyze]')?.dataset.reanalyze;
+        if (reanalyzeId) {
+            try {
+                showStatus('재분석 대기 등록 중');
+                const data = await api('/api/travel/expenses/reanalyze', {
+                    method: 'POST',
+                    body: JSON.stringify({ id: reanalyzeId })
+                });
+                expenses = Array.isArray(data.expenses) ? data.expenses : expenses;
+                wallets = Array.isArray(data.wallets) ? data.wallets : wallets;
+                activeReceiptId = reanalyzeId;
+                render();
+                showStatus('품목 재분석 대기');
+            } catch (err) {
+                showStatus(err.message, 'error');
+            }
             return;
         }
         const id = event.target.dataset.delete;
