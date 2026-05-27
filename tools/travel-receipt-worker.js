@@ -9,6 +9,15 @@ const POLL_MS = Math.max(5000, Number(process.env.TRAVEL_WORKER_INTERVAL_MS || 1
 const ONCE = process.argv.includes('--once') || process.env.TRAVEL_WORKER_ONCE === '1';
 const RETRY_FAILED = process.argv.includes('--retry-failed') || process.env.TRAVEL_WORKER_RETRY_FAILED === '1';
 const OAUTH_URL = trimSlash(process.env.IMA2_OAUTH_URL || readIma2OAuthUrl() || 'http://127.0.0.1:10531');
+const TRAVEL_CONTEXT = process.env.TRAVEL_CONTEXT || [
+    'Trip context: private family trip to Japan, 2026-06-11 to 2026-06-13.',
+    'Main area: Kansai Airport, Wakayama, Shirahama, Nachi/Kii-Katsuura, possibly airport and Korea-side transit.',
+    'Travelers are three adults using public transportation, taxis, buses, JR, cafes, restaurants, convenience stores, tourist sites, and occasional shopping.',
+    'Hotel breakfast and dinner are mostly prepaid, so ordinary hotel meal receipts are less likely unless they are extra charges.',
+    'Expected Japanese merchants/places may include Shirahama, Shirarahama, Shiraraso Grand Hotel, Kagerou Cafe, Yamanouchi, Toretore Market, Sandanbeki, Senjojiki, Engetsu Island, Nachi Falls, Kii-Katsuura, Wakayama, Kansai Airport.',
+    'Korea-side receipts may be airport meals, buses, trains, taxis, or convenience stores before/after the Japan trip.',
+    'Use this context to choose category and currency, but do not invent unreadable merchant names or totals.'
+].join('\n');
 
 function trimSlash(value) {
     return String(value || '').replace(/\/+$/, '');
@@ -57,6 +66,7 @@ async function classifyReceipt(imageDataUrl, expense) {
     const developer = [
         'You classify Japanese/Korean travel receipts for a private family trip expense ledger.',
         'Return one compact JSON object only. No markdown.',
+        'Use the trip context below as a bias for category, currency, and merchant interpretation, but the receipt image is the source of truth.',
         'Read the receipt image carefully. Prefer the final paid total, tax-included total, or card charge total.',
         'If the receipt has multiple totals, choose the largest final payable amount unless a lower card-charge total is clearly the actual payment.',
         'If uncertain, keep confidence below 0.7 and explain briefly in aiNote.',
@@ -67,6 +77,9 @@ async function classifyReceipt(imageDataUrl, expense) {
     ].join('\n');
 
     const userText = [
+        'Trip context:',
+        TRAVEL_CONTEXT,
+        '',
         'Analyze this receipt and output JSON with these keys:',
         'date, merchant, category, item, currency, amount, method, confidence, aiNote.',
         `Existing upload date: ${expense.date || ''}`,
