@@ -31,6 +31,7 @@
     let pin = sessionStorage.getItem(PIN_KEY) || '';
     let receiptDataUrl = '';
     let cameraStream = null;
+    let activeReceiptId = '';
     let expenses = [];
     let wallets = [];
 
@@ -98,13 +99,6 @@
         if (quickCaptureStatus) quickCaptureStatus.textContent = message;
         saveStatus.classList.toggle('error', tone === 'error');
         quickCaptureStatus?.classList.toggle('error', tone === 'error');
-        window.clearTimeout(showStatus.timer);
-        showStatus.timer = window.setTimeout(() => {
-            saveStatus.textContent = '';
-            if (quickCaptureStatus) quickCaptureStatus.textContent = '';
-            saveStatus.classList.remove('error');
-            quickCaptureStatus?.classList.remove('error');
-        }, tone === 'error' ? 4200 : 2400);
     }
 
     function showWalletStatus(message, tone = '') {
@@ -159,11 +153,16 @@
 
     async function compressImage(file) {
         if (!file) return '';
-        if (!/^image\/(jpeg|png|webp)$/.test(file.type)) {
-            throw new Error('JPG, PNG, WEBP 사진만 올릴 수 있습니다.');
+        if (file.type && !file.type.startsWith('image/')) {
+            throw new Error('사진 파일만 가능');
         }
 
-        const bitmap = await createImageBitmap(file);
+        let bitmap;
+        try {
+            bitmap = await createImageBitmap(file);
+        } catch {
+            throw new Error('사진을 읽지 못함');
+        }
         const maxSide = 1600;
         const scale = Math.min(1, maxSide / Math.max(bitmap.width, bitmap.height));
         const canvas = document.createElement('canvas');
@@ -321,6 +320,20 @@
             : `${spendingCount}건 · ${rate()}원`;
         document.querySelector('#remainTotal').textContent = formatKrw(remaining);
         document.querySelector('#entrySummary').textContent = `${expenses.length}건`;
+        if (activeReceiptId) {
+            const active = expenses.find((item) => item.id === activeReceiptId);
+            if (active) {
+                if (['분석대기', '분석중'].includes(active.analysisStatus)) showStatus('분석 중');
+                if (active.analysisStatus === '분석완료') {
+                    showStatus('분석 완료');
+                    activeReceiptId = '';
+                }
+                if (['확인필요', '분석실패'].includes(active.analysisStatus)) {
+                    showStatus(active.analysisStatus, active.analysisStatus === '분석실패' ? 'error' : '');
+                    activeReceiptId = '';
+                }
+            }
+        }
 
         if (!expenses.length) {
             travelList.innerHTML = '<div class="travelEntry emptyEntry"><b>내역 없음</b></div>';
@@ -441,7 +454,7 @@
         document.querySelector('#dateInput').value = todayKst();
         document.querySelector('#payerInput').value = '공금';
         receiptDataUrl = '';
-        receiptFileName.textContent = '없음';
+        receiptFileName.textContent = '';
         receiptInputs.forEach((input) => {
             input.value = '';
         });
@@ -517,9 +530,10 @@
                 body: JSON.stringify(payload)
             });
             expenses = Array.isArray(data.expenses) ? data.expenses : expenses;
+            activeReceiptId = data.saved?.id || '';
             resetForm();
             render();
-            showStatus('분석 대기');
+            showStatus('업로드 완료 · 분석 중');
         } catch (err) {
             showStatus(err.message, 'error');
         }
@@ -571,7 +585,7 @@
         const file = input.files?.[0];
         if (!file) {
             receiptDataUrl = '';
-            receiptFileName.textContent = '없음';
+            receiptFileName.textContent = '';
             photoPreview.classList.remove('show');
             return;
         }
@@ -584,7 +598,7 @@
             await submitReceipt();
         } catch (err) {
             receiptDataUrl = '';
-            receiptFileName.textContent = '없음';
+            receiptFileName.textContent = '';
             receiptInputs.forEach((item) => {
                 item.value = '';
             });

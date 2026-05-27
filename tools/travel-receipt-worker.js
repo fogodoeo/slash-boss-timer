@@ -453,9 +453,14 @@ async function processOne(expense) {
 async function tick() {
     const data = await api('/api/travel/expenses');
     const expenses = Array.isArray(data.expenses) ? data.expenses : [];
+    const now = Date.now();
     const pending = expenses.filter((item) => {
         if (item.receipt?.id && item.analysisStatus === '분석대기') return true;
         if (!item.receipt?.id && item.analysisStatus === '문장분석대기') return true;
+        if (item.analysisStatus === '분석중') {
+            const updated = Date.parse(item.updatedAt || item.createdAt || '');
+            return Number.isFinite(updated) && now - updated > 60 * 1000;
+        }
         if (!RETRY_FAILED || item.analysisStatus !== '분석실패') return false;
         return Boolean(item.receipt?.id || item.aiRaw?.inputText || item.memo);
     });

@@ -376,7 +376,6 @@
             display: grid;
             grid-template-columns: minmax(0, 1fr) minmax(102px, .32fr);
             gap: 10px;
-            margin-bottom: 10px;
         }
 
         .captureButton,
@@ -421,6 +420,10 @@
             font-weight: 800;
         }
 
+        .captureStatus.error {
+            color: #b42318;
+        }
+
         .captureFile {
             min-height: 34px;
             border: 1px dashed #b8c7dc;
@@ -433,10 +436,22 @@
             overflow-wrap: anywhere;
         }
 
+        .captureFile:empty {
+            display: none;
+        }
+
+        .capturePanel {
+            margin-bottom: 14px;
+            scroll-margin-top: 70px;
+        }
+
+        .captureForm {
+            gap: 10px;
+        }
+
         .cameraPanel {
             display: grid;
             gap: 10px;
-            margin-bottom: 10px;
             border: 1px solid var(--line);
             border-radius: 8px;
             padding: 10px;
@@ -763,6 +778,10 @@
                 grid-template-columns: 1fr 1fr;
             }
 
+            .travelActions {
+                display: none;
+            }
+
             .travelButton,
             .travelGhostButton,
             .travelDangerButton {
@@ -827,11 +846,6 @@
                 margin-right: -2px;
             }
 
-            .quickCapture {
-                grid-template-columns: minmax(0, 1fr) minmax(92px, .34fr);
-                gap: 8px;
-            }
-
             .quickCapture .captureButton,
             .quickCapture .captureSecondary {
                 min-height: 58px;
@@ -873,27 +887,66 @@
             </div>
         </header>
 
+        <section id="receiptPanel" class="travelPanel capturePanel">
+            <div class="travelPanelHead">
+                <div>
+                    <span class="label">영수증</span>
+                    <strong>촬영</strong>
+                </div>
+                <span id="saveStatus" class="statusLine"></span>
+            </div>
+            <form id="expenseForm" class="travelForm captureForm">
+                <div class="quickCapture" aria-label="빠른 영수증 추가">
+                    <button id="openCameraButton" class="captureButton" type="button">촬영하기</button>
+                    <label class="captureSecondary" for="receiptGalleryInput">앨범</label>
+                    <input id="receiptGalleryInput" type="file" accept="image/*">
+                    <div id="quickCaptureStatus" class="captureStatus"></div>
+                </div>
+
+                <section id="cameraPanel" class="cameraPanel hidden" aria-label="카메라">
+                    <video id="cameraPreview" autoplay playsinline muted></video>
+                    <canvas id="cameraCanvas" class="hidden"></canvas>
+                    <div class="cameraTools">
+                        <button id="captureShotButton" class="captureButton" type="button">찍기</button>
+                        <button id="closeCameraButton" class="captureSecondary" type="button">닫기</button>
+                    </div>
+                </section>
+
+                <img id="photoPreview" class="photoPreview" alt="영수증 미리보기">
+                <div id="receiptFileName" class="captureFile"></div>
+
+                <details class="uploadOptions">
+                    <summary>옵션</summary>
+                    <div class="two">
+                        <label>
+                            <span>날짜</span>
+                            <input id="dateInput" type="date">
+                        </label>
+                        <label>
+                            <span>결제자</span>
+                            <select id="payerInput">
+                                <option>공금</option>
+                                <option>본인</option>
+                                <option>엄마</option>
+                                <option>아빠</option>
+                                <option>기타</option>
+                            </select>
+                        </label>
+                    </div>
+
+                    <label>
+                        <span>메모</span>
+                        <textarea id="memoInput" placeholder="선택"></textarea>
+                    </label>
+                </details>
+            </form>
+        </section>
+
         <nav class="quickNav" aria-label="빠른 이동">
             <a href="#receiptPanel">영수증</a>
             <a href="#walletPanel">잔액</a>
             <a href="#ledgerPanel">내역</a>
         </nav>
-
-        <section class="quickCapture" aria-label="빠른 영수증 추가">
-            <button id="openCameraButton" class="captureButton" type="button">촬영하기</button>
-            <label class="captureSecondary" for="receiptGalleryInput">앨범</label>
-            <input id="receiptGalleryInput" type="file" accept="image/jpeg,image/png,image/webp">
-            <div id="quickCaptureStatus" class="captureStatus"></div>
-        </section>
-
-        <section id="cameraPanel" class="cameraPanel hidden" aria-label="카메라">
-            <video id="cameraPreview" autoplay playsinline muted></video>
-            <canvas id="cameraCanvas" class="hidden"></canvas>
-            <div class="cameraTools">
-                <button id="captureShotButton" class="captureButton" type="button">찍기</button>
-                <button id="closeCameraButton" class="captureSecondary" type="button">닫기</button>
-            </div>
-        </section>
 
         <section class="travelGrid" aria-label="정산 요약">
             <article class="travelMetric primaryMetric">
@@ -919,43 +972,13 @@
         </section>
 
         <section class="travelLayout">
-            <article id="receiptPanel" class="travelPanel uploadPanel">
+            <article id="manualPanel" class="travelPanel uploadPanel">
                 <div class="travelPanelHead">
                     <div>
-                        <span class="label">영수증</span>
-                        <strong>업로드</strong>
+                        <span class="label">입력</span>
+                        <strong>수동</strong>
                     </div>
-                    <span id="saveStatus" class="statusLine"></span>
                 </div>
-                <form id="expenseForm" class="travelForm">
-                    <div id="receiptFileName" class="captureFile">없음</div>
-                    <img id="photoPreview" class="photoPreview" alt="영수증 미리보기">
-
-                    <details class="uploadOptions">
-                        <summary>옵션</summary>
-                        <div class="two">
-                            <label>
-                                <span>날짜</span>
-                                <input id="dateInput" type="date">
-                            </label>
-                            <label>
-                                <span>결제자</span>
-                                <select id="payerInput">
-                                    <option>공금</option>
-                                    <option>본인</option>
-                                    <option>엄마</option>
-                                    <option>아빠</option>
-                                    <option>기타</option>
-                                </select>
-                            </label>
-                        </div>
-
-                        <label>
-                            <span>메모</span>
-                            <textarea id="memoInput" placeholder="선택"></textarea>
-                        </label>
-                    </details>
-                </form>
                 <details class="manualEntry">
                     <summary>문장 입력</summary>
                     <form id="quickManualForm" class="travelForm quickManualForm">
