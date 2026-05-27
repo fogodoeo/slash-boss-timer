@@ -26,10 +26,10 @@
     let wallets = [];
 
     const WALLET_LABELS = {
-        'hana-jpy': { name: '하나머니', note: '앱 잔액' },
-        'cash-jpy': { name: '현금', note: '지갑 현금' },
-        'ic-jpy': { name: 'IC카드', note: 'ICOCA/Suica' },
-        'card-jpy': { name: '신용카드', note: '카드 사용액' }
+        'hana-jpy': { name: '하나머니' },
+        'cash-jpy': { name: '현금' },
+        'ic-jpy': { name: 'IC카드' },
+        'card-jpy': { name: '신용카드' }
     };
 
     function todayKst() {
@@ -240,7 +240,7 @@
                 balance: number(receiptBalance.item.icBalance),
                 base,
                 delta,
-                source: 'IC잔액',
+                source: '영수증',
                 sourceDetail: `${receiptBalance.item.date || ''} ${receiptBalance.item.paymentTime || ''}`.trim()
             };
         }
@@ -250,7 +250,7 @@
                 balance: base + delta,
                 base,
                 delta,
-                source: '카드 누적',
+                source: '누적',
                 sourceDetail: wallet.updatedAt ? '기준 이후' : '전체'
             };
         }
@@ -259,35 +259,33 @@
             balance: base + delta,
             base,
             delta,
-            source: wallet.updatedAt ? '기준 이후' : '전체 내역',
+            source: wallet.updatedAt ? '기준' : '전체',
             sourceDetail: wallet.updatedAt ? new Date(wallet.updatedAt).toLocaleString('ko-KR') : ''
         };
     }
 
     function renderWallets() {
         const items = wallets.length ? wallets : [
-            { id: 'hana-jpy', name: '하나머니', currency: 'JPY', balance: 0, note: '앱 잔액' },
-            { id: 'cash-jpy', name: '현금', currency: 'JPY', balance: 0, note: '지갑 현금' },
-            { id: 'ic-jpy', name: 'IC카드', currency: 'JPY', balance: 0, note: 'ICOCA/Suica' },
-            { id: 'card-jpy', name: '신용카드', currency: 'JPY', balance: 0, note: '카드 사용액' }
+            { id: 'hana-jpy', name: '하나머니', currency: 'JPY', balance: 0 },
+            { id: 'cash-jpy', name: '현금', currency: 'JPY', balance: 0 },
+            { id: 'ic-jpy', name: 'IC카드', currency: 'JPY', balance: 0 },
+            { id: 'card-jpy', name: '신용카드', currency: 'JPY', balance: 0 }
         ];
 
         walletList.innerHTML = items.map((wallet) => {
             const label = WALLET_LABELS[wallet.id] || { name: wallet.name, note: wallet.note };
             const computed = computedWallet(wallet);
-            const deltaText = computed.delta ? formatSignedCurrencyAmount(wallet.currency, computed.delta) : '변화 없음';
+            const deltaText = computed.delta ? `<div class="walletMeta">${escapeHtml(formatSignedCurrencyAmount(wallet.currency, computed.delta))}</div>` : '';
             const baseLabel = wallet.id === 'card-jpy' ? '기준 사용액' : '기준 잔액';
             return `
                 <article class="walletCard" data-wallet-id="${escapeHtml(wallet.id)}">
                     <div class="walletCardTop">
                         <div>
                             <b>${escapeHtml(label.name)}</b>
-                            <div class="walletMeta">${escapeHtml(label.note || '')}</div>
                         </div>
-                        <span class="travelEntryMeta">${escapeHtml(wallet.currency)}</span>
                     </div>
                     <div class="walletBalance">${escapeHtml(formatCurrencyAmount(wallet.currency, computed.balance))}</div>
-                    <div class="walletMeta">${escapeHtml(computed.source)} · ${escapeHtml(deltaText)}</div>
+                    ${deltaText}
                     <div class="walletControls">
                         <input data-wallet-balance="${escapeHtml(wallet.id)}" type="number" inputmode="numeric" min="0" step="1" value="${escapeHtml(wallet.balance || 0)}" aria-label="${escapeHtml(label.name)} ${escapeHtml(baseLabel)}">
                         <button class="travelGhostButton" type="button" data-wallet-save="${escapeHtml(wallet.id)}">저장</button>
@@ -305,12 +303,14 @@
         const movementCount = expenses.filter(isMovement).length;
         const remaining = BUDGET_KRW - FIXED_TOTAL_KRW - spent;
         document.querySelector('#spentTotal').textContent = formatKrw(spent);
-        document.querySelector('#spentMeta').textContent = `예산반영 ${spendingCount}건 · 이동 ${movementCount}건 ${formatKrw(movementTotal)} · 환율 ${rate()}원`;
+        document.querySelector('#spentMeta').textContent = movementCount
+            ? `${spendingCount}건 · 이동 ${movementCount}건 · ${rate()}원`
+            : `${spendingCount}건 · ${rate()}원`;
         document.querySelector('#remainTotal').textContent = formatKrw(remaining);
         document.querySelector('#entrySummary').textContent = `${expenses.length}건`;
 
         if (!expenses.length) {
-            travelList.innerHTML = '<div class="travelEntry emptyEntry"><b>아직 등록된 결제 내역이 없습니다.</b><div class="travelEntryMeta">영수증을 올리면 분석 결과가 여기에 쌓입니다.</div></div>';
+            travelList.innerHTML = '<div class="travelEntry emptyEntry"><b>내역 없음</b></div>';
             return;
         }
 
@@ -428,7 +428,7 @@
         document.querySelector('#dateInput').value = todayKst();
         document.querySelector('#payerInput').value = '공금';
         receiptDataUrl = '';
-        receiptFileName.textContent = '선택된 사진 없음';
+        receiptFileName.textContent = '없음';
         photoPreview.removeAttribute('src');
         photoPreview.classList.remove('show');
     }
@@ -495,11 +495,11 @@
         event.preventDefault();
         const payload = formPayload();
         if (!payload.receiptImage) {
-            showStatus('영수증 사진을 선택하세요.', 'error');
+            showStatus('사진 필요', 'error');
             return;
         }
         try {
-            showStatus('업로드 중...');
+            showStatus('업로드 중');
             const data = await api('/api/travel/receipts', {
                 method: 'POST',
                 body: JSON.stringify(payload)
@@ -507,7 +507,7 @@
             expenses = Array.isArray(data.expenses) ? data.expenses : expenses;
             resetForm();
             render();
-            showStatus('업로드했습니다. AI 워커가 분석하면 자동 반영됩니다.');
+            showStatus('분석 대기');
         } catch (err) {
             showStatus(err.message, 'error');
         }
@@ -517,11 +517,11 @@
         event.preventDefault();
         const payload = quickManualPayload();
         if (!payload.text) {
-            showStatus('거래 내용을 입력하세요.', 'error');
+            showStatus('내용 필요', 'error');
             return;
         }
         try {
-            showStatus('문장 거래 저장 중...');
+            showStatus('저장 중');
             const data = await api('/api/travel/text-expenses', {
                 method: 'POST',
                 body: JSON.stringify(payload)
@@ -530,7 +530,7 @@
             wallets = Array.isArray(data.wallets) ? data.wallets : wallets;
             resetQuickManualForm();
             render();
-            showStatus('저장했습니다. AI 워커가 거래로 바꿉니다.');
+            showStatus('분석 대기');
         } catch (err) {
             showStatus(err.message, 'error');
         }
@@ -540,11 +540,11 @@
         event.preventDefault();
         const payload = manualPayload();
         if (number(payload.amount) <= 0) {
-            showStatus('수동 거래 금액을 입력하세요.', 'error');
+            showStatus('금액 필요', 'error');
             return;
         }
         try {
-            showStatus('수동 거래 저장 중...');
+            showStatus('저장 중');
             const data = await api('/api/travel/expenses', {
                 method: 'POST',
                 body: JSON.stringify(payload)
@@ -553,7 +553,7 @@
             wallets = Array.isArray(data.wallets) ? data.wallets : wallets;
             resetManualForm();
             render();
-            showStatus('수동 거래를 저장했습니다.');
+            showStatus('저장됨');
         } catch (err) {
             showStatus(err.message, 'error');
         }
@@ -563,20 +563,20 @@
         const file = receiptInput.files?.[0];
         if (!file) {
             receiptDataUrl = '';
-            receiptFileName.textContent = '선택된 사진 없음';
+            receiptFileName.textContent = '없음';
             photoPreview.classList.remove('show');
             return;
         }
         try {
-            showStatus('사진 압축 중...');
+            showStatus('준비 중');
             receiptDataUrl = await compressImage(file);
-            receiptFileName.textContent = file.name || '사진 선택됨';
+            receiptFileName.textContent = file.name || '선택됨';
             photoPreview.src = receiptDataUrl;
             photoPreview.classList.add('show');
-            showStatus('사진 준비 완료');
+            showStatus('준비됨');
         } catch (err) {
             receiptDataUrl = '';
-            receiptFileName.textContent = '선택된 사진 없음';
+            receiptFileName.textContent = '없음';
             receiptInput.value = '';
             showStatus(err.message, 'error');
         }
@@ -591,7 +591,7 @@
         if (!wallet || !input) return;
 
         try {
-            showWalletStatus('잔액 저장 중...');
+            showWalletStatus('저장 중');
             const data = await api('/api/travel/wallets/update', {
                 method: 'POST',
                 body: JSON.stringify({
@@ -602,7 +602,7 @@
             wallets = Array.isArray(data.wallets) ? data.wallets : wallets;
             expenses = Array.isArray(data.expenses) ? data.expenses : expenses;
             render();
-            showWalletStatus('잔액 기준을 저장했습니다.');
+            showWalletStatus('저장됨');
         } catch (err) {
             showWalletStatus(err.message, 'error');
         }

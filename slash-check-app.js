@@ -1733,10 +1733,10 @@ function normalizeTravelTime(value) {
 
 const TRAVEL_TRANSACTION_TYPES = new Set(['지출', '현금인출', 'IC충전', '환전', '환급', '정산이동', '수수료', '기타']);
 const DEFAULT_TRAVEL_WALLETS = [
-    { id: 'hana-jpy', name: '하나머니', currency: 'JPY', balance: 0, note: '앱 잔액' },
-    { id: 'cash-jpy', name: '현금', currency: 'JPY', balance: 0, note: '지갑 현금' },
-    { id: 'ic-jpy', name: 'IC카드', currency: 'JPY', balance: 0, note: 'ICOCA/Suica' },
-    { id: 'card-jpy', name: '신용카드', currency: 'JPY', balance: 0, note: '카드 사용액' }
+    { id: 'hana-jpy', name: '하나머니', currency: 'JPY', balance: 0, note: '' },
+    { id: 'cash-jpy', name: '현금', currency: 'JPY', balance: 0, note: '' },
+    { id: 'ic-jpy', name: 'IC카드', currency: 'JPY', balance: 0, note: '' },
+    { id: 'card-jpy', name: '신용카드', currency: 'JPY', balance: 0, note: '' }
 ];
 
 function normalizeTravelTransactionType(value) {
@@ -2089,7 +2089,7 @@ async function handleApi(req, res, url) {
 
         const inputText = cleanText(body.text || body.memo, 500);
         if (!inputText) {
-            sendJson(res, 400, { error: '거래 내용을 입력하세요.' });
+            sendJson(res, 400, { error: '내용 필요' });
             return true;
         }
 
