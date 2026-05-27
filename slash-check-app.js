@@ -13,8 +13,10 @@ const ROOT_STATE_FILE = path.join(ROOT, 'slash-check-state.json');
 const STATE_DIR = process.env.SLASH_CHECK_STATE_DIR || process.env.STATE_DIR || DEFAULT_STATE_DIR;
 const STATE_FILE = process.env.SLASH_CHECK_STATE_FILE || path.join(STATE_DIR, 'slash-check-state.json');
 const GECKO_STATE_FILE = process.env.GECKO_STATE_FILE || path.join(STATE_DIR, 'gecko-state.json');
+const TRAVEL_STATE_FILE = process.env.TRAVEL_STATE_FILE || path.join(STATE_DIR, 'travel-expenses.json');
 const LEGACY_BOSS_STATE_FILE = path.join(ROOT, 'local-boss-state.json');
 const PHOTO_PROOF_DIR = path.join(STATE_DIR, 'boss-photo-proofs');
+const TRAVEL_RECEIPT_DIR = process.env.TRAVEL_RECEIPT_DIR || path.join(STATE_DIR, 'travel-receipts');
 
 const mimeTypes = {
     '.html': 'text/html; charset=utf-8',
@@ -22,6 +24,10 @@ const mimeTypes = {
     '.js': 'text/javascript; charset=utf-8',
     '.json': 'application/json; charset=utf-8',
     '.svg': 'image/svg+xml; charset=utf-8',
+    '.jpg': 'image/jpeg',
+    '.jpeg': 'image/jpeg',
+    '.png': 'image/png',
+    '.webp': 'image/webp',
     '.ico': 'image/x-icon'
 };
 
@@ -64,6 +70,7 @@ const DEFAULT_BOSS_EVENTS = [
 
 let state = structuredClone(defaultState);
 let geckoState = { geckos: [], logs: [], examplesSeededAt: null, updatedAt: null };
+let travelState = { expenses: [], updatedAt: null };
 const RESERVATION_GRACE_MS = 10 * 60 * 1000;
 const CHECK_UNDO_GRACE_MS = 60 * 1000;
 const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
@@ -79,6 +86,7 @@ const MAX_BOSS_AUDIT_LOGS = 500;
 const MAX_GECKO_AUDIT_LOGS = 500;
 const PHOTO_PROOF_TTL_MS = 24 * 60 * 60 * 1000;
 const PHOTO_PROOF_MAX_BYTES = 2.5 * 1024 * 1024;
+const TRAVEL_RECEIPT_MAX_BYTES = 3.5 * 1024 * 1024;
 const PHOTO_PROOF_MIME_EXT = {
     'image/jpeg': 'jpg',
     'image/png': 'png',
@@ -86,8 +94,10 @@ const PHOTO_PROOF_MIME_EXT = {
 };
 const ADMIN_PASSWORD = process.env.SLASH_CHECK_ADMIN_PASSWORD || process.env.ADMIN_PASSWORD || (IS_RENDER_RUNTIME ? '' : '1234');
 const ADMIN_PASSWORD_CONFIGURED = Boolean(ADMIN_PASSWORD);
+const TRAVEL_PIN = normalizeAdminPasswordValue(process.env.TRAVEL_PIN || process.env.TRAVEL_PASSWORD || '1234');
 let saveStateQueue = Promise.resolve();
 let saveGeckoStateQueue = Promise.resolve();
+let saveTravelStateQueue = Promise.resolve();
 
 function send(res, status, body, type = 'text/plain; charset=utf-8') {
     res.writeHead(status, {
@@ -1523,7 +1533,7 @@ function readBody(req) {
         let body = '';
         req.on('data', (chunk) => {
             body += chunk;
-            if (body.length > 5000000) {
+            if (body.length > 9000000) {
                 req.destroy();
                 reject(new Error('Request body too large'));
             }
@@ -1694,6 +1704,144 @@ async function saveGeckoState() {
     return saveGeckoStateQueue;
 }
 
+function todayKstDate() {
+    const now = new Date(Date.now() + KST_OFFSET_MS);
+    return now.toISOString().slice(0, 10);
+}
+
+function normalizeTravelCurrency(value) {
+    const text = String(value || '').trim().toUpperCase();
+    return text === 'JPY' ? 'JPY' : 'KRW';
+}
+
+function normalizeTravelAmount(value) {
+    const number = Number(String(value ?? '').replace(/,/g, '').trim());
+    if (!Number.isFinite(number)) return 0;
+    return Math.max(0, Math.round(number));
+}
+
+function normalizeTravelExpense(value, existing = null) {
+    const date = cleanDate(value?.date) || todayKstDate();
+    const amount = normalizeTravelAmount(value?.amount);
+    const nowIso = new Date().toISOString();
+
+    return {
+        id: cleanText(value?.id || existing?.id, 80) || randomUUID(),
+        date,
+        payer: cleanText(value?.payer || existing?.payer || '공금', 30),
+        category: cleanText(value?.category || existing?.category || '식사', 30),
+        merchant: cleanText(value?.merchant || existing?.merchant || '', 80),
+        item: cleanText(value?.item || existing?.item || '', 120),
+        currency: normalizeTravelCurrency(value?.currency || existing?.currency || 'JPY'),
+        amount,
+        method: cleanText(value?.method || existing?.method || '카드', 30),
+        memo: cleanText(value?.memo || existing?.memo || '', 300),
+        receipt: value?.receipt || existing?.receipt || null,
+        createdAt: existing?.createdAt || nowIso,
+        updatedAt: nowIso
+    };
+}
+
+function normalizeTravelExpenses(value) {
+    const items = Array.isArray(value) ? value : [];
+    return items
+        .map((item) => normalizeTravelExpense(item, item))
+        .filter((item) => item.amount > 0 || item.merchant || item.item || item.memo)
+        .slice(0, 1000);
+}
+
+async function loadTravelState() {
+    try {
+        const raw = await fs.readFile(TRAVEL_STATE_FILE, 'utf8');
+        const parsed = JSON.parse(raw);
+        travelState = {
+            expenses: normalizeTravelExpenses(parsed.expenses),
+            updatedAt: parsed.updatedAt || null
+        };
+    } catch (err) {
+        if (err.code !== 'ENOENT') console.error('[travel] state load failed:', err);
+        travelState = { expenses: [], updatedAt: null };
+        await saveTravelState();
+    }
+}
+
+async function saveTravelState() {
+    travelState.updatedAt = new Date().toISOString();
+    const targetDir = path.dirname(TRAVEL_STATE_FILE);
+
+    saveTravelStateQueue = saveTravelStateQueue.catch(() => {}).then(async () => {
+        const snapshot = JSON.stringify(travelState, null, 2);
+        const tempFile = path.join(targetDir, `.travel-expenses.${process.pid}.${Date.now()}.${randomUUID()}.tmp`);
+        await fs.mkdir(targetDir, { recursive: true });
+        await fs.writeFile(tempFile, snapshot, 'utf8');
+        await fs.rename(tempFile, TRAVEL_STATE_FILE);
+    });
+
+    return saveTravelStateQueue;
+}
+
+function verifyTravelPin(value) {
+    return normalizeAdminPasswordValue(value) === TRAVEL_PIN;
+}
+
+function travelPinFrom(req, url, body = {}) {
+    return body.pin || url.searchParams.get('pin') || req.headers['x-travel-pin'] || '';
+}
+
+function rejectInvalidTravelPin(req, res, url, body = {}) {
+    if (verifyTravelPin(travelPinFrom(req, url, body))) return false;
+    sendJson(res, 403, { error: '여행 정산 비밀번호가 맞지 않습니다.' });
+    return true;
+}
+
+function decodeTravelReceiptDataUrl(value) {
+    const text = String(value || '');
+    const match = text.match(/^data:(image\/(?:jpeg|png|webp));base64,([A-Za-z0-9+/=\s]+)$/);
+    if (!match) {
+        const err = new Error('영수증 사진은 JPG, PNG, WEBP만 가능합니다.');
+        err.statusCode = 400;
+        throw err;
+    }
+
+    const mimeType = match[1];
+    const buffer = Buffer.from(match[2].replace(/\s+/g, ''), 'base64');
+    if (!buffer.length) {
+        const err = new Error('영수증 사진을 읽지 못했습니다.');
+        err.statusCode = 400;
+        throw err;
+    }
+    if (buffer.length > TRAVEL_RECEIPT_MAX_BYTES) {
+        const err = new Error('영수증 사진 용량이 큽니다. 다시 압축해서 올려주세요.');
+        err.statusCode = 413;
+        throw err;
+    }
+
+    return { mimeType, buffer, ext: PHOTO_PROOF_MIME_EXT[mimeType] };
+}
+
+async function storeTravelReceipt(imageData) {
+    const { mimeType, buffer, ext } = decodeTravelReceiptDataUrl(imageData);
+    const id = randomUUID();
+    const fileName = `${id}.${ext}`;
+    await fs.mkdir(TRAVEL_RECEIPT_DIR, { recursive: true });
+    await fs.writeFile(path.join(TRAVEL_RECEIPT_DIR, fileName), buffer);
+    return {
+        id,
+        fileName,
+        mimeType,
+        size: buffer.length,
+        uploadedAt: new Date().toISOString()
+    };
+}
+
+function publicTravelState() {
+    return {
+        now: new Date().toISOString(),
+        updatedAt: travelState.updatedAt,
+        expenses: travelState.expenses
+    };
+}
+
 function buildRankings() {
     const counts = new Map();
 
@@ -1750,6 +1898,107 @@ async function handleApi(req, res, url) {
 
     if (url.pathname === '/health' && req.method === 'GET') {
         sendJson(res, 200, { ok: true, now: new Date().toISOString() });
+        return true;
+    }
+
+    if (url.pathname === '/api/travel/auth' && req.method === 'POST') {
+        const body = await readJson(req);
+        if (!verifyTravelPin(body.pin)) {
+            sendJson(res, 403, { error: '여행 정산 비밀번호가 맞지 않습니다.' });
+            return true;
+        }
+        sendJson(res, 200, { ok: true });
+        return true;
+    }
+
+    if (url.pathname === '/api/travel/expenses' && req.method === 'GET') {
+        if (rejectInvalidTravelPin(req, res, url)) return true;
+        sendJson(res, 200, publicTravelState());
+        return true;
+    }
+
+    if (url.pathname === '/api/travel/expenses' && req.method === 'POST') {
+        const body = await readJson(req);
+        if (rejectInvalidTravelPin(req, res, url, body)) return true;
+
+        let receipt = null;
+        if (body.receiptImage) {
+            try {
+                receipt = await storeTravelReceipt(body.receiptImage);
+            } catch (err) {
+                sendJson(res, err.statusCode || 400, { error: err.message || '영수증 사진 저장에 실패했습니다.' });
+                return true;
+            }
+        }
+
+        const expense = normalizeTravelExpense({ ...body, receipt });
+        travelState.expenses.unshift(expense);
+        travelState.expenses = normalizeTravelExpenses(travelState.expenses);
+        await saveTravelState();
+        sendJson(res, 200, { ...publicTravelState(), saved: expense });
+        return true;
+    }
+
+    if (url.pathname === '/api/travel/expenses/update' && req.method === 'POST') {
+        const body = await readJson(req);
+        if (rejectInvalidTravelPin(req, res, url, body)) return true;
+
+        const id = cleanText(body.id, 80);
+        const existing = travelState.expenses.find((item) => item.id === id);
+        if (!existing) {
+            sendJson(res, 404, { error: '수정할 결제 내역을 찾을 수 없습니다.' });
+            return true;
+        }
+
+        const next = normalizeTravelExpense(body, existing);
+        travelState.expenses = travelState.expenses.map((item) => item.id === id ? next : item);
+        await saveTravelState();
+        sendJson(res, 200, { ...publicTravelState(), saved: next });
+        return true;
+    }
+
+    if (url.pathname === '/api/travel/expenses/delete' && req.method === 'POST') {
+        const body = await readJson(req);
+        if (rejectInvalidTravelPin(req, res, url, body)) return true;
+
+        const id = cleanText(body.id, 80);
+        const target = travelState.expenses.find((item) => item.id === id);
+        const before = travelState.expenses.length;
+        travelState.expenses = travelState.expenses.filter((item) => item.id !== id);
+        if (travelState.expenses.length === before) {
+            sendJson(res, 404, { error: '삭제할 결제 내역을 찾을 수 없습니다.' });
+            return true;
+        }
+        if (target?.receipt?.fileName) {
+            fs.unlink(path.join(TRAVEL_RECEIPT_DIR, target.receipt.fileName)).catch(() => {});
+        }
+        await saveTravelState();
+        sendJson(res, 200, publicTravelState());
+        return true;
+    }
+
+    if (url.pathname.startsWith('/api/travel/receipt/') && req.method === 'GET') {
+        if (rejectInvalidTravelPin(req, res, url)) return true;
+
+        const id = decodeURIComponent(url.pathname.slice('/api/travel/receipt/'.length));
+        const expense = travelState.expenses.find((item) => item.receipt?.id === id);
+        if (!expense?.receipt?.fileName) {
+            sendJson(res, 404, { error: '영수증 사진을 찾을 수 없습니다.' });
+            return true;
+        }
+
+        const filePath = path.normalize(path.join(TRAVEL_RECEIPT_DIR, expense.receipt.fileName));
+        if (!filePath.startsWith(TRAVEL_RECEIPT_DIR)) {
+            send(res, 403, 'Forbidden');
+            return true;
+        }
+
+        try {
+            const data = await fs.readFile(filePath);
+            send(res, 200, data, expense.receipt.mimeType || 'application/octet-stream');
+        } catch (err) {
+            sendJson(res, err.code === 'ENOENT' ? 404 : 500, { error: '영수증 사진을 읽지 못했습니다.' });
+        }
         return true;
     }
 
@@ -3260,7 +3509,11 @@ async function handleApi(req, res, url) {
 
 async function serveStatic(req, res) {
     const url = new URL(req.url, `http://${req.headers.host}`);
-    const routePath = url.pathname === '/gecko' ? '/gecko.html' : url.pathname;
+    const routeAliases = {
+        '/gecko': '/gecko.html',
+        '/travel': '/travel.html'
+    };
+    const routePath = routeAliases[url.pathname] || url.pathname;
     const safePath = routePath === '/' ? '/index.html' : decodeURIComponent(routePath);
     const filePath = path.normalize(path.join(PUBLIC_DIR, safePath));
 
@@ -3295,7 +3548,7 @@ const server = http.createServer(async (req, res) => {
     }
 });
 
-Promise.all([loadState(), loadGeckoState()]).then(() => {
+Promise.all([loadState(), loadGeckoState(), loadTravelState()]).then(() => {
     server.listen(PORT, HOST, () => {
         console.log(`Slash check app: http://127.0.0.1:${PORT}`);
     });
