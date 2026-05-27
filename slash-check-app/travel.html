@@ -450,27 +450,65 @@
         }
 
         .cameraPanel {
+            position: fixed;
+            inset: 0;
+            z-index: 60;
             display: grid;
+            grid-template-rows: auto minmax(0, 1fr) auto;
+            gap: 12px;
+            border: 0;
+            border-radius: 0;
+            padding: calc(env(safe-area-inset-top, 0px) + 12px) 12px calc(env(safe-area-inset-bottom, 0px) + 12px);
+            background: #05070d;
+            box-shadow: none;
+        }
+
+        .cameraHead {
+            display: flex;
+            justify-content: space-between;
             gap: 10px;
-            border: 1px solid var(--line);
-            border-radius: 8px;
-            padding: 10px;
-            background: #0f172a;
-            box-shadow: var(--shadow);
+            align-items: center;
+            color: #fff;
+        }
+
+        .cameraHead strong {
+            font-size: 18px;
+        }
+
+        .cameraStage {
+            position: relative;
+            display: grid;
+            min-height: 0;
+            place-items: center;
         }
 
         .cameraPanel video {
             width: 100%;
-            max-height: 62vh;
+            height: 100%;
+            max-height: none;
             border-radius: 7px;
             background: #000;
             object-fit: contain;
         }
 
+        .receiptGuide {
+            position: absolute;
+            inset: 9% 7%;
+            border: 2px solid rgba(255, 255, 255, .75);
+            border-radius: 10px;
+            box-shadow: 0 0 0 999px rgba(0, 0, 0, .18);
+            pointer-events: none;
+        }
+
         .cameraTools {
             display: grid;
-            grid-template-columns: minmax(0, 1fr) minmax(94px, .28fr);
+            grid-template-columns: minmax(0, 1fr) minmax(104px, .28fr);
             gap: 8px;
+        }
+
+        .cameraTools .captureButton,
+        .cameraTools .captureSecondary {
+            min-height: 64px;
         }
 
         .uploadOptions {
@@ -584,6 +622,40 @@
             background: #fff;
         }
 
+        .travelEntryBody {
+            display: grid;
+            grid-template-columns: 74px minmax(0, 1fr);
+            gap: 10px;
+            align-items: start;
+        }
+
+        .receiptThumb {
+            width: 74px;
+            height: 74px;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            padding: 0;
+            background: var(--soft);
+            overflow: hidden;
+            cursor: pointer;
+        }
+
+        .receiptThumb img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+
+        .receiptThumb.empty {
+            display: grid;
+            place-items: center;
+            color: var(--muted);
+            font-size: 12px;
+            font-weight: 900;
+            cursor: default;
+        }
+
         .travelEntryTop {
             display: grid;
             grid-template-columns: 1fr auto;
@@ -647,6 +719,88 @@
         .receiptLink {
             background: #eef4ff;
             color: var(--blue);
+        }
+
+        .aiNoteButton {
+            border: 0;
+            background: #eef4ff;
+            color: var(--blue);
+            cursor: pointer;
+        }
+
+        .receiptModal {
+            position: fixed;
+            inset: 0;
+            z-index: 80;
+            display: grid;
+            place-items: center;
+            padding: 14px;
+            background: rgba(15, 23, 42, .66);
+            backdrop-filter: blur(8px);
+        }
+
+        .receiptDialog {
+            width: min(560px, 100%);
+            max-height: calc(100dvh - 28px);
+            display: grid;
+            grid-template-rows: auto minmax(0, 1fr) auto;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            background: #fff;
+            overflow: hidden;
+            box-shadow: var(--shadow-pop);
+        }
+
+        .receiptDialogHead {
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+            align-items: center;
+            padding: 12px;
+            border-bottom: 1px solid var(--line-soft);
+            background: var(--soft);
+        }
+
+        .receiptDialogHead strong {
+            font-size: 17px;
+        }
+
+        .receiptDialogBody {
+            display: grid;
+            gap: 12px;
+            min-height: 0;
+            overflow: auto;
+            padding: 12px;
+        }
+
+        .modalReceiptImage {
+            width: 100%;
+            max-height: 48dvh;
+            object-fit: contain;
+            border-radius: 8px;
+            background: #111827;
+        }
+
+        .aiNoteBox {
+            display: grid;
+            gap: 6px;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            padding: 10px;
+            background: #fff;
+        }
+
+        .aiNoteBox span {
+            color: var(--muted);
+            font-size: 12px;
+            font-weight: 900;
+        }
+
+        .receiptDialogFoot {
+            display: grid;
+            padding: 12px;
+            border-top: 1px solid var(--line-soft);
+            background: #fff;
         }
 
         .emptyEntry {
@@ -721,6 +875,10 @@
 
         .hidden {
             display: none !important;
+        }
+
+        body.cameraOpen {
+            overflow: hidden;
         }
 
         @media (max-width: 900px) {
@@ -827,6 +985,15 @@
                 grid-template-columns: 1fr;
             }
 
+            .travelEntryBody {
+                grid-template-columns: 62px minmax(0, 1fr);
+            }
+
+            .receiptThumb {
+                width: 62px;
+                height: 62px;
+            }
+
             .travelAmount {
                 justify-self: start;
             }
@@ -904,11 +1071,18 @@
                 </div>
 
                 <section id="cameraPanel" class="cameraPanel hidden" aria-label="카메라">
-                    <video id="cameraPreview" autoplay playsinline muted></video>
+                    <div class="cameraHead">
+                        <strong>영수증 촬영</strong>
+                        <button id="closeCameraTopButton" class="captureSecondary" type="button">닫기</button>
+                    </div>
+                    <div class="cameraStage">
+                        <video id="cameraPreview" autoplay playsinline muted></video>
+                        <div class="receiptGuide" aria-hidden="true"></div>
+                    </div>
                     <canvas id="cameraCanvas" class="hidden"></canvas>
                     <div class="cameraTools">
                         <button id="captureShotButton" class="captureButton" type="button">찍기</button>
-                        <button id="closeCameraButton" class="captureSecondary" type="button">닫기</button>
+                        <button id="closeCameraButton" class="captureSecondary" type="button">취소</button>
                     </div>
                 </section>
 
@@ -1117,6 +1291,25 @@
             </div>
         </section>
     </main>
+
+    <section id="receiptModal" class="receiptModal hidden" aria-modal="true" role="dialog" aria-label="영수증 상세">
+        <article class="receiptDialog">
+            <div class="receiptDialogHead">
+                <strong id="modalTitle">영수증</strong>
+                <button id="modalCloseButton" class="travelGhostButton" type="button">닫기</button>
+            </div>
+            <div class="receiptDialogBody">
+                <img id="modalReceiptImage" class="modalReceiptImage" alt="영수증 이미지">
+                <div class="aiNoteBox">
+                    <span>AI 코멘트</span>
+                    <p id="modalAiNote"></p>
+                </div>
+            </div>
+            <div class="receiptDialogFoot">
+                <a id="modalReceiptLink" class="travelGhostButton" href="#" target="_blank" rel="noopener noreferrer">원본 열기</a>
+            </div>
+        </article>
+    </section>
 
     <script src="./travel.js"></script>
 </body>

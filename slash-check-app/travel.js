@@ -17,6 +17,7 @@
     const receiptGalleryInput = document.querySelector('#receiptGalleryInput');
     const openCameraButton = document.querySelector('#openCameraButton');
     const closeCameraButton = document.querySelector('#closeCameraButton');
+    const closeCameraTopButton = document.querySelector('#closeCameraTopButton');
     const captureShotButton = document.querySelector('#captureShotButton');
     const cameraPanel = document.querySelector('#cameraPanel');
     const cameraPreview = document.querySelector('#cameraPreview');
@@ -26,6 +27,12 @@
     const receiptFileName = document.querySelector('#receiptFileName');
     const walletList = document.querySelector('#walletList');
     const walletStatus = document.querySelector('#walletStatus');
+    const receiptModal = document.querySelector('#receiptModal');
+    const modalTitle = document.querySelector('#modalTitle');
+    const modalReceiptImage = document.querySelector('#modalReceiptImage');
+    const modalAiNote = document.querySelector('#modalAiNote');
+    const modalReceiptLink = document.querySelector('#modalReceiptLink');
+    const modalCloseButton = document.querySelector('#modalCloseButton');
     const receiptInputs = [receiptGalleryInput].filter(Boolean);
 
     let pin = sessionStorage.getItem(PIN_KEY) || '';
@@ -92,6 +99,11 @@
         const value = number(amount);
         const sign = value > 0 ? '+' : value < 0 ? '-' : '';
         return `${sign}${formatCurrencyAmount(currency, Math.abs(value))}`;
+    }
+
+    function receiptUrl(item) {
+        const id = item?.receipt?.id;
+        return id ? `/api/travel/receipt/${encodeURIComponent(id)}?pin=${encodeURIComponent(pin)}` : '';
     }
 
     function showStatus(message, tone = '') {
@@ -383,12 +395,19 @@
         travelList.innerHTML = expenses.map((item) => {
             const title = escapeHtml(item.merchant || item.item || '결제 내역');
             const sub = escapeHtml(item.item && item.merchant ? item.item : item.memo || '');
-            const receipt = item.receipt?.id
-                ? `<a class="receiptLink" href="/api/travel/receipt/${encodeURIComponent(item.receipt.id)}?pin=${encodeURIComponent(pin)}" target="_blank" rel="noopener noreferrer">영수증</a>`
+            const receiptImage = receiptUrl(item);
+            const receipt = receiptImage
+                ? `<a class="receiptLink" href="${escapeHtml(receiptImage)}" target="_blank" rel="noopener noreferrer">원본</a>`
                 : '';
+            const thumbnail = receiptImage
+                ? `<button class="receiptThumb" type="button" data-receipt-modal="${escapeHtml(item.id)}" aria-label="${title} 영수증 보기"><img src="${escapeHtml(receiptImage)}" alt=""></button>`
+                : '<div class="receiptThumb empty">사진</div>';
             const status = escapeHtml(item.analysisStatus || (item.amount > 0 ? '완료' : '분석대기'));
             const statusTag = ['분석대기', '문장분석대기', '분석중', '확인필요', '분석실패'].includes(item.analysisStatus)
                 ? `<span class="tagStatus">${status}</span>`
+                : '';
+            const aiButton = receiptImage
+                ? `<button class="receiptLink aiNoteButton" type="button" data-receipt-modal="${escapeHtml(item.id)}">AI</button>`
                 : '';
             const timeText = item.paymentTime ? ` ${escapeHtml(item.paymentTime)}` : '';
             const location = item.location ? `<div class="travelEntryMeta">${escapeHtml(item.location)}</div>` : '';
@@ -400,14 +419,19 @@
             const impactLabel = impact === 0 ? '제외' : formatKrw(impact);
             return `
                 <article class="travelEntry" data-id="${escapeHtml(item.id)}">
-                    <div class="travelEntryTop">
+                    <div class="travelEntryBody">
+                        ${thumbnail}
                         <div>
-                            <b>${title}</b>
-                            <div class="travelEntryMeta">${escapeHtml(item.date)}${timeText} · ${escapeHtml(item.payer)} · ${escapeHtml(item.method)}</div>
-                            ${location}
-                            ${sub ? `<div class="travelEntryMeta">${sub}</div>` : ''}
+                            <div class="travelEntryTop">
+                                <div>
+                                    <b>${title}</b>
+                                    <div class="travelEntryMeta">${escapeHtml(item.date)}${timeText} · ${escapeHtml(item.payer)} · ${escapeHtml(item.method)}</div>
+                                    ${location}
+                                    ${sub ? `<div class="travelEntryMeta">${sub}</div>` : ''}
+                                </div>
+                                <div class="travelAmount">${escapeHtml(formatCurrencyAmount(item.currency, item.amount))}</div>
+                            </div>
                         </div>
-                        <div class="travelAmount">${escapeHtml(formatCurrencyAmount(item.currency, item.amount))}</div>
                     </div>
                     <div class="travelTags">
                         <span class="tagType">${escapeHtml(type)}</span>
@@ -415,8 +439,8 @@
                         ${icBalance}
                         ${statusTag}
                         ${receipt}
+                        ${aiButton}
                     </div>
-                    ${item.aiNote && statusTag ? `<div class="travelEntryMeta">${escapeHtml(item.aiNote)}</div>` : ''}
                     ${item.memo ? `<div class="travelEntryMeta">${escapeHtml(item.memo)}</div>` : ''}
                     <button class="travelDangerButton" type="button" data-delete="${escapeHtml(item.id)}">삭제</button>
                 </article>
@@ -509,6 +533,24 @@
         cameraStream = null;
         if (cameraPreview) cameraPreview.srcObject = null;
         cameraPanel?.classList.add('hidden');
+        document.body.classList.remove('cameraOpen');
+    }
+
+    function openReceiptModal(item) {
+        const imageUrl = receiptUrl(item);
+        if (!receiptModal || !item || !imageUrl) return;
+        modalTitle.textContent = item.merchant || item.item || '영수증';
+        modalReceiptImage.src = imageUrl;
+        modalAiNote.textContent = item.aiNote || 'AI 코멘트 없음';
+        modalReceiptLink.href = imageUrl;
+        receiptModal.classList.remove('hidden');
+        document.body.classList.add('cameraOpen');
+    }
+
+    function closeReceiptModal() {
+        receiptModal?.classList.add('hidden');
+        if (modalReceiptImage) modalReceiptImage.removeAttribute('src');
+        document.body.classList.remove('cameraOpen');
     }
 
     function resetManualForm() {
@@ -597,6 +639,7 @@
             });
             cameraPreview.srcObject = cameraStream;
             cameraPanel.classList.remove('hidden');
+            document.body.classList.add('cameraOpen');
             await cameraPreview.play();
             showStatus('촬영 준비');
         } catch (err) {
@@ -666,6 +709,7 @@
 
     openCameraButton?.addEventListener('click', openCamera);
     closeCameraButton?.addEventListener('click', stopCamera);
+    closeCameraTopButton?.addEventListener('click', stopCamera);
     captureShotButton?.addEventListener('click', captureCameraFrame);
 
     quickManualForm.addEventListener('submit', async (event) => {
@@ -745,6 +789,12 @@
     });
 
     travelList.addEventListener('click', async (event) => {
+        const modalId = event.target.closest('[data-receipt-modal]')?.dataset.receiptModal;
+        if (modalId) {
+            const item = expenses.find((expense) => expense.id === modalId);
+            openReceiptModal(item);
+            return;
+        }
         const id = event.target.dataset.delete;
         if (!id) return;
         if (!confirm('이 결제 내역을 삭제할까요?')) return;
@@ -759,6 +809,11 @@
         } catch (err) {
             showStatus(err.message, 'error');
         }
+    });
+
+    modalCloseButton?.addEventListener('click', closeReceiptModal);
+    receiptModal?.addEventListener('click', (event) => {
+        if (event.target === receiptModal) closeReceiptModal();
     });
 
     rateInput.addEventListener('input', () => {
