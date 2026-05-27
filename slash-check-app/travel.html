@@ -727,16 +727,6 @@
             white-space: nowrap;
         }
 
-        .travelTags {
-            display: flex;
-            flex-wrap: wrap;
-            justify-content: flex-end;
-            gap: 6px;
-            border-top: 1px solid var(--line-soft);
-            padding-top: 8px;
-        }
-
-        .travelTags span,
         .receiptLink {
             display: inline-flex;
             align-items: center;
@@ -748,11 +738,6 @@
             font-size: 12px;
             font-weight: 800;
             text-decoration: none;
-        }
-
-        .travelTags .tagStatus {
-            background: #eef2ff;
-            color: #3046a5;
         }
 
         .receiptLink {
@@ -767,9 +752,68 @@
             cursor: pointer;
         }
 
-        .travelTags .travelDangerButton {
-            min-height: 28px;
-            padding: 3px 9px;
+        .entryFooter {
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+            align-items: center;
+            min-height: 30px;
+        }
+
+        .entryStatus {
+            margin-right: auto;
+            border-radius: 7px;
+            padding: 4px 8px;
+            background: #eef2ff;
+            color: #3046a5;
+            font-size: 12px;
+            font-weight: 850;
+        }
+
+        .entryManage {
+            position: relative;
+            justify-self: end;
+        }
+
+        .entryManage summary {
+            display: inline-grid;
+            min-width: 52px;
+            min-height: 30px;
+            place-items: center;
+            border: 1px solid var(--line);
+            border-radius: 7px;
+            background: #fff;
+            color: var(--text-soft);
+            font-size: 12px;
+            font-weight: 900;
+            cursor: pointer;
+            list-style: none;
+        }
+
+        .entryManage summary::-webkit-details-marker {
+            display: none;
+        }
+
+        .entryMenu {
+            position: absolute;
+            right: 0;
+            top: calc(100% + 6px);
+            z-index: 8;
+            display: grid;
+            gap: 6px;
+            min-width: 118px;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            padding: 7px;
+            background: #fff;
+            box-shadow: var(--shadow-pop);
+        }
+
+        .entryMenu .receiptLink,
+        .entryMenu .travelDangerButton {
+            justify-content: center;
+            min-height: 34px;
+            padding: 4px 10px;
             font-size: 12px;
         }
 
@@ -1134,7 +1178,7 @@
                 padding: 10px;
             }
 
-            .travelTags .travelDangerButton {
+            .entryMenu .travelDangerButton {
                 min-height: 34px;
                 padding: 0 12px;
             }

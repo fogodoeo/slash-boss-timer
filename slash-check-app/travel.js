@@ -441,7 +441,7 @@
                 : '<div class="receiptThumb empty">사진</div>';
             const status = escapeHtml(item.analysisStatus || (item.amount > 0 ? '완료' : '분석대기'));
             const statusTag = ['분석대기', '문장분석대기', '분석중', '확인필요', '분석실패'].includes(item.analysisStatus)
-                ? `<span class="tagStatus">${status}</span>`
+                ? `<span class="entryStatus">${status}</span>`
                 : '';
             const needsLineItemReanalysis = receiptImage
                 && !expenseLineItems(item).length
@@ -474,10 +474,15 @@
                             </div>
                         </div>
                     </div>
-                    <div class="travelTags">
+                    <div class="entryFooter">
                         ${statusTag}
-                        ${reanalyzeButton}
-                        <button class="travelDangerButton" type="button" data-delete="${escapeHtml(item.id)}">삭제</button>
+                        <details class="entryManage">
+                            <summary>관리</summary>
+                            <div class="entryMenu">
+                                ${reanalyzeButton}
+                                <button class="travelDangerButton" type="button" data-delete="${escapeHtml(item.id)}">삭제</button>
+                            </div>
+                        </details>
                     </div>
                     ${item.memo ? `<div class="travelEntryMeta">${escapeHtml(item.memo)}</div>` : ''}
                 </article>
