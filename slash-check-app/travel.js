@@ -44,6 +44,11 @@
         return item.currency === 'JPY' ? amount * rate() : amount;
     }
 
+    function formatCurrencyAmount(currency, amount) {
+        const value = Number(amount || 0).toLocaleString('ko-KR');
+        return `${currency || 'JPY'} ${value}`;
+    }
+
     function showStatus(message, tone = '') {
         saveStatus.textContent = message;
         saveStatus.classList.toggle('error', tone === 'error');
@@ -143,20 +148,27 @@
             const confidence = Number(item.confidence || 0) > 0
                 ? `<span>신뢰도 ${Math.round(Number(item.confidence || 0) * 100)}%</span>`
                 : '';
+            const timeText = item.paymentTime ? ` ${escapeHtml(item.paymentTime)}` : '';
+            const location = item.location ? `<div class="travelEntryMeta">${escapeHtml(item.location)}</div>` : '';
+            const icBalance = Number(item.icBalance || 0) > 0
+                ? `<span>${escapeHtml(item.icCard || 'IC')} 잔액 ${escapeHtml(formatCurrencyAmount(item.icBalanceCurrency || item.currency || 'JPY', item.icBalance))}</span>`
+                : '';
             return `
                 <article class="travelEntry" data-id="${escapeHtml(item.id)}">
                     <div class="travelEntryTop">
                         <div>
                             <b>${title}</b>
-                            <div class="travelEntryMeta">${escapeHtml(item.date)} · ${escapeHtml(item.payer)} · ${escapeHtml(item.method)}</div>
+                            <div class="travelEntryMeta">${escapeHtml(item.date)}${timeText} · ${escapeHtml(item.payer)} · ${escapeHtml(item.method)}</div>
+                            ${location}
                             ${sub ? `<div class="travelEntryMeta">${sub}</div>` : ''}
                         </div>
-                        <div class="travelAmount">${escapeHtml(item.currency)} ${Number(item.amount || 0).toLocaleString('ko-KR')}</div>
+                        <div class="travelAmount">${escapeHtml(formatCurrencyAmount(item.currency, item.amount))}</div>
                     </div>
                     <div class="travelTags">
                         <span>${status}</span>
                         <span>${escapeHtml(item.category)}</span>
                         <span>${formatKrw(toKrw(item))}</span>
+                        ${icBalance}
                         ${confidence}
                         ${receipt}
                     </div>
@@ -188,11 +200,13 @@
 
     function csvText() {
         const rows = [
-            ['date', 'payer', 'category', 'merchant', 'item', 'currency', 'amount', 'krw', 'method', 'status', 'confidence', 'memo', 'receipt']
+            ['date', 'time', 'location', 'payer', 'category', 'merchant', 'item', 'currency', 'amount', 'krw', 'method', 'ic_card', 'ic_balance_currency', 'ic_balance', 'status', 'confidence', 'memo', 'receipt']
         ];
         for (const item of expenses) {
             rows.push([
                 item.date,
+                item.paymentTime || '',
+                item.location || '',
                 item.payer,
                 item.category,
                 item.merchant,
@@ -201,6 +215,9 @@
                 item.amount,
                 Math.round(toKrw(item)),
                 item.method,
+                item.icCard || '',
+                item.icBalanceCurrency || '',
+                item.icBalance || '',
                 item.analysisStatus || '',
                 item.confidence || '',
                 item.memo,

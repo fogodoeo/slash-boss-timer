@@ -1720,6 +1720,17 @@ function normalizeTravelAmount(value) {
     return Math.max(0, Math.round(number));
 }
 
+function normalizeTravelTime(value) {
+    const text = String(value || '').trim();
+    if (!text) return '';
+    const match = text.match(/(\d{1,2})[:시](\d{1,2})/);
+    if (!match) return '';
+    const hour = Number(match[1]);
+    const minute = Number(match[2]);
+    if (!Number.isInteger(hour) || !Number.isInteger(minute) || hour < 0 || hour > 23 || minute < 0 || minute > 59) return '';
+    return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+}
+
 function normalizeTravelExpense(value, existing = null) {
     const date = cleanDate(value?.date) || todayKstDate();
     const amount = normalizeTravelAmount(value?.amount);
@@ -1736,7 +1747,14 @@ function normalizeTravelExpense(value, existing = null) {
         item: cleanText(value?.item || existing?.item || '', 120),
         currency: normalizeTravelCurrency(value?.currency || existing?.currency || 'JPY'),
         amount,
+        paymentTime: normalizeTravelTime(value?.paymentTime || existing?.paymentTime || ''),
+        location: cleanText(value?.location || existing?.location || '', 120),
         method: cleanText(value?.method || existing?.method || '카드', 30),
+        icCard: cleanText(value?.icCard || existing?.icCard || '', 40),
+        icBalance: normalizeTravelAmount(value?.icBalance ?? existing?.icBalance ?? 0),
+        icBalanceCurrency: value?.icBalanceCurrency || existing?.icBalanceCurrency
+            ? normalizeTravelCurrency(value?.icBalanceCurrency || existing?.icBalanceCurrency)
+            : '',
         memo: cleanText(value?.memo || existing?.memo || '', 300),
         receipt,
         analysisStatus,
