@@ -18,6 +18,20 @@ const TRAVEL_CONTEXT = process.env.TRAVEL_CONTEXT || [
     'Korea-side receipts may be airport meals, buses, trains, taxis, or convenience stores before/after the Japan trip.',
     'Use this context to choose category and currency, but do not invent unreadable merchant names or totals.'
 ].join('\n');
+const CATEGORY_VALUES = ['식사', '카페', '교통', '관광', '편의점', '쇼핑', '숙소', '기타'];
+const ITEM_VALUES = ['아침', '점심', '저녁', '식사', '카페', '간식', '택시', '버스', 'JR/철도', '교통카드', '입장료', '온천/관광', '편의점', '기념품', '숙소 추가요금', '기타'];
+const METHOD_VALUES = ['카드', '현금', '교통카드', '기타'];
+const RECEIPT_OUTPUT_CONTRACT = [
+    'Output contract:',
+    'Return exactly one JSON object. Do not include markdown, comments, code fences, explanation, or extra keys.',
+    'Every key below must be present and must use these exact key names and value types.',
+    '{"date":"YYYY-MM-DD or empty string","merchant":"visible merchant/store name or 상호 확인 필요","category":"식사|카페|교통|관광|편의점|쇼핑|숙소|기타","item":"아침|점심|저녁|식사|카페|간식|택시|버스|JR/철도|교통카드|입장료|온천/관광|편의점|기념품|숙소 추가요금|기타","currency":"JPY|KRW","amount":integer_without_comma,"method":"카드|현금|교통카드|기타","confidence":number_0_to_1,"aiNote":"short Korean reason; mention 확인필요 if uncertain"}',
+    'category, item, currency, and method must be chosen only from the allowed values.',
+    'amount must be a plain integer number without comma, currency symbol, or decimal.',
+    'merchant should be short and stable. Do not translate a readable brand/store name unless the receipt already provides Korean.',
+    'item is the display label for the ledger. Prefer the most specific allowed item: 점심/저녁/카페/택시/버스/JR/철도/편의점/입장료/기념품.',
+    'If total or merchant is unreadable, set confidence below 0.68 and explain in aiNote.'
+].join('\n');
 
 function trimSlash(value) {
     return String(value || '').replace(/\/+$/, '');
@@ -70,9 +84,11 @@ async function classifyReceipt(imageDataUrl, expense) {
         'Read the receipt image carefully. Prefer the final paid total, tax-included total, or card charge total.',
         'If the receipt has multiple totals, choose the largest final payable amount unless a lower card-charge total is clearly the actual payment.',
         'If uncertain, keep confidence below 0.7 and explain briefly in aiNote.',
-        'Categories must be one of: 식사, 카페, 교통, 관광, 편의점, 쇼핑, 숙소, 기타.',
+        RECEIPT_OUTPUT_CONTRACT,
+        `Categories must be one of: ${CATEGORY_VALUES.join(', ')}.`,
+        `Items must be one of: ${ITEM_VALUES.join(', ')}.`,
         'Currency must be JPY or KRW. Japanese receipts are usually JPY.',
-        'Method must be one of: 카드, 현금, 교통카드, 기타.',
+        `Method must be one of: ${METHOD_VALUES.join(', ')}.`,
         'Use YYYY-MM-DD for date. If unreadable, use empty string.'
     ].join('\n');
 
@@ -80,8 +96,9 @@ async function classifyReceipt(imageDataUrl, expense) {
         'Trip context:',
         TRAVEL_CONTEXT,
         '',
-        'Analyze this receipt and output JSON with these keys:',
-        'date, merchant, category, item, currency, amount, method, confidence, aiNote.',
+        RECEIPT_OUTPUT_CONTRACT,
+        '',
+        'Analyze this receipt and return the JSON object now.',
         `Existing upload date: ${expense.date || ''}`,
         `Existing payer: ${expense.payer || ''}`,
         `Existing memo: ${expense.memo || ''}`
@@ -196,14 +213,47 @@ function clean(value, fallback = '') {
     return String(value ?? fallback).trim();
 }
 
+function normalizeEnum(value, allowed, fallback) {
+    const text = clean(value);
+    return allowed.includes(text) ? text : fallback;
+}
+
+function normalizeItem(value, category) {
+    const text = clean(value);
+    if (ITEM_VALUES.includes(text)) return text;
+
+    const lower = text.toLowerCase();
+    if (/breakfast|morning|朝食|아침/.test(lower)) return '아침';
+    if (/lunch|昼|점심/.test(lower)) return '점심';
+    if (/dinner|夕|저녁|석식/.test(lower)) return '저녁';
+    if (/cafe|coffee|커피|카페|喫茶/.test(lower)) return '카페';
+    if (/snack|간식|음료/.test(lower)) return '간식';
+    if (/taxi|택시/.test(lower)) return '택시';
+    if (/bus|버스/.test(lower)) return '버스';
+    if (/jr|train|rail|철도|전철|기차/.test(lower)) return 'JR/철도';
+    if (/icoca|suica|교통카드/.test(lower)) return '교통카드';
+    if (/ticket|입장|입장료|admission/.test(lower)) return '입장료';
+    if (/onsen|온천|관광|폭포|falls/.test(lower)) return '온천/관광';
+    if (/convenience|편의점|lawson|family|7-eleven|セブン|ローソン/.test(lower)) return '편의점';
+    if (/gift|souvenir|기념품/.test(lower)) return '기념품';
+    if (/hotel|숙소|호텔/.test(lower)) return '숙소 추가요금';
+
+    if (category === '식사') return '식사';
+    if (category === '카페') return '카페';
+    if (category === '편의점') return '편의점';
+    if (category === '관광') return '온천/관광';
+    if (category === '쇼핑') return '기념품';
+    if (category === '숙소') return '숙소 추가요금';
+    return '기타';
+}
+
 function normalizeClassification(data, expense) {
     const amount = Math.max(0, Math.round(Number(String(data.amount ?? '').replace(/,/g, '')) || 0));
-    const categories = new Set(['식사', '카페', '교통', '관광', '편의점', '쇼핑', '숙소', '기타']);
-    const methods = new Set(['카드', '현금', '교통카드', '기타']);
     const currency = clean(data.currency, 'JPY').toUpperCase() === 'KRW' ? 'KRW' : 'JPY';
     const confidence = Math.max(0, Math.min(1, Number(data.confidence) || 0));
-    const category = categories.has(clean(data.category)) ? clean(data.category) : '기타';
-    const method = methods.has(clean(data.method)) ? clean(data.method) : '카드';
+    const category = normalizeEnum(data.category, CATEGORY_VALUES, '기타');
+    const item = normalizeItem(data.item, category);
+    const method = normalizeEnum(data.method, METHOD_VALUES, '카드');
     const status = amount > 0 && confidence >= 0.68 ? '분석완료' : '확인필요';
     return {
         id: expense.id,
@@ -211,7 +261,7 @@ function normalizeClassification(data, expense) {
         payer: expense.payer || '공금',
         category,
         merchant: clean(data.merchant, '상호 확인 필요').slice(0, 80),
-        item: clean(data.item, `${category} 영수증`).slice(0, 120),
+        item,
         currency,
         amount,
         method,
