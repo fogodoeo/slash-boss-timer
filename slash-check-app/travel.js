@@ -281,7 +281,7 @@
         document.querySelector('#entrySummary').textContent = `${expenses.length}건`;
 
         if (!expenses.length) {
-            travelList.innerHTML = '<div class="travelEntry"><b>아직 등록된 결제 내역이 없습니다.</b><div class="travelEntryMeta">여행 중 영수증을 찍고 금액을 넣으면 여기에 쌓입니다.</div></div>';
+            travelList.innerHTML = '<div class="travelEntry emptyEntry"><b>아직 등록된 결제 내역이 없습니다.</b><div class="travelEntryMeta">영수증을 올리면 분석 결과가 여기에 쌓입니다.</div></div>';
             return;
         }
 
@@ -315,11 +315,11 @@
                         <div class="travelAmount">${escapeHtml(formatCurrencyAmount(item.currency, item.amount))}</div>
                     </div>
                     <div class="travelTags">
-                        <span>${status}</span>
-                        <span>${escapeHtml(type)}</span>
+                        <span class="tagStatus">${status}</span>
+                        <span class="tagType">${escapeHtml(type)}</span>
                         <span>${escapeHtml(item.category)}</span>
                         <span>${formatKrw(toKrw(item))}</span>
-                        <span>${escapeHtml(impactLabel)}</span>
+                        <span class="tagImpact">${escapeHtml(impactLabel)}</span>
                         ${icBalance}
                         ${confidence}
                         ${receipt}

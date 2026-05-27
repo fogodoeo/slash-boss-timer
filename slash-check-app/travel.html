@@ -8,32 +8,34 @@
     <link rel="stylesheet" href="./styles.css">
     <style>
         body {
-            background: #eef2f7;
+            background: #f4f6f9;
+        }
+
+        html {
+            scroll-behavior: smooth;
         }
 
         .travelShell {
-            width: min(1160px, calc(100% - 28px));
+            width: min(1120px, calc(100% - 28px));
             margin: 0 auto;
-            padding: 18px 0 42px;
+            padding: 14px 0 44px;
         }
 
         .travelTop {
             display: grid;
             grid-template-columns: minmax(0, 1fr) auto;
             gap: 14px;
-            align-items: end;
-            margin-bottom: 14px;
-            padding: 18px;
+            align-items: center;
+            margin-bottom: 10px;
+            padding: 14px 16px;
             border: 1px solid var(--line);
             border-radius: 8px;
-            background:
-                linear-gradient(135deg, rgba(255,255,255,.96), rgba(237,244,255,.88)),
-                #fff;
+            background: #fff;
             box-shadow: var(--shadow);
         }
 
         .travelTop h1 {
-            font-size: clamp(24px, 4vw, 38px);
+            font-size: clamp(22px, 3vw, 30px);
         }
 
         .travelActions {
@@ -41,6 +43,46 @@
             flex-wrap: wrap;
             gap: 8px;
             justify-content: flex-end;
+        }
+
+        .quickNav {
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 8px;
+            margin-bottom: 10px;
+            padding: 8px;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            background: rgba(255, 255, 255, .96);
+            box-shadow: var(--shadow);
+            backdrop-filter: blur(10px);
+        }
+
+        .quickNav a {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 36px;
+            border-radius: 7px;
+            background: var(--soft);
+            color: var(--text-soft);
+            font-size: 13px;
+            font-weight: 900;
+            text-decoration: none;
+        }
+
+        .quickNav a:focus-visible,
+        .travelButton:focus-visible,
+        .travelGhostButton:focus-visible,
+        .travelDangerButton:focus-visible,
+        input:focus-visible,
+        select:focus-visible,
+        textarea:focus-visible {
+            outline: 3px solid rgba(20, 87, 217, .18);
+            outline-offset: 2px;
         }
 
         .travelButton,
@@ -76,18 +118,23 @@
 
         .travelGrid {
             display: grid;
-            grid-template-columns: repeat(4, minmax(0, 1fr));
+            grid-template-columns: 1.3fr repeat(3, minmax(0, .9fr));
             gap: 10px;
             margin-bottom: 14px;
         }
 
         .travelMetric {
-            min-height: 118px;
-            padding: 16px;
+            min-height: 112px;
+            padding: 15px;
             border: 1px solid var(--line);
             border-radius: 8px;
             background: #fff;
             box-shadow: var(--shadow);
+        }
+
+        .primaryMetric {
+            border-color: #b8d3ff;
+            background: linear-gradient(180deg, #ffffff, #f5f9ff);
         }
 
         .travelMetric span {
@@ -100,8 +147,9 @@
 
         .travelMetric strong {
             display: block;
-            font-size: clamp(22px, 3vw, 30px);
+            font-size: clamp(20px, 2.6vw, 29px);
             line-height: 1.06;
+            word-break: keep-all;
         }
 
         .travelMetric small {
@@ -113,12 +161,28 @@
 
         .travelLayout {
             display: grid;
-            grid-template-columns: minmax(320px, .9fr) minmax(0, 1.35fr);
+            grid-template-columns: minmax(310px, .84fr) minmax(0, 1.36fr);
+            gap: 14px;
+            align-items: start;
+        }
+
+        .travelStack {
+            display: grid;
             gap: 14px;
         }
 
         .walletPanel {
-            margin-bottom: 14px;
+            scroll-margin-top: 70px;
+        }
+
+        .uploadPanel {
+            position: sticky;
+            top: 68px;
+            scroll-margin-top: 70px;
+        }
+
+        #ledgerPanel {
+            scroll-margin-top: 70px;
         }
 
         .travelPanel {
@@ -134,7 +198,8 @@
             justify-content: space-between;
             gap: 12px;
             align-items: center;
-            padding: 16px;
+            min-height: 66px;
+            padding: 14px;
             border-bottom: 1px solid var(--line-soft);
             background: var(--soft);
         }
@@ -148,12 +213,12 @@
             display: grid;
             grid-template-columns: repeat(3, minmax(0, 1fr));
             gap: 10px;
-            padding: 14px;
+            padding: 12px;
         }
 
         .walletCard {
             display: grid;
-            gap: 10px;
+            gap: 9px;
             min-width: 0;
             padding: 12px;
             border: 1px solid var(--line);
@@ -174,9 +239,10 @@
 
         .walletBalance {
             color: var(--blue);
-            font-size: clamp(22px, 3vw, 30px);
+            font-size: clamp(20px, 2.8vw, 28px);
             font-weight: 950;
             line-height: 1.05;
+            word-break: keep-all;
         }
 
         .walletMeta {
@@ -205,8 +271,8 @@
         .travelList,
         .pinBox {
             display: grid;
-            gap: 10px;
-            padding: 14px;
+            gap: 12px;
+            padding: 12px;
         }
 
         .travelForm label,
@@ -226,9 +292,10 @@
         .travelForm input,
         .travelForm select,
         .travelForm textarea,
+        .rateControl input,
         .pinBox input {
             width: 100%;
-            min-height: 40px;
+            min-height: 42px;
             border: 1px solid var(--line);
             border-radius: 7px;
             background: #fff;
@@ -237,8 +304,14 @@
         }
 
         .travelForm textarea {
-            min-height: 78px;
+            min-height: 72px;
             resize: vertical;
+        }
+
+        .travelForm input[type="file"] {
+            padding: 11px;
+            border-style: dashed;
+            background: #f8fbff;
         }
 
         .travelForm .two {
@@ -250,7 +323,7 @@
         .photoPreview {
             display: none;
             width: 100%;
-            max-height: 220px;
+            max-height: 260px;
             object-fit: contain;
             border: 1px solid var(--line);
             border-radius: 8px;
@@ -263,7 +336,7 @@
 
         .travelEntry {
             display: grid;
-            gap: 10px;
+            gap: 9px;
             padding: 12px;
             border: 1px solid var(--line);
             border-radius: 8px;
@@ -290,7 +363,7 @@
 
         .travelAmount {
             color: var(--blue);
-            font-size: 18px;
+            font-size: 17px;
             font-weight: 950;
             white-space: nowrap;
         }
@@ -306,13 +379,51 @@
             display: inline-flex;
             align-items: center;
             min-height: 26px;
-            border-radius: 999px;
+            border-radius: 7px;
             padding: 3px 8px;
             background: var(--soft);
             color: var(--text-soft);
             font-size: 12px;
             font-weight: 800;
             text-decoration: none;
+        }
+
+        .travelTags .tagType {
+            background: #eef7f1;
+            color: #146c43;
+        }
+
+        .travelTags .tagImpact {
+            background: #fff8e6;
+            color: #8a5a00;
+        }
+
+        .travelTags .tagStatus {
+            background: #eef2ff;
+            color: #3046a5;
+        }
+
+        .emptyEntry {
+            min-height: 112px;
+            align-content: center;
+            background: linear-gradient(180deg, #fff, #fafbfc);
+        }
+
+        .rateControl {
+            display: grid;
+            gap: 4px;
+            min-width: 112px;
+        }
+
+        .rateControl .label {
+            margin: 0;
+        }
+
+        .rateControl input {
+            height: 36px;
+            min-height: 36px;
+            padding: 0 8px;
+            text-align: right;
         }
 
         .pinOverlay {
@@ -372,6 +483,10 @@
                 grid-template-columns: 1fr;
             }
 
+            .uploadPanel {
+                position: static;
+            }
+
             .travelActions {
                 justify-content: stretch;
             }
@@ -386,22 +501,79 @@
             }
 
             .walletGrid {
-                grid-template-columns: 1fr;
+                grid-template-columns: repeat(3, minmax(210px, 1fr));
+                overflow-x: auto;
+                scroll-snap-type: x proximity;
+            }
+
+            .walletCard {
+                scroll-snap-align: start;
             }
         }
 
         @media (max-width: 560px) {
             .travelShell {
-                width: min(100% - 18px, 1160px);
+                width: min(100% - 16px, 1160px);
+                padding-top: 8px;
             }
 
-            .travelGrid,
+            .travelTop {
+                grid-template-columns: 1fr;
+                gap: 10px;
+                padding: 13px;
+            }
+
+            .travelTop h1 {
+                font-size: 24px;
+            }
+
+            .travelGrid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+
+            .primaryMetric {
+                grid-column: 1 / -1;
+            }
+
+            .travelMetric:last-child {
+                grid-column: 1 / -1;
+            }
+
             .travelForm .two {
                 grid-template-columns: 1fr;
             }
 
             .travelMetric {
-                min-height: 98px;
+                min-height: 92px;
+                padding: 13px;
+            }
+
+            .travelMetric:not(.primaryMetric) {
+                min-height: auto;
+            }
+
+            .walletGrid {
+                grid-template-columns: 1fr;
+                overflow: visible;
+            }
+
+            .travelEntryTop {
+                grid-template-columns: 1fr;
+            }
+
+            .travelAmount {
+                justify-self: start;
+            }
+
+            .travelPanelHead,
+            .ledgerHead {
+                align-items: start;
+            }
+
+            .quickNav {
+                top: 0;
+                margin-left: -2px;
+                margin-right: -2px;
             }
         }
     </style>
@@ -429,8 +601,7 @@
         <header class="travelTop">
             <div>
                 <span class="eyebrow">2026 시라하마 가족여행</span>
-                <h1>영수증 AI 정산</h1>
-                <p class="pageDesc">사진만 올리면 분석 대기열에 저장됩니다. PC의 로컬 워커가 ima2 OAuth 자원으로 판독한 뒤 자동으로 분류합니다.</p>
+                <h1>영수증 정산</h1>
             </div>
             <div class="travelActions">
                 <button id="exportCsvButton" class="travelGhostButton" type="button">CSV 복사</button>
@@ -438,16 +609,17 @@
             </div>
         </header>
 
+        <nav class="quickNav" aria-label="빠른 이동">
+            <a href="#receiptPanel">영수증</a>
+            <a href="#walletPanel">잔액</a>
+            <a href="#ledgerPanel">내역</a>
+        </nav>
+
         <section class="travelGrid" aria-label="정산 요약">
-            <article class="travelMetric">
-                <span>총 예산</span>
-                <strong id="budgetTotal">3,000,000원</strong>
-                <small>부모님께 받는 공금 기준</small>
-            </article>
-            <article class="travelMetric">
-                <span>고정비</span>
-                <strong id="fixedTotal">2,312,758원</strong>
-                <small>항공 순액, 숙소, 패스권</small>
+            <article class="travelMetric primaryMetric">
+                <span>남은 예산</span>
+                <strong id="remainTotal">687,242원</strong>
+                <small>총 예산 - 고정비 - 현지 등록액</small>
             </article>
             <article class="travelMetric">
                 <span>현지 등록액</span>
@@ -455,29 +627,23 @@
                 <small id="spentMeta">0건</small>
             </article>
             <article class="travelMetric">
-                <span>남은 예산</span>
-                <strong id="remainTotal">687,242원</strong>
-                <small>총 예산 - 고정비 - 등록액</small>
+                <span>고정비</span>
+                <strong id="fixedTotal">2,312,758원</strong>
+                <small>항공 순액, 숙소, 패스권</small>
+            </article>
+            <article class="travelMetric">
+                <span>총 예산</span>
+                <strong id="budgetTotal">3,000,000원</strong>
+                <small>부모님께 받는 공금 기준</small>
             </article>
         </section>
 
-        <section class="travelPanel walletPanel" aria-label="현재 잔액">
-            <div class="travelPanelHead">
-                <div>
-                    <span class="label">현재 잔액</span>
-                    <strong>반수동 지갑</strong>
-                </div>
-                <span id="walletStatus" class="statusLine"></span>
-            </div>
-            <div id="walletList" class="walletGrid"></div>
-        </section>
-
         <section class="travelLayout">
-            <article class="travelPanel">
+            <article id="receiptPanel" class="travelPanel uploadPanel">
                 <div class="travelPanelHead">
                     <div>
                         <span class="label">영수증 추가</span>
-                        <strong>사진만 업로드</strong>
+                        <strong>사진 업로드</strong>
                     </div>
                     <span id="saveStatus" class="statusLine"></span>
                 </div>
@@ -514,19 +680,32 @@
                 </form>
             </article>
 
-            <article class="travelPanel">
-                <div class="travelPanelHead">
-                    <div>
-                        <span class="label">결제 내역</span>
-                        <strong id="entrySummary">0건</strong>
+            <div class="travelStack">
+                <section id="walletPanel" class="travelPanel walletPanel" aria-label="현재 잔액">
+                    <div class="travelPanelHead">
+                        <div>
+                            <span class="label">현재 잔액</span>
+                            <strong>반수동 지갑</strong>
+                        </div>
+                        <span id="walletStatus" class="statusLine"></span>
                     </div>
-                    <label style="display:grid;gap:4px;min-width:110px;">
-                        <span class="label" style="margin:0;">환율</span>
-                        <input id="rateInput" type="number" inputmode="decimal" min="0" step="0.1" value="9.5" style="height:34px;border:1px solid var(--line);border-radius:7px;padding:0 8px;text-align:right;">
-                    </label>
-                </div>
-                <div id="travelList" class="travelList"></div>
-            </article>
+                    <div id="walletList" class="walletGrid"></div>
+                </section>
+
+                <article id="ledgerPanel" class="travelPanel">
+                    <div class="travelPanelHead ledgerHead">
+                        <div>
+                            <span class="label">결제 내역</span>
+                            <strong id="entrySummary">0건</strong>
+                        </div>
+                        <label class="rateControl">
+                            <span class="label">환율</span>
+                            <input id="rateInput" type="number" inputmode="decimal" min="0" step="0.1" value="9.5">
+                        </label>
+                    </div>
+                    <div id="travelList" class="travelList"></div>
+                </article>
+            </div>
         </section>
     </main>
 
