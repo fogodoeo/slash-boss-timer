@@ -14,6 +14,7 @@
     const saveStatus = document.querySelector('#saveStatus');
     const receiptInput = document.querySelector('#receiptInput');
     const photoPreview = document.querySelector('#photoPreview');
+    const receiptFileName = document.querySelector('#receiptFileName');
     const walletList = document.querySelector('#walletList');
     const walletStatus = document.querySelector('#walletStatus');
 
@@ -317,8 +318,6 @@
                     <div class="travelTags">
                         <span class="tagStatus">${status}</span>
                         <span class="tagType">${escapeHtml(type)}</span>
-                        <span>${escapeHtml(item.category)}</span>
-                        <span>${formatKrw(toKrw(item))}</span>
                         <span class="tagImpact">${escapeHtml(impactLabel)}</span>
                         ${icBalance}
                         ${confidence}
@@ -346,6 +345,7 @@
         document.querySelector('#dateInput').value = todayKst();
         document.querySelector('#payerInput').value = '공금';
         receiptDataUrl = '';
+        receiptFileName.textContent = '선택된 사진 없음';
         photoPreview.removeAttribute('src');
         photoPreview.classList.remove('show');
     }
@@ -419,17 +419,20 @@
         const file = receiptInput.files?.[0];
         if (!file) {
             receiptDataUrl = '';
+            receiptFileName.textContent = '선택된 사진 없음';
             photoPreview.classList.remove('show');
             return;
         }
         try {
             showStatus('사진 압축 중...');
             receiptDataUrl = await compressImage(file);
+            receiptFileName.textContent = file.name || '사진 선택됨';
             photoPreview.src = receiptDataUrl;
             photoPreview.classList.add('show');
             showStatus('사진 준비 완료');
         } catch (err) {
             receiptDataUrl = '';
+            receiptFileName.textContent = '선택된 사진 없음';
             receiptInput.value = '';
             showStatus(err.message, 'error');
         }
