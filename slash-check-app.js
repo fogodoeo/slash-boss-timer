@@ -1733,9 +1733,10 @@ function normalizeTravelTime(value) {
 
 const TRAVEL_TRANSACTION_TYPES = new Set(['지출', '현금인출', 'IC충전', '환전', '환급', '정산이동', '수수료', '기타']);
 const DEFAULT_TRAVEL_WALLETS = [
-    { id: 'hana-jpy', name: '하나머니 JPY', currency: 'JPY', balance: 0, note: '하나머니 앱 잔액을 기준으로 보정' },
-    { id: 'cash-jpy', name: '현금 JPY', currency: 'JPY', balance: 0, note: '세븐뱅크 인출 후 지갑 현금' },
-    { id: 'ic-jpy', name: 'IC카드', currency: 'JPY', balance: 0, note: 'ICOCA/Suica 등 교통카드' }
+    { id: 'hana-jpy', name: '하나머니', currency: 'JPY', balance: 0, note: '앱 잔액' },
+    { id: 'cash-jpy', name: '현금', currency: 'JPY', balance: 0, note: '지갑 현금' },
+    { id: 'ic-jpy', name: 'IC카드', currency: 'JPY', balance: 0, note: 'ICOCA/Suica' },
+    { id: 'card-jpy', name: '신용카드', currency: 'JPY', balance: 0, note: '카드 사용액' }
 ];
 
 function normalizeTravelTransactionType(value) {

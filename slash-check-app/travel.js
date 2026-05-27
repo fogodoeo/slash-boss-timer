@@ -25,6 +25,13 @@
     let expenses = [];
     let wallets = [];
 
+    const WALLET_LABELS = {
+        'hana-jpy': { name: '하나머니', note: '앱 잔액' },
+        'cash-jpy': { name: '현금', note: '지갑 현금' },
+        'ic-jpy': { name: 'IC카드', note: 'ICOCA/Suica' },
+        'card-jpy': { name: '신용카드', note: '카드 사용액' }
+    };
+
     function todayKst() {
         const now = new Date(Date.now() + 9 * 60 * 60 * 1000);
         return now.toISOString().slice(0, 10);
@@ -201,6 +208,13 @@
             return 0;
         }
 
+        if (wallet.id === 'card-jpy') {
+            if (method !== '카드') return 0;
+            if (type === '지출' || type === '수수료' || type === 'IC충전') return amount;
+            if (type === '환급') return -amount;
+            return 0;
+        }
+
         return 0;
     }
 
@@ -226,8 +240,18 @@
                 balance: number(receiptBalance.item.icBalance),
                 base,
                 delta,
-                source: '최근 IC 영수증 잔액',
+                source: 'IC잔액',
                 sourceDetail: `${receiptBalance.item.date || ''} ${receiptBalance.item.paymentTime || ''}`.trim()
+            };
+        }
+
+        if (wallet.id === 'card-jpy') {
+            return {
+                balance: base + delta,
+                base,
+                delta,
+                source: '카드 누적',
+                sourceDetail: wallet.updatedAt ? '기준 이후' : '전체'
             };
         }
 
@@ -235,35 +259,37 @@
             balance: base + delta,
             base,
             delta,
-            source: wallet.updatedAt ? '수동 기준 + 이후 영수증' : '초기값 + 전체 영수증',
-            sourceDetail: wallet.updatedAt ? new Date(wallet.updatedAt).toLocaleString('ko-KR') : '수동 잔액 미입력'
+            source: wallet.updatedAt ? '기준 이후' : '전체 내역',
+            sourceDetail: wallet.updatedAt ? new Date(wallet.updatedAt).toLocaleString('ko-KR') : ''
         };
     }
 
     function renderWallets() {
         const items = wallets.length ? wallets : [
-            { id: 'hana-jpy', name: '하나머니 JPY', currency: 'JPY', balance: 0, note: '하나머니 앱 잔액을 기준으로 보정' },
-            { id: 'cash-jpy', name: '현금 JPY', currency: 'JPY', balance: 0, note: '세븐뱅크 인출 후 지갑 현금' },
-            { id: 'ic-jpy', name: 'IC카드', currency: 'JPY', balance: 0, note: 'ICOCA/Suica 등 교통카드' }
+            { id: 'hana-jpy', name: '하나머니', currency: 'JPY', balance: 0, note: '앱 잔액' },
+            { id: 'cash-jpy', name: '현금', currency: 'JPY', balance: 0, note: '지갑 현금' },
+            { id: 'ic-jpy', name: 'IC카드', currency: 'JPY', balance: 0, note: 'ICOCA/Suica' },
+            { id: 'card-jpy', name: '신용카드', currency: 'JPY', balance: 0, note: '카드 사용액' }
         ];
 
         walletList.innerHTML = items.map((wallet) => {
+            const label = WALLET_LABELS[wallet.id] || { name: wallet.name, note: wallet.note };
             const computed = computedWallet(wallet);
-            const deltaText = computed.delta ? `자동증감 ${formatSignedCurrencyAmount(wallet.currency, computed.delta)}` : '자동증감 없음';
+            const deltaText = computed.delta ? formatSignedCurrencyAmount(wallet.currency, computed.delta) : '변화 없음';
+            const baseLabel = wallet.id === 'card-jpy' ? '기준 사용액' : '기준 잔액';
             return `
                 <article class="walletCard" data-wallet-id="${escapeHtml(wallet.id)}">
                     <div class="walletCardTop">
                         <div>
-                            <b>${escapeHtml(wallet.name)}</b>
-                            <div class="walletMeta">${escapeHtml(wallet.note || '')}</div>
+                            <b>${escapeHtml(label.name)}</b>
+                            <div class="walletMeta">${escapeHtml(label.note || '')}</div>
                         </div>
                         <span class="travelEntryMeta">${escapeHtml(wallet.currency)}</span>
                     </div>
                     <div class="walletBalance">${escapeHtml(formatCurrencyAmount(wallet.currency, computed.balance))}</div>
                     <div class="walletMeta">${escapeHtml(computed.source)} · ${escapeHtml(deltaText)}</div>
-                    <div class="walletMeta">${escapeHtml(computed.sourceDetail || '')}</div>
                     <div class="walletControls">
-                        <input data-wallet-balance="${escapeHtml(wallet.id)}" type="number" inputmode="numeric" min="0" step="1" value="${escapeHtml(wallet.balance || 0)}" aria-label="${escapeHtml(wallet.name)} 수동 잔액">
+                        <input data-wallet-balance="${escapeHtml(wallet.id)}" type="number" inputmode="numeric" min="0" step="1" value="${escapeHtml(wallet.balance || 0)}" aria-label="${escapeHtml(label.name)} ${escapeHtml(baseLabel)}">
                         <button class="travelGhostButton" type="button" data-wallet-save="${escapeHtml(wallet.id)}">저장</button>
                     </div>
                 </article>
@@ -295,17 +321,17 @@
                 ? `<a class="receiptLink" href="/api/travel/receipt/${encodeURIComponent(item.receipt.id)}?pin=${encodeURIComponent(pin)}" target="_blank" rel="noopener noreferrer">영수증</a>`
                 : '';
             const status = escapeHtml(item.analysisStatus || (item.amount > 0 ? '완료' : '분석대기'));
-            const confidence = Number(item.confidence || 0) > 0
-                ? `<span>신뢰도 ${Math.round(Number(item.confidence || 0) * 100)}%</span>`
+            const statusTag = ['분석대기', '문장분석대기', '분석중', '확인필요', '분석실패'].includes(item.analysisStatus)
+                ? `<span class="tagStatus">${status}</span>`
                 : '';
             const timeText = item.paymentTime ? ` ${escapeHtml(item.paymentTime)}` : '';
             const location = item.location ? `<div class="travelEntryMeta">${escapeHtml(item.location)}</div>` : '';
             const icBalance = Number(item.icBalance || 0) > 0
-                ? `<span>${escapeHtml(item.icCard || 'IC')} 잔액 ${escapeHtml(formatCurrencyAmount(item.icBalanceCurrency || item.currency || 'JPY', item.icBalance))}</span>`
+                ? `<span>${escapeHtml(item.icCard || 'IC')} ${escapeHtml(formatCurrencyAmount(item.icBalanceCurrency || item.currency || 'JPY', item.icBalance))}</span>`
                 : '';
             const type = transactionType(item);
             const impact = budgetImpactKrw(item);
-            const impactLabel = impact === 0 ? '예산 제외' : `예산 ${formatKrw(impact)}`;
+            const impactLabel = impact === 0 ? '제외' : formatKrw(impact);
             return `
                 <article class="travelEntry" data-id="${escapeHtml(item.id)}">
                     <div class="travelEntryTop">
@@ -318,14 +344,13 @@
                         <div class="travelAmount">${escapeHtml(formatCurrencyAmount(item.currency, item.amount))}</div>
                     </div>
                     <div class="travelTags">
-                        <span class="tagStatus">${status}</span>
                         <span class="tagType">${escapeHtml(type)}</span>
                         <span class="tagImpact">${escapeHtml(impactLabel)}</span>
                         ${icBalance}
-                        ${confidence}
+                        ${statusTag}
                         ${receipt}
                     </div>
-                    ${item.aiNote ? `<div class="travelEntryMeta">${escapeHtml(item.aiNote)}</div>` : ''}
+                    ${item.aiNote && statusTag ? `<div class="travelEntryMeta">${escapeHtml(item.aiNote)}</div>` : ''}
                     ${item.memo ? `<div class="travelEntryMeta">${escapeHtml(item.memo)}</div>` : ''}
                     <button class="travelDangerButton" type="button" data-delete="${escapeHtml(item.id)}">삭제</button>
                 </article>
