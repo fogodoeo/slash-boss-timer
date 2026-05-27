@@ -157,22 +157,59 @@
             throw new Error('사진 파일만 가능');
         }
 
-        let bitmap;
+        let source;
+        let closeSource = null;
         try {
-            bitmap = await createImageBitmap(file);
+            if (typeof createImageBitmap === 'function') {
+                source = await createImageBitmap(file);
+                closeSource = () => source.close?.();
+            }
         } catch {
-            throw new Error('사진을 읽지 못함');
+            source = null;
         }
+
+        const rawDataUrl = source ? '' : await readFileDataUrl(file);
+        if (!source) {
+            try {
+                source = await loadImage(rawDataUrl);
+            } catch {
+                if (/^image\/(jpeg|png|webp)$/.test(file.type) && file.size <= 3.4 * 1024 * 1024) {
+                    return rawDataUrl;
+                }
+                throw new Error('사진을 읽지 못함');
+            }
+        }
+
         const maxSide = 1600;
-        const scale = Math.min(1, maxSide / Math.max(bitmap.width, bitmap.height));
+        const sourceWidth = source.width || source.videoWidth || source.naturalWidth;
+        const sourceHeight = source.height || source.videoHeight || source.naturalHeight;
+        const scale = Math.min(1, maxSide / Math.max(sourceWidth, sourceHeight));
         const canvas = document.createElement('canvas');
-        canvas.width = Math.max(1, Math.round(bitmap.width * scale));
-        canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+        canvas.width = Math.max(1, Math.round(sourceWidth * scale));
+        canvas.height = Math.max(1, Math.round(sourceHeight * scale));
         const ctx = canvas.getContext('2d');
-        ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-        bitmap.close?.();
+        ctx.drawImage(source, 0, 0, canvas.width, canvas.height);
+        closeSource?.();
 
         return canvas.toDataURL('image/jpeg', 0.78);
+    }
+
+    function readFileDataUrl(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(String(reader.result || ''));
+            reader.onerror = () => reject(new Error('사진을 읽지 못함'));
+            reader.readAsDataURL(file);
+        });
+    }
+
+    function loadImage(src) {
+        return new Promise((resolve, reject) => {
+            const image = new Image();
+            image.onload = () => resolve(image);
+            image.onerror = () => reject(new Error('사진을 읽지 못함'));
+            image.src = src;
+        });
     }
 
     function escapeHtml(value) {
@@ -332,6 +369,9 @@
                     showStatus(active.analysisStatus, active.analysisStatus === '분석실패' ? 'error' : '');
                     activeReceiptId = '';
                 }
+            } else {
+                showStatus('저장 확인 실패', 'error');
+                activeReceiptId = '';
             }
         }
 
@@ -529,6 +569,7 @@
                 method: 'POST',
                 body: JSON.stringify(payload)
             });
+            if (!data.saved?.id) throw new Error('서버 저장 실패');
             expenses = Array.isArray(data.expenses) ? data.expenses : expenses;
             activeReceiptId = data.saved?.id || '';
             resetForm();

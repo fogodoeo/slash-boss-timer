@@ -6,6 +6,7 @@ const BASE_URL = trimSlash(process.env.TRAVEL_BASE_URL || process.argv[2] || 'ht
 const PIN = String(process.env.TRAVEL_PIN || process.env.TRAVEL_PASSWORD || '1234');
 const MODEL = process.env.TRAVEL_AI_MODEL || 'gpt-5.4-mini';
 const POLL_MS = Math.max(5000, Number(process.env.TRAVEL_WORKER_INTERVAL_MS || 15000) || 15000);
+const AI_TIMEOUT_MS = Math.max(30000, Number(process.env.TRAVEL_AI_TIMEOUT_MS || 60000) || 60000);
 const ONCE = process.argv.includes('--once') || process.env.TRAVEL_WORKER_ONCE === '1';
 const RETRY_FAILED = process.argv.includes('--retry-failed') || process.env.TRAVEL_WORKER_RETRY_FAILED === '1';
 const OAUTH_URL = trimSlash(process.env.IMA2_OAUTH_URL || readIma2OAuthUrl() || 'http://127.0.0.1:10531');
@@ -186,22 +187,32 @@ async function classifyTextExpense(inputText, expense) {
 }
 
 async function responses(body) {
-    const res = await fetch(`${OAUTH_URL}/v1/responses`, {
-        method: 'POST',
-        headers: {
-            'content-type': 'application/json',
-            accept: 'text/event-stream'
-        },
-        body: JSON.stringify(body)
-    });
-    if (!res.ok) {
-        const text = await res.text().catch(() => '');
-        throw new Error(`AI response failed ${res.status}: ${text.slice(0, 300)}`);
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), AI_TIMEOUT_MS);
+    try {
+        const res = await fetch(`${OAUTH_URL}/v1/responses`, {
+            method: 'POST',
+            headers: {
+                'content-type': 'application/json',
+                accept: 'text/event-stream'
+            },
+            body: JSON.stringify(body),
+            signal: controller.signal
+        });
+        if (!res.ok) {
+            const text = await res.text().catch(() => '');
+            throw new Error(`AI response failed ${res.status}: ${text.slice(0, 300)}`);
+        }
+        const contentType = res.headers.get('content-type') || '';
+        if (contentType.includes('text/event-stream')) return readSseText(res);
+        const json = await res.json();
+        return json.output_text || collectOutputText(json);
+    } catch (error) {
+        if (error?.name === 'AbortError') throw new Error('AI 분석 시간 초과');
+        throw error;
+    } finally {
+        clearTimeout(timer);
     }
-    const contentType = res.headers.get('content-type') || '';
-    if (contentType.includes('text/event-stream')) return readSseText(res);
-    const json = await res.json();
-    return json.output_text || collectOutputText(json);
 }
 
 async function readSseText(res) {
@@ -475,6 +486,7 @@ async function main() {
     console.log(`[travel-worker] base=${BASE_URL}`);
     console.log(`[travel-worker] oauth=${OAUTH_URL}`);
     console.log(`[travel-worker] model=${MODEL}`);
+    console.log(`[travel-worker] timeoutMs=${AI_TIMEOUT_MS}`);
     do {
         try {
             await tick();
