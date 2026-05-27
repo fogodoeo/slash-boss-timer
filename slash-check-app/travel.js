@@ -9,6 +9,7 @@
     const pinInput = document.querySelector('#pinInput');
     const pinStatus = document.querySelector('#pinStatus');
     const expenseForm = document.querySelector('#expenseForm');
+    const manualForm = document.querySelector('#manualForm');
     const travelList = document.querySelector('#travelList');
     const rateInput = document.querySelector('#rateInput');
     const saveStatus = document.querySelector('#saveStatus');
@@ -340,6 +341,54 @@
         };
     }
 
+    function manualType() {
+        return document.querySelector('#manualTransactionType').value || '지출';
+    }
+
+    function manualMethod() {
+        return document.querySelector('#manualMethod').value || '현금';
+    }
+
+    function inferManualCategory(type, method) {
+        if (type === 'IC충전' || method === '교통카드') return '교통';
+        if (type === '현금인출' || type === '환전' || type === '정산이동') return '기타';
+        if (type === '수수료') return '기타';
+        return '기타';
+    }
+
+    function inferManualItem(type, method) {
+        if (type === 'IC충전') return '교통카드';
+        if (method === '교통카드') return '교통카드';
+        if (type === '현금인출') return '기타';
+        if (type === '환전') return '기타';
+        if (type === '수수료') return '기타';
+        return '기타';
+    }
+
+    function manualPayload() {
+        const type = manualType();
+        const method = manualMethod();
+        const currency = document.querySelector('#manualCurrency').value || 'JPY';
+        const icBalance = number(document.querySelector('#manualIcBalance').value);
+        return {
+            date: document.querySelector('#manualDate').value || todayKst(),
+            payer: document.querySelector('#manualPayer').value || '공금',
+            transactionType: type,
+            category: inferManualCategory(type, method),
+            item: inferManualItem(type, method),
+            method,
+            currency,
+            amount: document.querySelector('#manualAmount').value,
+            merchant: document.querySelector('#manualMerchant').value.trim() || type,
+            icCard: document.querySelector('#manualIcCard').value,
+            icBalance,
+            icBalanceCurrency: icBalance > 0 ? currency : '',
+            memo: document.querySelector('#manualMemo').value.trim(),
+            analysisStatus: '수동',
+            confidence: 0
+        };
+    }
+
     function resetForm() {
         expenseForm.reset();
         document.querySelector('#dateInput').value = todayKst();
@@ -348,6 +397,15 @@
         receiptFileName.textContent = '선택된 사진 없음';
         photoPreview.removeAttribute('src');
         photoPreview.classList.remove('show');
+    }
+
+    function resetManualForm() {
+        manualForm.reset();
+        document.querySelector('#manualDate').value = todayKst();
+        document.querySelector('#manualPayer').value = '공금';
+        document.querySelector('#manualCurrency').value = 'JPY';
+        document.querySelector('#manualMethod').value = '현금';
+        document.querySelector('#manualTransactionType').value = '지출';
     }
 
     function csvText() {
@@ -410,6 +468,29 @@
             resetForm();
             render();
             showStatus('업로드했습니다. AI 워커가 분석하면 자동 반영됩니다.');
+        } catch (err) {
+            showStatus(err.message, 'error');
+        }
+    });
+
+    manualForm.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const payload = manualPayload();
+        if (number(payload.amount) <= 0) {
+            showStatus('수동 거래 금액을 입력하세요.', 'error');
+            return;
+        }
+        try {
+            showStatus('수동 거래 저장 중...');
+            const data = await api('/api/travel/expenses', {
+                method: 'POST',
+                body: JSON.stringify(payload)
+            });
+            expenses = Array.isArray(data.expenses) ? data.expenses : expenses;
+            wallets = Array.isArray(data.wallets) ? data.wallets : wallets;
+            resetManualForm();
+            render();
+            showStatus('수동 거래를 저장했습니다.');
         } catch (err) {
             showStatus(err.message, 'error');
         }
@@ -506,6 +587,7 @@
     });
 
     document.querySelector('#dateInput').value = todayKst();
+    document.querySelector('#manualDate').value = todayKst();
     rateInput.value = localStorage.getItem(RATE_KEY) || '9.5';
     render();
 
