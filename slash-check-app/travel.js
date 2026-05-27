@@ -44,6 +44,22 @@
         return item.currency === 'JPY' ? amount * rate() : amount;
     }
 
+    function transactionType(item) {
+        const type = String(item.transactionType || '지출').trim();
+        return ['지출', '현금인출', 'IC충전', '환전', '환급', '정산이동', '수수료', '기타'].includes(type) ? type : '지출';
+    }
+
+    function budgetImpactKrw(item) {
+        const type = transactionType(item);
+        if (type === '환급') return -toKrw(item);
+        if (type === '지출' || type === '수수료' || type === '기타') return toKrw(item);
+        return 0;
+    }
+
+    function isMovement(item) {
+        return ['현금인출', 'IC충전', '환전', '정산이동'].includes(transactionType(item));
+    }
+
     function formatCurrencyAmount(currency, amount) {
         const value = Number(amount || 0).toLocaleString('ko-KR');
         return `${currency || 'JPY'} ${value}`;
@@ -126,10 +142,13 @@
     }
 
     function render() {
-        const spent = expenses.reduce((sum, item) => sum + toKrw(item), 0);
+        const spent = expenses.reduce((sum, item) => sum + budgetImpactKrw(item), 0);
+        const movementTotal = expenses.reduce((sum, item) => sum + (isMovement(item) ? toKrw(item) : 0), 0);
+        const spendingCount = expenses.filter((item) => budgetImpactKrw(item) !== 0).length;
+        const movementCount = expenses.filter(isMovement).length;
         const remaining = BUDGET_KRW - FIXED_TOTAL_KRW - spent;
         document.querySelector('#spentTotal').textContent = formatKrw(spent);
-        document.querySelector('#spentMeta').textContent = `${expenses.length}건 · 환율 ${rate()}원`;
+        document.querySelector('#spentMeta').textContent = `예산반영 ${spendingCount}건 · 이동 ${movementCount}건 ${formatKrw(movementTotal)} · 환율 ${rate()}원`;
         document.querySelector('#remainTotal').textContent = formatKrw(remaining);
         document.querySelector('#entrySummary').textContent = `${expenses.length}건`;
 
@@ -153,6 +172,9 @@
             const icBalance = Number(item.icBalance || 0) > 0
                 ? `<span>${escapeHtml(item.icCard || 'IC')} 잔액 ${escapeHtml(formatCurrencyAmount(item.icBalanceCurrency || item.currency || 'JPY', item.icBalance))}</span>`
                 : '';
+            const type = transactionType(item);
+            const impact = budgetImpactKrw(item);
+            const impactLabel = impact === 0 ? '예산 제외' : `예산 ${formatKrw(impact)}`;
             return `
                 <article class="travelEntry" data-id="${escapeHtml(item.id)}">
                     <div class="travelEntryTop">
@@ -166,8 +188,10 @@
                     </div>
                     <div class="travelTags">
                         <span>${status}</span>
+                        <span>${escapeHtml(type)}</span>
                         <span>${escapeHtml(item.category)}</span>
                         <span>${formatKrw(toKrw(item))}</span>
+                        <span>${escapeHtml(impactLabel)}</span>
                         ${icBalance}
                         ${confidence}
                         ${receipt}
@@ -200,7 +224,7 @@
 
     function csvText() {
         const rows = [
-            ['date', 'time', 'location', 'payer', 'category', 'merchant', 'item', 'currency', 'amount', 'krw', 'method', 'ic_card', 'ic_balance_currency', 'ic_balance', 'status', 'confidence', 'memo', 'receipt']
+            ['date', 'time', 'location', 'payer', 'transaction_type', 'category', 'merchant', 'item', 'currency', 'amount', 'krw', 'budget_impact_krw', 'method', 'ic_card', 'ic_balance_currency', 'ic_balance', 'status', 'confidence', 'memo', 'receipt']
         ];
         for (const item of expenses) {
             rows.push([
@@ -208,12 +232,14 @@
                 item.paymentTime || '',
                 item.location || '',
                 item.payer,
+                transactionType(item),
                 item.category,
                 item.merchant,
                 item.item,
                 item.currency,
                 item.amount,
                 Math.round(toKrw(item)),
+                Math.round(budgetImpactKrw(item)),
                 item.method,
                 item.icCard || '',
                 item.icBalanceCurrency || '',

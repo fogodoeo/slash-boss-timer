@@ -1731,6 +1731,20 @@ function normalizeTravelTime(value) {
     return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
 }
 
+const TRAVEL_TRANSACTION_TYPES = new Set(['지출', '현금인출', 'IC충전', '환전', '환급', '정산이동', '수수료', '기타']);
+
+function normalizeTravelTransactionType(value) {
+    const text = cleanText(value, 30);
+    if (TRAVEL_TRANSACTION_TYPES.has(text)) return text;
+    const lower = text.toLowerCase();
+    if (/atm|withdraw|cash withdrawal|출금|현금인출|현금화|인출/.test(lower)) return '현금인출';
+    if (/ic|icoca|suica|pasmo|교통카드|충전|charge|チャージ|入金/.test(lower)) return 'IC충전';
+    if (/exchange|환전|하나머니|hana/.test(lower)) return '환전';
+    if (/refund|환급|返金|취소/.test(lower)) return '환급';
+    if (/fee|수수료|手数料/.test(lower)) return '수수료';
+    return '지출';
+}
+
 function normalizeTravelExpense(value, existing = null) {
     const date = cleanDate(value?.date) || todayKstDate();
     const amount = normalizeTravelAmount(value?.amount);
@@ -1750,6 +1764,7 @@ function normalizeTravelExpense(value, existing = null) {
         paymentTime: normalizeTravelTime(value?.paymentTime || existing?.paymentTime || ''),
         location: cleanText(value?.location || existing?.location || '', 120),
         method: cleanText(value?.method || existing?.method || '카드', 30),
+        transactionType: normalizeTravelTransactionType(value?.transactionType || existing?.transactionType || '지출'),
         icCard: cleanText(value?.icCard || existing?.icCard || '', 40),
         icBalance: normalizeTravelAmount(value?.icBalance ?? existing?.icBalance ?? 0),
         icBalanceCurrency: value?.icBalanceCurrency || existing?.icBalanceCurrency

@@ -21,14 +21,18 @@ const TRAVEL_CONTEXT = process.env.TRAVEL_CONTEXT || [
 const CATEGORY_VALUES = ['식사', '카페', '교통', '관광', '편의점', '쇼핑', '숙소', '기타'];
 const ITEM_VALUES = ['아침', '점심', '저녁', '식사', '카페', '간식', '택시', '버스', 'JR/철도', '교통카드', '입장료', '온천/관광', '편의점', '기념품', '숙소 추가요금', '기타'];
 const METHOD_VALUES = ['카드', '현금', '교통카드', '기타'];
+const TRANSACTION_TYPE_VALUES = ['지출', '현금인출', 'IC충전', '환전', '환급', '정산이동', '수수료', '기타'];
 const IC_CARD_VALUES = ['ICOCA', 'Suica', 'PASMO', 'PiTaPa', 'TOICA', 'manaca', 'Kitaca', 'SUGOCA', 'nimoca', 'はやかけん', '기타', ''];
 const RECEIPT_OUTPUT_CONTRACT = [
     'Output contract:',
     'Return exactly one JSON object. Do not include markdown, comments, code fences, explanation, or extra keys.',
     'Every key below must be present and must use these exact key names and value types.',
-    '{"date":"YYYY-MM-DD or empty string","paymentTime":"HH:MM or empty string","location":"visible branch/address/station/place or empty string","merchant":"visible merchant/store name or 상호 확인 필요","category":"식사|카페|교통|관광|편의점|쇼핑|숙소|기타","item":"아침|점심|저녁|식사|카페|간식|택시|버스|JR/철도|교통카드|입장료|온천/관광|편의점|기념품|숙소 추가요금|기타","currency":"JPY|KRW","amount":integer_without_comma,"method":"카드|현금|교통카드|기타","icCard":"ICOCA|Suica|PASMO|PiTaPa|TOICA|manaca|Kitaca|SUGOCA|nimoca|はやかけん|기타|empty string","icBalance":integer_without_comma_or_0,"icBalanceCurrency":"JPY|KRW|empty string","confidence":number_0_to_1,"aiNote":"short Korean reason; mention 확인필요 if uncertain"}',
-    'category, item, currency, method, icCard, and icBalanceCurrency must be chosen only from the allowed values.',
+    '{"date":"YYYY-MM-DD or empty string","paymentTime":"HH:MM or empty string","location":"visible branch/address/station/place or empty string","merchant":"visible merchant/store name or 상호 확인 필요","transactionType":"지출|현금인출|IC충전|환전|환급|정산이동|수수료|기타","category":"식사|카페|교통|관광|편의점|쇼핑|숙소|기타","item":"아침|점심|저녁|식사|카페|간식|택시|버스|JR/철도|교통카드|입장료|온천/관광|편의점|기념품|숙소 추가요금|기타","currency":"JPY|KRW","amount":integer_without_comma,"method":"카드|현금|교통카드|기타","icCard":"ICOCA|Suica|PASMO|PiTaPa|TOICA|manaca|Kitaca|SUGOCA|nimoca|はやかけん|기타|empty string","icBalance":integer_without_comma_or_0,"icBalanceCurrency":"JPY|KRW|empty string","confidence":number_0_to_1,"aiNote":"short Korean reason; mention 확인필요 if uncertain"}',
+    'transactionType, category, item, currency, method, icCard, and icBalanceCurrency must be chosen only from the allowed values.',
     'amount must be a plain integer number without comma, currency symbol, or decimal.',
+    'transactionType rules: ordinary purchases/fares/meals are 지출. Seven Bank ATM, ATM withdrawal, cash withdrawal, 현금화, 출금, セブン銀行 withdrawals are 현금인출. IC card recharge/top-up/charge, チャージ, 入金, 충전 are IC충전. Currency exchange/Hana Money conversion is 환전. Refunds are 환급. Standalone fees are 수수료. Money movement between wallets is 정산이동.',
+    '현금인출, IC충전, 환전, and 정산이동 are fund movements, not spending. Keep the full movement amount in amount, but use the correct transactionType so the ledger excludes it from spending totals.',
+    'If an ATM receipt has a separately visible fee, classify the main transaction as 현금인출 and mention the fee amount in aiNote unless the receipt is only for the fee.',
     'If the receipt shows IC card remaining balance, put the post-payment balance in icBalance. If no balance is visible, icBalance must be 0 and icBalanceCurrency must be empty string.',
     'paymentTime is the receipt transaction/payment time, not upload time. If unreadable, use empty string.',
     'location should capture branch, station, address, or place printed on the receipt when visible. If no place is visible, use empty string.',
@@ -91,6 +95,8 @@ async function classifyReceipt(imageDataUrl, expense) {
         RECEIPT_OUTPUT_CONTRACT,
         `Categories must be one of: ${CATEGORY_VALUES.join(', ')}.`,
         `Items must be one of: ${ITEM_VALUES.join(', ')}.`,
+        `Transaction types must be one of: ${TRANSACTION_TYPE_VALUES.join(', ')}.`,
+        'Use transactionType to separate real spending from fund movements. ATM cash withdrawals, IC card top-ups, Hana Money exchange, and wallet transfers are not ordinary spending.',
         'Currency must be JPY or KRW. Japanese receipts are usually JPY.',
         `Method must be one of: ${METHOD_VALUES.join(', ')}.`,
         `IC card must be one of: ${IC_CARD_VALUES.map((value) => value || 'empty string').join(', ')}.`,
@@ -254,6 +260,29 @@ function normalizeIcCard(value) {
     return IC_CARD_VALUES.includes(text) ? text : '기타';
 }
 
+function normalizeTransactionType(value, data = {}) {
+    const text = clean(value);
+    if (text && text !== '지출' && text !== '기타' && TRANSACTION_TYPE_VALUES.includes(text)) return text;
+
+    const sample = [
+        text,
+        data.merchant,
+        data.category,
+        data.item,
+        data.method,
+        data.aiNote
+    ].map((part) => clean(part).toLowerCase()).join(' ');
+
+    if (/atm|withdraw|cash withdrawal|출금|현금인출|현금화|セブン銀行|seven bank|cash out/.test(sample)) return '현금인출';
+    if (/(icoca|suica|pasmo|교통카드|ic card|交通系|乗車券)/.test(sample) && /(charge|recharge|top[- ]?up|チャージ|入金|충전)/.test(sample)) return 'IC충전';
+    if (/exchange|currency exchange|환전|하나머니|hana money|両替/.test(sample)) return '환전';
+    if (/refund|환급|返金|취소|取消/.test(sample)) return '환급';
+    if (/fee|수수료|手数料/.test(sample)) return '수수료';
+    if (/transfer|이동|정산/.test(sample)) return '정산이동';
+    if (TRANSACTION_TYPE_VALUES.includes(text)) return text;
+    return '지출';
+}
+
 function normalizeItem(value, category) {
     const text = clean(value);
     if (ITEM_VALUES.includes(text)) return text;
@@ -290,6 +319,7 @@ function normalizeClassification(data, expense) {
     const category = normalizeEnum(data.category, CATEGORY_VALUES, '기타');
     const item = normalizeItem(data.item, category);
     const method = normalizeEnum(data.method, METHOD_VALUES, '카드');
+    const transactionType = normalizeTransactionType(data.transactionType, data);
     const icCard = normalizeIcCard(data.icCard);
     const icBalance = normalizeAmount(data.icBalance);
     const icBalanceCurrency = icBalance > 0
@@ -308,6 +338,7 @@ function normalizeClassification(data, expense) {
         paymentTime: normalizeTime(data.paymentTime),
         location: clean(data.location, '').slice(0, 120),
         method,
+        transactionType,
         icCard,
         icBalance,
         icBalanceCurrency,
@@ -334,6 +365,7 @@ async function markFailed(expense, error) {
             paymentTime: expense.paymentTime || '',
             location: expense.location || '',
             method: expense.method || '카드',
+            transactionType: expense.transactionType || '지출',
             icCard: expense.icCard || '',
             icBalance: expense.icBalance || 0,
             icBalanceCurrency: expense.icBalanceCurrency || '',
@@ -359,7 +391,7 @@ async function processOne(expense) {
             method: 'POST',
             body: JSON.stringify(classified)
         });
-        console.log(`[travel-worker] done ${expense.id}: ${classified.currency} ${classified.amount} ${classified.category} ${classified.merchant}`);
+        console.log(`[travel-worker] done ${expense.id}: ${classified.transactionType} ${classified.currency} ${classified.amount} ${classified.category} ${classified.merchant}`);
     } catch (error) {
         console.error(`[travel-worker] failed ${expense.id}:`, error.message || error);
         await markFailed(expense, error).catch((err) => console.error('[travel-worker] failed to mark error:', err.message || err));
