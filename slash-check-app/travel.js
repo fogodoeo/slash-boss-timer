@@ -14,10 +14,13 @@
     const saveStatus = document.querySelector('#saveStatus');
     const receiptInput = document.querySelector('#receiptInput');
     const photoPreview = document.querySelector('#photoPreview');
+    const walletList = document.querySelector('#walletList');
+    const walletStatus = document.querySelector('#walletStatus');
 
     let pin = sessionStorage.getItem(PIN_KEY) || '';
     let receiptDataUrl = '';
     let expenses = [];
+    let wallets = [];
 
     function todayKst() {
         const now = new Date(Date.now() + 9 * 60 * 60 * 1000);
@@ -65,6 +68,12 @@
         return `${currency || 'JPY'} ${value}`;
     }
 
+    function formatSignedCurrencyAmount(currency, amount) {
+        const value = number(amount);
+        const sign = value > 0 ? '+' : value < 0 ? '-' : '';
+        return `${sign}${formatCurrencyAmount(currency, Math.abs(value))}`;
+    }
+
     function showStatus(message, tone = '') {
         saveStatus.textContent = message;
         saveStatus.classList.toggle('error', tone === 'error');
@@ -72,6 +81,16 @@
         showStatus.timer = window.setTimeout(() => {
             saveStatus.textContent = '';
             saveStatus.classList.remove('error');
+        }, tone === 'error' ? 4200 : 2400);
+    }
+
+    function showWalletStatus(message, tone = '') {
+        walletStatus.textContent = message;
+        walletStatus.classList.toggle('error', tone === 'error');
+        window.clearTimeout(showWalletStatus.timer);
+        showWalletStatus.timer = window.setTimeout(() => {
+            walletStatus.textContent = '';
+            walletStatus.classList.remove('error');
         }, tone === 'error' ? 4200 : 2400);
     }
 
@@ -111,6 +130,7 @@
     async function loadExpenses() {
         const data = await api('/api/travel/expenses');
         expenses = Array.isArray(data.expenses) ? data.expenses : [];
+        wallets = Array.isArray(data.wallets) ? data.wallets : [];
         render();
     }
 
@@ -141,7 +161,115 @@
             .replace(/"/g, '&quot;');
     }
 
+    function expenseTime(item) {
+        const direct = Date.parse(item.createdAt || item.updatedAt || '');
+        if (Number.isFinite(direct)) return direct;
+        const date = item.date || '';
+        const time = item.paymentTime || '00:00';
+        const fromDate = Date.parse(`${date}T${time}:00+09:00`);
+        return Number.isFinite(fromDate) ? fromDate : 0;
+    }
+
+    function walletDelta(wallet, item) {
+        if (!wallet || item.currency !== wallet.currency) return 0;
+        const type = transactionType(item);
+        const method = String(item.method || '').trim();
+        const amount = number(item.amount);
+        if (!amount) return 0;
+
+        if (wallet.id === 'hana-jpy') {
+            if (type === '환전') return amount;
+            if (type === '현금인출') return -amount;
+            return 0;
+        }
+
+        if (wallet.id === 'cash-jpy') {
+            if (type === '현금인출') return amount;
+            if (type === 'IC충전' && method === '현금') return -amount;
+            if ((type === '지출' || type === '수수료') && method === '현금') return -amount;
+            if (type === '환급' && method === '현금') return amount;
+            return 0;
+        }
+
+        if (wallet.id === 'ic-jpy') {
+            if (type === 'IC충전') return amount;
+            if (type === '지출' && method === '교통카드') return -amount;
+            if (type === '환급' && method === '교통카드') return amount;
+            return 0;
+        }
+
+        return 0;
+    }
+
+    function latestIcReceiptBalance(wallet) {
+        if (wallet.id !== 'ic-jpy') return null;
+        return expenses
+            .filter((item) => number(item.icBalance) > 0 && (item.icBalanceCurrency || item.currency || 'JPY') === wallet.currency)
+            .map((item) => ({ item, time: expenseTime(item) }))
+            .sort((a, b) => b.time - a.time)[0] || null;
+    }
+
+    function computedWallet(wallet) {
+        const anchorTime = Date.parse(wallet.updatedAt || '') || 0;
+        const base = number(wallet.balance);
+        const delta = expenses
+            .filter((item) => expenseTime(item) > anchorTime)
+            .reduce((sum, item) => sum + walletDelta(wallet, item), 0);
+        const receiptBalance = latestIcReceiptBalance(wallet);
+        const receiptTime = receiptBalance?.time || 0;
+
+        if (receiptBalance && (!anchorTime || receiptTime > anchorTime)) {
+            return {
+                balance: number(receiptBalance.item.icBalance),
+                base,
+                delta,
+                source: '최근 IC 영수증 잔액',
+                sourceDetail: `${receiptBalance.item.date || ''} ${receiptBalance.item.paymentTime || ''}`.trim()
+            };
+        }
+
+        return {
+            balance: base + delta,
+            base,
+            delta,
+            source: wallet.updatedAt ? '수동 기준 + 이후 영수증' : '초기값 + 전체 영수증',
+            sourceDetail: wallet.updatedAt ? new Date(wallet.updatedAt).toLocaleString('ko-KR') : '수동 잔액 미입력'
+        };
+    }
+
+    function renderWallets() {
+        const items = wallets.length ? wallets : [
+            { id: 'hana-jpy', name: '하나머니 JPY', currency: 'JPY', balance: 0, note: '하나머니 앱 잔액을 기준으로 보정' },
+            { id: 'cash-jpy', name: '현금 JPY', currency: 'JPY', balance: 0, note: '세븐뱅크 인출 후 지갑 현금' },
+            { id: 'ic-jpy', name: 'IC카드', currency: 'JPY', balance: 0, note: 'ICOCA/Suica 등 교통카드' }
+        ];
+
+        walletList.innerHTML = items.map((wallet) => {
+            const computed = computedWallet(wallet);
+            const deltaText = computed.delta ? `자동증감 ${formatSignedCurrencyAmount(wallet.currency, computed.delta)}` : '자동증감 없음';
+            return `
+                <article class="walletCard" data-wallet-id="${escapeHtml(wallet.id)}">
+                    <div class="walletCardTop">
+                        <div>
+                            <b>${escapeHtml(wallet.name)}</b>
+                            <div class="walletMeta">${escapeHtml(wallet.note || '')}</div>
+                        </div>
+                        <span class="travelEntryMeta">${escapeHtml(wallet.currency)}</span>
+                    </div>
+                    <div class="walletBalance">${escapeHtml(formatCurrencyAmount(wallet.currency, computed.balance))}</div>
+                    <div class="walletMeta">${escapeHtml(computed.source)} · ${escapeHtml(deltaText)}</div>
+                    <div class="walletMeta">${escapeHtml(computed.sourceDetail || '')}</div>
+                    <div class="walletControls">
+                        <input data-wallet-balance="${escapeHtml(wallet.id)}" type="number" inputmode="numeric" min="0" step="1" value="${escapeHtml(wallet.balance || 0)}" aria-label="${escapeHtml(wallet.name)} 수동 잔액">
+                        <button class="travelGhostButton" type="button" data-wallet-save="${escapeHtml(wallet.id)}">저장</button>
+                    </div>
+                </article>
+            `;
+        }).join('');
+    }
+
     function render() {
+        renderWallets();
         const spent = expenses.reduce((sum, item) => sum + budgetImpactKrw(item), 0);
         const movementTotal = expenses.reduce((sum, item) => sum + (isMovement(item) ? toKrw(item) : 0), 0);
         const spendingCount = expenses.filter((item) => budgetImpactKrw(item) !== 0).length;
@@ -307,6 +435,32 @@
         }
     });
 
+    walletList.addEventListener('click', async (event) => {
+        const id = event.target.dataset.walletSave;
+        if (!id) return;
+        const card = event.target.closest('[data-wallet-id]');
+        const wallet = wallets.find((item) => item.id === id);
+        const input = card?.querySelector('[data-wallet-balance]');
+        if (!wallet || !input) return;
+
+        try {
+            showWalletStatus('잔액 저장 중...');
+            const data = await api('/api/travel/wallets/update', {
+                method: 'POST',
+                body: JSON.stringify({
+                    ...wallet,
+                    balance: input.value
+                })
+            });
+            wallets = Array.isArray(data.wallets) ? data.wallets : wallets;
+            expenses = Array.isArray(data.expenses) ? data.expenses : expenses;
+            render();
+            showWalletStatus('잔액 기준을 저장했습니다.');
+        } catch (err) {
+            showWalletStatus(err.message, 'error');
+        }
+    });
+
     travelList.addEventListener('click', async (event) => {
         const id = event.target.dataset.delete;
         if (!id) return;
@@ -344,6 +498,7 @@
         pinInput.value = '';
         pinOverlay.classList.remove('hidden');
         expenses = [];
+        wallets = [];
         render();
     });
 

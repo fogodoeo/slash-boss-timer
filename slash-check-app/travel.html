@@ -117,6 +117,10 @@
             gap: 14px;
         }
 
+        .walletPanel {
+            margin-bottom: 14px;
+        }
+
         .travelPanel {
             border: 1px solid var(--line);
             border-radius: 8px;
@@ -138,6 +142,63 @@
         .travelPanelHead strong {
             display: block;
             font-size: 17px;
+        }
+
+        .walletGrid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 10px;
+            padding: 14px;
+        }
+
+        .walletCard {
+            display: grid;
+            gap: 10px;
+            min-width: 0;
+            padding: 12px;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            background: #fff;
+        }
+
+        .walletCardTop {
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+            align-items: start;
+        }
+
+        .walletCard b {
+            font-size: 14px;
+        }
+
+        .walletBalance {
+            color: var(--blue);
+            font-size: clamp(22px, 3vw, 30px);
+            font-weight: 950;
+            line-height: 1.05;
+        }
+
+        .walletMeta {
+            color: var(--muted);
+            font-size: 12px;
+            line-height: 1.45;
+        }
+
+        .walletControls {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .walletControls input {
+            width: 100%;
+            min-height: 38px;
+            border: 1px solid var(--line);
+            border-radius: 7px;
+            padding: 8px 10px;
+            text-align: right;
         }
 
         .travelForm,
@@ -323,6 +384,10 @@
             .travelGrid {
                 grid-template-columns: repeat(2, minmax(0, 1fr));
             }
+
+            .walletGrid {
+                grid-template-columns: 1fr;
+            }
         }
 
         @media (max-width: 560px) {
@@ -394,6 +459,17 @@
                 <strong id="remainTotal">687,242원</strong>
                 <small>총 예산 - 고정비 - 등록액</small>
             </article>
+        </section>
+
+        <section class="travelPanel walletPanel" aria-label="현재 잔액">
+            <div class="travelPanelHead">
+                <div>
+                    <span class="label">현재 잔액</span>
+                    <strong>반수동 지갑</strong>
+                </div>
+                <span id="walletStatus" class="statusLine"></span>
+            </div>
+            <div id="walletList" class="walletGrid"></div>
         </section>
 
         <section class="travelLayout">

@@ -70,7 +70,7 @@ const DEFAULT_BOSS_EVENTS = [
 
 let state = structuredClone(defaultState);
 let geckoState = { geckos: [], logs: [], examplesSeededAt: null, updatedAt: null };
-let travelState = { expenses: [], updatedAt: null };
+let travelState = { expenses: [], wallets: [], updatedAt: null };
 const RESERVATION_GRACE_MS = 10 * 60 * 1000;
 const CHECK_UNDO_GRACE_MS = 60 * 1000;
 const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
@@ -1732,6 +1732,11 @@ function normalizeTravelTime(value) {
 }
 
 const TRAVEL_TRANSACTION_TYPES = new Set(['지출', '현금인출', 'IC충전', '환전', '환급', '정산이동', '수수료', '기타']);
+const DEFAULT_TRAVEL_WALLETS = [
+    { id: 'hana-jpy', name: '하나머니 JPY', currency: 'JPY', balance: 0, note: '하나머니 앱 잔액을 기준으로 보정' },
+    { id: 'cash-jpy', name: '현금 JPY', currency: 'JPY', balance: 0, note: '세븐뱅크 인출 후 지갑 현금' },
+    { id: 'ic-jpy', name: 'IC카드', currency: 'JPY', balance: 0, note: 'ICOCA/Suica 등 교통카드' }
+];
 
 function normalizeTravelTransactionType(value) {
     const text = cleanText(value, 30);
@@ -1743,6 +1748,40 @@ function normalizeTravelTransactionType(value) {
     if (/refund|환급|返金|취소/.test(lower)) return '환급';
     if (/fee|수수료|手数料/.test(lower)) return '수수료';
     return '지출';
+}
+
+function normalizeTravelWallet(value, existing = null, options = {}) {
+    const fallback = existing || {};
+    const id = cleanText(value?.id || fallback.id, 80);
+    const defaultWallet = DEFAULT_TRAVEL_WALLETS.find((wallet) => wallet.id === id) || {};
+    const nowIso = new Date().toISOString();
+
+    return {
+        id: id || cleanText(defaultWallet.id, 80) || randomUUID(),
+        name: cleanText(value?.name || fallback.name || defaultWallet.name || '지갑', 40),
+        currency: normalizeTravelCurrency(value?.currency || fallback.currency || defaultWallet.currency || 'JPY'),
+        balance: normalizeTravelAmount(value?.balance ?? fallback.balance ?? defaultWallet.balance ?? 0),
+        note: cleanText(value?.note || fallback.note || defaultWallet.note || '', 160),
+        updatedAt: options.touch ? nowIso : (fallback.updatedAt || value?.updatedAt || null)
+    };
+}
+
+function normalizeTravelWallets(value) {
+    const map = new Map();
+
+    for (const wallet of DEFAULT_TRAVEL_WALLETS) {
+        map.set(wallet.id, normalizeTravelWallet(wallet));
+    }
+
+    if (Array.isArray(value)) {
+        for (const wallet of value) {
+            const id = cleanText(wallet?.id, 80);
+            if (!id) continue;
+            map.set(id, normalizeTravelWallet(wallet, map.get(id)));
+        }
+    }
+
+    return [...map.values()].slice(0, 20);
 }
 
 function normalizeTravelExpense(value, existing = null) {
@@ -1795,16 +1834,18 @@ async function loadTravelState() {
         const parsed = JSON.parse(raw);
         travelState = {
             expenses: normalizeTravelExpenses(parsed.expenses),
+            wallets: normalizeTravelWallets(parsed.wallets),
             updatedAt: parsed.updatedAt || null
         };
     } catch (err) {
         if (err.code !== 'ENOENT') console.error('[travel] state load failed:', err);
-        travelState = { expenses: [], updatedAt: null };
+        travelState = { expenses: [], wallets: normalizeTravelWallets([]), updatedAt: null };
         await saveTravelState();
     }
 }
 
 async function saveTravelState() {
+    travelState.wallets = normalizeTravelWallets(travelState.wallets);
     travelState.updatedAt = new Date().toISOString();
     const targetDir = path.dirname(TRAVEL_STATE_FILE);
 
@@ -1877,7 +1918,8 @@ function publicTravelState() {
     return {
         now: new Date().toISOString(),
         updatedAt: travelState.updatedAt,
-        expenses: travelState.expenses
+        expenses: travelState.expenses,
+        wallets: normalizeTravelWallets(travelState.wallets)
     };
 }
 
@@ -1953,6 +1995,26 @@ async function handleApi(req, res, url) {
     if (url.pathname === '/api/travel/expenses' && req.method === 'GET') {
         if (rejectInvalidTravelPin(req, res, url)) return true;
         sendJson(res, 200, publicTravelState());
+        return true;
+    }
+
+    if (url.pathname === '/api/travel/wallets/update' && req.method === 'POST') {
+        const body = await readJson(req);
+        if (rejectInvalidTravelPin(req, res, url, body)) return true;
+
+        const id = cleanText(body.id, 80);
+        const existing = normalizeTravelWallets(travelState.wallets).find((item) => item.id === id);
+        if (!id || !existing) {
+            sendJson(res, 404, { error: '수정할 잔액 항목을 찾을 수 없습니다.' });
+            return true;
+        }
+
+        const next = normalizeTravelWallet(body, existing, { touch: true });
+        travelState.wallets = normalizeTravelWallets(
+            normalizeTravelWallets(travelState.wallets).map((item) => item.id === id ? next : item)
+        );
+        await saveTravelState();
+        sendJson(res, 200, { ...publicTravelState(), saved: next });
         return true;
     }
 
