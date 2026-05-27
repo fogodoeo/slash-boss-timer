@@ -14,16 +14,23 @@
     const travelList = document.querySelector('#travelList');
     const rateInput = document.querySelector('#rateInput');
     const saveStatus = document.querySelector('#saveStatus');
-    const receiptCameraInput = document.querySelector('#receiptCameraInput');
     const receiptGalleryInput = document.querySelector('#receiptGalleryInput');
+    const openCameraButton = document.querySelector('#openCameraButton');
+    const closeCameraButton = document.querySelector('#closeCameraButton');
+    const captureShotButton = document.querySelector('#captureShotButton');
+    const cameraPanel = document.querySelector('#cameraPanel');
+    const cameraPreview = document.querySelector('#cameraPreview');
+    const cameraCanvas = document.querySelector('#cameraCanvas');
+    const quickCaptureStatus = document.querySelector('#quickCaptureStatus');
     const photoPreview = document.querySelector('#photoPreview');
     const receiptFileName = document.querySelector('#receiptFileName');
     const walletList = document.querySelector('#walletList');
     const walletStatus = document.querySelector('#walletStatus');
-    const receiptInputs = [receiptCameraInput, receiptGalleryInput].filter(Boolean);
+    const receiptInputs = [receiptGalleryInput].filter(Boolean);
 
     let pin = sessionStorage.getItem(PIN_KEY) || '';
     let receiptDataUrl = '';
+    let cameraStream = null;
     let expenses = [];
     let wallets = [];
 
@@ -88,11 +95,15 @@
 
     function showStatus(message, tone = '') {
         saveStatus.textContent = message;
+        if (quickCaptureStatus) quickCaptureStatus.textContent = message;
         saveStatus.classList.toggle('error', tone === 'error');
+        quickCaptureStatus?.classList.toggle('error', tone === 'error');
         window.clearTimeout(showStatus.timer);
         showStatus.timer = window.setTimeout(() => {
             saveStatus.textContent = '';
+            if (quickCaptureStatus) quickCaptureStatus.textContent = '';
             saveStatus.classList.remove('error');
+            quickCaptureStatus?.classList.remove('error');
         }, tone === 'error' ? 4200 : 2400);
     }
 
@@ -438,6 +449,15 @@
         photoPreview.classList.remove('show');
     }
 
+    function stopCamera() {
+        if (cameraStream) {
+            cameraStream.getTracks().forEach((track) => track.stop());
+        }
+        cameraStream = null;
+        if (cameraPreview) cameraPreview.srcObject = null;
+        cameraPanel?.classList.add('hidden');
+    }
+
     function resetManualForm() {
         manualForm.reset();
         document.querySelector('#manualDate').value = todayKst();
@@ -505,6 +525,48 @@
         }
     }
 
+    async function openCamera() {
+        if (!navigator.mediaDevices?.getUserMedia) {
+            showStatus('카메라 불가', 'error');
+            receiptGalleryInput?.click();
+            return;
+        }
+        try {
+            showStatus('카메라 여는 중');
+            stopCamera();
+            cameraStream = await navigator.mediaDevices.getUserMedia({
+                video: {
+                    facingMode: { ideal: 'environment' }
+                },
+                audio: false
+            });
+            cameraPreview.srcObject = cameraStream;
+            cameraPanel.classList.remove('hidden');
+            await cameraPreview.play();
+            showStatus('촬영 준비');
+        } catch (err) {
+            stopCamera();
+            showStatus('카메라 권한 필요', 'error');
+            receiptGalleryInput?.click();
+        }
+    }
+
+    async function captureCameraFrame() {
+        if (!cameraPreview.videoWidth || !cameraPreview.videoHeight) {
+            showStatus('카메라 준비 중', 'error');
+            return;
+        }
+        cameraCanvas.width = cameraPreview.videoWidth;
+        cameraCanvas.height = cameraPreview.videoHeight;
+        cameraCanvas.getContext('2d').drawImage(cameraPreview, 0, 0, cameraCanvas.width, cameraCanvas.height);
+        receiptDataUrl = cameraCanvas.toDataURL('image/jpeg', 0.82);
+        receiptFileName.textContent = '촬영됨';
+        photoPreview.src = receiptDataUrl;
+        photoPreview.classList.add('show');
+        stopCamera();
+        await submitReceipt();
+    }
+
     async function handleReceiptFile(input) {
         const file = input.files?.[0];
         if (!file) {
@@ -546,6 +608,10 @@
         event.preventDefault();
         await submitReceipt();
     });
+
+    openCameraButton?.addEventListener('click', openCamera);
+    closeCameraButton?.addEventListener('click', stopCamera);
+    captureShotButton?.addEventListener('click', captureCameraFrame);
 
     quickManualForm.addEventListener('submit', async (event) => {
         event.preventDefault();

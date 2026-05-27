@@ -372,19 +372,11 @@
             overflow-wrap: anywhere;
         }
 
-        .mobileCapture {
-            display: none;
-        }
-
-        .captureBox {
+        .quickCapture {
             display: grid;
+            grid-template-columns: minmax(0, 1fr) minmax(102px, .32fr);
             gap: 10px;
-        }
-
-        .captureActions {
-            display: grid;
-            grid-template-columns: minmax(0, 1fr) minmax(104px, .34fr);
-            gap: 10px;
+            margin-bottom: 10px;
         }
 
         .captureButton,
@@ -413,6 +405,22 @@
             font-size: 15px;
         }
 
+        .quickCapture input[type="file"] {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .captureStatus {
+            grid-column: 1 / -1;
+            min-height: 20px;
+            color: var(--muted);
+            font-size: 13px;
+            font-weight: 800;
+        }
+
         .captureFile {
             min-height: 34px;
             border: 1px dashed #b8c7dc;
@@ -423,6 +431,49 @@
             font-size: 13px;
             font-weight: 800;
             overflow-wrap: anywhere;
+        }
+
+        .cameraPanel {
+            display: grid;
+            gap: 10px;
+            margin-bottom: 10px;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            padding: 10px;
+            background: #0f172a;
+            box-shadow: var(--shadow);
+        }
+
+        .cameraPanel video {
+            width: 100%;
+            max-height: 62vh;
+            border-radius: 7px;
+            background: #000;
+            object-fit: contain;
+        }
+
+        .cameraTools {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) minmax(94px, .28fr);
+            gap: 8px;
+        }
+
+        .uploadOptions {
+            border-top: 1px solid var(--line-soft);
+            padding-top: 2px;
+        }
+
+        .uploadOptions summary {
+            min-height: 42px;
+            color: var(--text);
+            font-size: 14px;
+            font-weight: 950;
+            cursor: pointer;
+            list-style: none;
+        }
+
+        .uploadOptions summary::-webkit-details-marker {
+            display: none;
         }
 
         .travelForm .two {
@@ -776,19 +827,17 @@
                 margin-right: -2px;
             }
 
-            .mobileCapture {
-                display: grid;
-                grid-template-columns: minmax(0, 1fr) minmax(94px, .35fr);
+            .quickCapture {
+                grid-template-columns: minmax(0, 1fr) minmax(92px, .34fr);
                 gap: 8px;
-                margin-bottom: 10px;
             }
 
-            .mobileCapture .captureButton,
-            .mobileCapture .captureSecondary {
+            .quickCapture .captureButton,
+            .quickCapture .captureSecondary {
                 min-height: 58px;
             }
 
-            .mobileCapture .captureButton {
+            .quickCapture .captureButton {
                 font-size: 19px;
             }
         }
@@ -830,9 +879,20 @@
             <a href="#ledgerPanel">내역</a>
         </nav>
 
-        <section class="mobileCapture" aria-label="빠른 영수증 추가">
-            <label class="captureButton" for="receiptCameraInput">촬영하기</label>
+        <section class="quickCapture" aria-label="빠른 영수증 추가">
+            <button id="openCameraButton" class="captureButton" type="button">촬영하기</button>
             <label class="captureSecondary" for="receiptGalleryInput">앨범</label>
+            <input id="receiptGalleryInput" type="file" accept="image/jpeg,image/png,image/webp">
+            <div id="quickCaptureStatus" class="captureStatus"></div>
+        </section>
+
+        <section id="cameraPanel" class="cameraPanel hidden" aria-label="카메라">
+            <video id="cameraPreview" autoplay playsinline muted></video>
+            <canvas id="cameraCanvas" class="hidden"></canvas>
+            <div class="cameraTools">
+                <button id="captureShotButton" class="captureButton" type="button">찍기</button>
+                <button id="closeCameraButton" class="captureSecondary" type="button">닫기</button>
+            </div>
         </section>
 
         <section class="travelGrid" aria-label="정산 요약">
@@ -868,40 +928,33 @@
                     <span id="saveStatus" class="statusLine"></span>
                 </div>
                 <form id="expenseForm" class="travelForm">
-                    <div class="captureBox">
-                        <div class="captureActions">
-                            <label class="captureButton" for="receiptCameraInput">촬영하기</label>
-                            <label class="captureSecondary" for="receiptGalleryInput">앨범</label>
-                        </div>
-                        <div id="receiptFileName" class="captureFile">없음</div>
-                        <input id="receiptCameraInput" type="file" accept="image/jpeg,image/png,image/webp" capture="environment">
-                        <input id="receiptGalleryInput" type="file" accept="image/jpeg,image/png,image/webp">
-                    </div>
+                    <div id="receiptFileName" class="captureFile">없음</div>
                     <img id="photoPreview" class="photoPreview" alt="영수증 미리보기">
 
-                    <div class="two">
-                        <label>
-                            <span>날짜</span>
-                            <input id="dateInput" type="date">
-                        </label>
-                        <label>
-                            <span>결제자</span>
-                            <select id="payerInput">
-                                <option>공금</option>
-                                <option>본인</option>
-                                <option>엄마</option>
-                                <option>아빠</option>
-                                <option>기타</option>
-                            </select>
-                        </label>
-                    </div>
+                    <details class="uploadOptions">
+                        <summary>옵션</summary>
+                        <div class="two">
+                            <label>
+                                <span>날짜</span>
+                                <input id="dateInput" type="date">
+                            </label>
+                            <label>
+                                <span>결제자</span>
+                                <select id="payerInput">
+                                    <option>공금</option>
+                                    <option>본인</option>
+                                    <option>엄마</option>
+                                    <option>아빠</option>
+                                    <option>기타</option>
+                                </select>
+                            </label>
+                        </div>
 
-                    <label>
-                        <span>메모</span>
-                        <textarea id="memoInput" placeholder="선택"></textarea>
-                    </label>
-
-                    <button class="travelButton full" type="submit">업로드</button>
+                        <label>
+                            <span>메모</span>
+                            <textarea id="memoInput" placeholder="선택"></textarea>
+                        </label>
+                    </details>
                 </form>
                 <details class="manualEntry">
                     <summary>문장 입력</summary>
