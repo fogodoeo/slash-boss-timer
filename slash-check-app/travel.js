@@ -1,7 +1,7 @@
 (() => {
     const PIN_KEY = 'travelExpensePin';
     const RATE_KEY = 'travelExpenseRate';
-    const FIXED_TOTAL_KRW = 2177877;
+    const FIXED_TOTAL_KRW = 2088685;
     const BUDGET_KRW = 3000000;
 
     const pinOverlay = document.querySelector('#pinOverlay');
