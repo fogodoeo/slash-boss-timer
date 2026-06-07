@@ -334,14 +334,25 @@ function bossCutMs(record) {
     return Number.isFinite(ms) ? ms : 0;
 }
 
+function bossRecordDisplayMs(record, now = getNowMs()) {
+    const cutMs = bossCutMs(record);
+    if (!cutMs) return 0;
+    if (cutMs > now) {
+        const updatedMs = new Date(record?.updatedAt || record?.createdAt || '').getTime();
+        return Number.isFinite(updatedMs) ? updatedMs : now;
+    }
+    return cutMs;
+}
+
 function bossCutClock(record) {
     const ms = bossCutMs(record);
     return ms ? formatKstDateTimeWithSeconds(record.cutAt, { date: false }) : displayTimeValue(record?.timeValue || '');
 }
 
 function compareBossCutRecordsForDisplay(a, b) {
-    const aMs = bossCutMs(a);
-    const bMs = bossCutMs(b);
+    const now = getNowMs();
+    const aMs = bossRecordDisplayMs(a, now);
+    const bMs = bossRecordDisplayMs(b, now);
     const aMinute = Math.floor(aMs / 60000);
     const bMinute = Math.floor(bMs / 60000);
     if (aMinute !== bMinute) return bMinute - aMinute;
