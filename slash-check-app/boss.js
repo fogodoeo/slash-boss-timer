@@ -889,13 +889,15 @@ function bossNextSpawnMs(boss) {
     return null;
 }
 
-function fixedSpawnCoveredByLatestCut(latest, spawnMs) {
+function fixedSpawnCoveredByLatestCut(latest, spawnMs, now = getNowMs()) {
     if (!latest) return false;
+
+    const cutMs = new Date(latest.cutAt || '').getTime();
+    if (Number.isFinite(cutMs) && cutMs > now) return false;
 
     const nextSpawnMs = new Date(latest.nextSpawnAt || '').getTime();
     if (Number.isFinite(nextSpawnMs) && spawnMs < nextSpawnMs) return true;
 
-    const cutMs = new Date(latest.cutAt || '').getTime();
     return Number.isFinite(cutMs) && spawnMs <= cutMs;
 }
 
@@ -940,7 +942,7 @@ function buildTimeline() {
                 const dayName = dayNames[kstDate(dayStart).getUTCDay()];
                 if (!boss.요일?.includes(dayName)) continue;
                 const spawnMs = dayStart + hour * 60 * 60 * 1000 + minute * 60 * 1000;
-                if (fixedSpawnCoveredByLatestCut(latest, spawnMs)) continue;
+                if (fixedSpawnCoveredByLatestCut(latest, spawnMs, now)) continue;
                 const item = { boss, spawnMs, source: 'fixed' };
                 if (spawnMs <= end && (spawnMs >= floor || isUncutPendingBossItem(item, now))) items.push(item);
             }
