@@ -1084,6 +1084,74 @@
             width: min(420px, 100%);
         }
 
+        .manualQuickDialog {
+            width: min(520px, 100%);
+            max-height: min(calc(var(--vvh, 100dvh) - 28px), 640px);
+            grid-template-rows: auto minmax(0, 1fr);
+        }
+
+        #manualQuickModal {
+            place-items: start center;
+            padding-top: max(10px, env(safe-area-inset-top, 0px));
+            padding-bottom: max(10px, env(safe-area-inset-bottom, 0px));
+        }
+
+        .manualQuickForm {
+            display: grid;
+            gap: 10px;
+            min-height: 0;
+            overflow: auto;
+            overscroll-behavior: contain;
+            padding: 12px;
+        }
+
+        .manualQuickForm label {
+            display: grid;
+            gap: 6px;
+        }
+
+        .manualQuickForm label span {
+            color: var(--muted);
+            font-size: 12px;
+            font-weight: 900;
+        }
+
+        .manualQuickForm textarea,
+        .manualQuickForm input,
+        .manualQuickForm select {
+            width: 100%;
+            min-height: 42px;
+            border: 1px solid var(--line);
+            border-radius: 7px;
+            padding: 8px 10px;
+            font-size: 16px;
+        }
+
+        .manualQuickForm textarea {
+            min-height: 136px;
+            line-height: 1.45;
+            resize: vertical;
+        }
+
+        .manualQuickForm .two {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 10px;
+        }
+
+        .manualQuickOptions summary {
+            min-height: 38px;
+            color: var(--text-soft);
+            font-size: 13px;
+            font-weight: 900;
+            cursor: pointer;
+            list-style: none;
+        }
+
+        .manualQuickOptions summary::-webkit-details-marker {
+            display: none;
+        }
+
         .sheetActions {
             display: grid;
             grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1494,6 +1562,14 @@
                 background: var(--blue);
                 color: #fff;
             }
+
+            .manualQuickDialog {
+                max-height: calc(var(--vvh, 100dvh) - 16px);
+            }
+
+            .manualQuickForm textarea {
+                height: clamp(96px, 28svh, 132px);
+            }
         }
     </style>
 </head>
@@ -1737,6 +1813,41 @@
         <button id="openManualButton" type="button">수동</button>
         <button id="showLedgerButton" type="button">내역</button>
     </nav>
+
+    <section id="manualQuickModal" class="receiptModal hidden" aria-modal="true" role="dialog" aria-label="수동 입력">
+        <article class="receiptDialog manualQuickDialog">
+            <div class="receiptDialogHead">
+                <strong>수동 입력</strong>
+                <button id="manualQuickCloseButton" class="travelGhostButton" type="button">닫기</button>
+            </div>
+            <form id="dockManualForm" class="manualQuickForm">
+                <label>
+                    <span>내용</span>
+                    <textarea id="dockManualText" placeholder="예: 버스 660엔 이코카&#10;카페 1200엔 카드&#10;ICOCA 3000엔 충전 잔액 4500엔"></textarea>
+                </label>
+                <button class="travelButton full" type="submit">입력</button>
+                <details class="manualQuickOptions">
+                    <summary>옵션</summary>
+                    <div class="two">
+                        <label>
+                            <span>날짜</span>
+                            <input id="dockManualDate" type="date">
+                        </label>
+                        <label>
+                            <span>결제자</span>
+                            <select id="dockManualPayer">
+                                <option>공금</option>
+                                <option>본인</option>
+                                <option>엄마</option>
+                                <option>아빠</option>
+                                <option>기타</option>
+                            </select>
+                        </label>
+                    </div>
+                </details>
+            </form>
+        </article>
+    </section>
 
     <section id="entryActionModal" class="receiptModal hidden" aria-modal="true" role="dialog" aria-label="내역 관리">
         <article class="receiptDialog actionSheetDialog">

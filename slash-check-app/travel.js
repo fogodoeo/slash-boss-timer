@@ -13,6 +13,7 @@
     const pinStatus = document.querySelector('#pinStatus');
     const expenseForm = document.querySelector('#expenseForm');
     const quickManualForm = document.querySelector('#quickManualForm');
+    const dockManualForm = document.querySelector('#dockManualForm');
     const manualForm = document.querySelector('#manualForm');
     const travelList = document.querySelector('#travelList');
     const rateInput = document.querySelector('#rateInput');
@@ -43,6 +44,8 @@
     const budgetModal = document.querySelector('#budgetModal');
     const budgetCloseButton = document.querySelector('#budgetCloseButton');
     const manualEntryDetails = document.querySelector('#manualEntryDetails');
+    const manualQuickModal = document.querySelector('#manualQuickModal');
+    const manualQuickCloseButton = document.querySelector('#manualQuickCloseButton');
     const entryActionModal = document.querySelector('#entryActionModal');
     const entryActionTitle = document.querySelector('#entryActionTitle');
     const entryActionSummary = document.querySelector('#entryActionSummary');
@@ -86,6 +89,11 @@
     function todayKst() {
         const now = new Date(Date.now() + 9 * 60 * 60 * 1000);
         return now.toISOString().slice(0, 10);
+    }
+
+    function updateViewportHeight() {
+        const height = window.visualViewport?.height || window.innerHeight;
+        document.documentElement.style.setProperty('--vvh', `${Math.round(height)}px`);
     }
 
     function formatKrw(value) {
@@ -557,12 +565,45 @@
         };
     }
 
+    function dockManualPayload() {
+        return {
+            date: document.querySelector('#dockManualDate').value || todayKst(),
+            payer: document.querySelector('#dockManualPayer').value || '공금',
+            text: document.querySelector('#dockManualText').value.trim()
+        };
+    }
+
     function quickManualLines(text) {
         return String(text || '')
             .split(/\n+/)
             .map((line) => line.replace(/^\s*[-*•]+\s*/, '').trim())
             .filter(Boolean)
             .slice(0, 20);
+    }
+
+    async function submitQuickManual(payload, onDone) {
+        const lines = quickManualLines(payload.text);
+        if (!lines.length) {
+            showStatus('내용 필요', 'error');
+            return;
+        }
+        try {
+            showStatus(lines.length > 1 ? `${lines.length}건 저장 중` : '저장 중');
+            let latest = null;
+            for (const line of lines) {
+                latest = await api('/api/travel/text-expenses', {
+                    method: 'POST',
+                    body: JSON.stringify({ ...payload, text: line })
+                });
+            }
+            expenses = Array.isArray(latest?.expenses) ? latest.expenses : expenses;
+            wallets = Array.isArray(latest?.wallets) ? latest.wallets : wallets;
+            onDone?.();
+            render();
+            showStatus(lines.length > 1 ? `${lines.length}건 분석 대기` : '분석 대기');
+        } catch (err) {
+            showStatus(err.message, 'error');
+        }
     }
 
     function manualMethod() {
@@ -801,11 +842,33 @@
         document.body.classList.remove('cameraOpen');
     }
 
+    function openManualQuickModal() {
+        if (!manualQuickModal) return;
+        document.querySelector('#dockManualDate').value = todayKst();
+        document.querySelector('#dockManualPayer').value = '공금';
+        document.querySelector('#dockManualText').value = '';
+        updateViewportHeight();
+        dockManualForm?.scrollTo({ top: 0 });
+        manualQuickModal.classList.remove('hidden');
+        document.body.classList.add('cameraOpen');
+        const settleInput = () => {
+            updateViewportHeight();
+            const input = document.querySelector('#dockManualText');
+            input?.focus();
+            dockManualForm?.scrollTo({ top: 0 });
+            input?.scrollIntoView({ block: 'start' });
+        };
+        window.setTimeout(settleInput, 120);
+        window.setTimeout(settleInput, 420);
+    }
+
+    function closeManualQuickModal() {
+        manualQuickModal?.classList.add('hidden');
+        document.body.classList.remove('cameraOpen');
+    }
+
     function openManualEntry() {
-        if (manualEntryDetails) manualEntryDetails.open = true;
-        document.querySelector('#manualPanel')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        setActiveNav('#manualPanel');
-        window.setTimeout(() => document.querySelector('#quickManualText')?.focus(), 320);
+        openManualQuickModal();
     }
 
     function showLedger() {
@@ -1020,29 +1083,15 @@
 
     quickManualForm.addEventListener('submit', async (event) => {
         event.preventDefault();
-        const payload = quickManualPayload();
-        const lines = quickManualLines(payload.text);
-        if (!lines.length) {
-            showStatus('내용 필요', 'error');
-            return;
-        }
-        try {
-            showStatus(lines.length > 1 ? `${lines.length}건 저장 중` : '저장 중');
-            let latest = null;
-            for (const line of lines) {
-                latest = await api('/api/travel/text-expenses', {
-                    method: 'POST',
-                    body: JSON.stringify({ ...payload, text: line })
-                });
-            }
-            expenses = Array.isArray(latest?.expenses) ? latest.expenses : expenses;
-            wallets = Array.isArray(latest?.wallets) ? latest.wallets : wallets;
-            resetQuickManualForm();
-            render();
-            showStatus(lines.length > 1 ? `${lines.length}건 분석 대기` : '분석 대기');
-        } catch (err) {
-            showStatus(err.message, 'error');
-        }
+        await submitQuickManual(quickManualPayload(), resetQuickManualForm);
+    });
+
+    dockManualForm?.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        await submitQuickManual(dockManualPayload(), () => {
+            dockManualForm.reset();
+            closeManualQuickModal();
+        });
     });
 
     manualForm.addEventListener('submit', async (event) => {
@@ -1128,6 +1177,10 @@
     budgetCloseButton?.addEventListener('click', closeBudgetModal);
     budgetModal?.addEventListener('click', (event) => {
         if (event.target === budgetModal) closeBudgetModal();
+    });
+    manualQuickCloseButton?.addEventListener('click', closeManualQuickModal);
+    manualQuickModal?.addEventListener('click', (event) => {
+        if (event.target === manualQuickModal) closeManualQuickModal();
     });
     entryActionCloseButton?.addEventListener('click', closeEntryActionModal);
     entryActionModal?.addEventListener('click', (event) => {
@@ -1223,7 +1276,11 @@
     document.querySelector('#dateInput').value = todayKst();
     document.querySelector('#quickManualDate').value = todayKst();
     document.querySelector('#manualDate').value = todayKst();
+    document.querySelector('#dockManualDate').value = todayKst();
     rateInput.value = localStorage.getItem(RATE_KEY) || String(DEFAULT_RATE);
+    updateViewportHeight();
+    window.visualViewport?.addEventListener('resize', updateViewportHeight);
+    window.addEventListener('resize', updateViewportHeight);
     setActiveNav(location.hash || '#receiptPanel');
     render();
 
