@@ -38,7 +38,7 @@
     const modalAiNote = document.querySelector('#modalAiNote');
     const modalReceiptLink = document.querySelector('#modalReceiptLink');
     const modalCloseButton = document.querySelector('#modalCloseButton');
-    const budgetOpenButton = document.querySelector('#budgetOpenButton');
+    const budgetOpenButtons = Array.from(document.querySelectorAll('[data-budget-open]'));
     const budgetModal = document.querySelector('#budgetModal');
     const budgetCloseButton = document.querySelector('#budgetCloseButton');
     const manualEntryDetails = document.querySelector('#manualEntryDetails');
@@ -427,10 +427,15 @@
         const remainingJpy = currentRate ? Math.round(remaining / currentRate) : 0;
         const walletSource = wallets.length ? wallets : DEFAULT_WALLETS;
         const hanaWallet = walletSource.find((item) => item.id === 'hana-jpy') || DEFAULT_WALLETS[0];
+        const cashWallet = walletSource.find((item) => item.id === 'cash-jpy') || DEFAULT_WALLETS[1];
+        const icWallet = walletSource.find((item) => item.id === 'ic-jpy') || DEFAULT_WALLETS[2];
         const hanaBalance = computedWallet(hanaWallet).balance;
+        const cashBalance = computedWallet(cashWallet).balance;
+        const icBalance = computedWallet(icWallet).balance;
         const hanaDiff = hanaBalance - remainingJpy;
+        document.querySelector('#cashSummaryJpy').textContent = formatYen(cashBalance);
+        document.querySelector('#icSummaryJpy').textContent = formatYen(icBalance);
         document.querySelector('#hanaSummaryJpy').textContent = formatYen(hanaBalance);
-        document.querySelector('#budgetSummaryLine').textContent = '세부 예산 보기';
         document.querySelector('#spentTotal').textContent = formatKrw(spent);
         document.querySelector('#spentMeta').textContent = movementCount
             ? `${spendingCount}건 · 이동 ${movementCount}건 · ${currentRate}원/엔`
@@ -967,7 +972,7 @@
     receiptModal?.addEventListener('click', (event) => {
         if (event.target === receiptModal) closeReceiptModal();
     });
-    budgetOpenButton?.addEventListener('click', openBudgetModal);
+    budgetOpenButtons.forEach((button) => button.addEventListener('click', openBudgetModal));
     budgetCloseButton?.addEventListener('click', closeBudgetModal);
     budgetModal?.addEventListener('click', (event) => {
         if (event.target === budgetModal) closeBudgetModal();
@@ -1005,7 +1010,7 @@
         render();
     });
 
-    document.querySelector('#exportCsvButton').addEventListener('click', async () => {
+    document.querySelector('#exportCsvButton')?.addEventListener('click', async () => {
         try {
             await navigator.clipboard.writeText(csvText());
             showStatus('CSV를 복사했습니다.');
@@ -1014,7 +1019,7 @@
         }
     });
 
-    document.querySelector('#lockButton').addEventListener('click', () => {
+    document.querySelector('#lockButton')?.addEventListener('click', () => {
         sessionStorage.removeItem(PIN_KEY);
         pin = '';
         pinInput.value = '';

@@ -5,6 +5,8 @@ npm-debug.log*
 
 slash-check-state.json
 gecko-state.json
+travel-expenses.json
+travel-receipts/
 local-boss-state.json
 cloudflared.log
 data/screenshots/

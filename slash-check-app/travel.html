@@ -19,7 +19,7 @@
         .travelShell {
             width: min(1120px, calc(100% - 28px));
             margin: 0 auto;
-            padding: 14px 0 44px;
+            padding: 10px 0 44px;
         }
 
         .travelTop {
@@ -209,20 +209,20 @@
             word-break: keep-all;
         }
 
-        .compactBudget {
+        .walletSummaryBar {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 8px;
             margin-bottom: 10px;
-            overflow: visible;
         }
 
-        .budgetSummaryButton {
+        .walletSummaryChip {
             width: 100%;
-            display: grid;
-            grid-template-columns: minmax(0, 1fr) auto;
-            gap: 12px;
-            align-items: center;
-            border: 1px solid #b8d3ff;
+            min-width: 0;
+            display: block;
+            border: 1px solid var(--line);
             border-radius: 8px;
-            padding: 13px 14px;
+            padding: 9px 10px;
             background: #fff;
             color: var(--text);
             text-align: left;
@@ -230,42 +230,26 @@
             cursor: pointer;
         }
 
-        .budgetSummaryText {
-            min-width: 0;
-        }
-
-        .budgetSummaryText span,
+        .walletSummaryChip span,
         .budgetDetailCard span {
             display: block;
-            margin-bottom: 5px;
+            margin-bottom: 4px;
             color: var(--muted);
             font-size: 12px;
             font-weight: 900;
         }
 
-        .budgetSummaryText strong {
+        .walletSummaryChip strong {
             display: block;
-            color: var(--blue);
-            font-size: clamp(24px, 4vw, 34px);
-            line-height: 1;
+            color: var(--text);
+            font-size: clamp(16px, 2.4vw, 21px);
+            line-height: 1.08;
             word-break: keep-all;
         }
 
-        .budgetSummaryText small,
-        .budgetSummaryOpen {
-            color: var(--text-soft);
-            font-size: 12px;
-            font-weight: 850;
-        }
-
-        .budgetSummaryOpen {
-            display: inline-grid;
-            min-height: 32px;
-            place-items: center;
-            border-radius: 7px;
-            padding: 0 10px;
-            background: var(--soft);
-            white-space: nowrap;
+        .walletSummaryChip.emphasis {
+            border-color: #b8d3ff;
+            background: #f8fbff;
         }
 
         .actionPanel {
@@ -1253,16 +1237,17 @@
                 margin-bottom: 10px;
             }
 
-            .budgetSummaryButton {
-                padding: 12px;
+            .walletSummaryBar {
+                gap: 6px;
+                margin-bottom: 8px;
             }
 
-            .budgetSummaryText strong {
-                font-size: 27px;
-            }
-
-            .actionPanel .travelForm {
+            .walletSummaryChip {
                 padding: 8px;
+            }
+
+            .walletSummaryChip strong {
+                font-size: 16px;
             }
 
             .actionButton {
@@ -1447,36 +1432,22 @@
     </div>
 
     <main class="travelShell">
-        <header class="travelTop">
-            <div class="travelTopText">
-                <span class="eyebrow">2026 시라하마 가족여행</span>
-                <h1>영수증 정산</h1>
-            </div>
-            <div class="travelActions">
-                <button id="exportCsvButton" class="travelGhostButton" type="button">CSV 복사</button>
-                <button id="lockButton" class="travelDangerButton hidden" type="button">잠그기</button>
-            </div>
-        </header>
-
-        <section class="travelPanel compactBudget" aria-label="예산 요약">
-            <button id="budgetOpenButton" class="budgetSummaryButton" type="button">
-                <span class="budgetSummaryText">
-                    <span>하나머니 잔액</span>
-                    <strong id="hanaSummaryJpy">133,227엔</strong>
-                    <small id="budgetSummaryLine">세부 예산 보기</small>
-                </span>
-                <span class="budgetSummaryOpen">상세</span>
+        <section class="walletSummaryBar" aria-label="지갑 요약">
+            <button class="walletSummaryChip" type="button" data-budget-open>
+                <span>현금</span>
+                <strong id="cashSummaryJpy">0엔</strong>
+            </button>
+            <button class="walletSummaryChip" type="button" data-budget-open>
+                <span>IC카드</span>
+                <strong id="icSummaryJpy">0엔</strong>
+            </button>
+            <button class="walletSummaryChip emphasis" type="button" data-budget-open>
+                <span>하나머니</span>
+                <strong id="hanaSummaryJpy">133,227엔</strong>
             </button>
         </section>
 
         <section id="receiptPanel" class="travelPanel capturePanel actionPanel">
-            <div class="travelPanelHead">
-                <div>
-                    <span class="label">추가</span>
-                    <strong>결제 입력</strong>
-                </div>
-                <span id="saveStatus" class="statusLine"></span>
-            </div>
             <form id="expenseForm" class="travelForm captureForm">
                 <div class="actionButtons" aria-label="빠른 결제 추가">
                     <button id="openCameraButton" class="actionButton primary" type="button">촬영</button>
@@ -1485,6 +1456,7 @@
                     <button id="openManualButton" class="actionButton" type="button">수동</button>
                     <div id="quickCaptureStatus" class="captureStatus"></div>
                 </div>
+                <span id="saveStatus" class="statusLine"></span>
 
                 <section id="cameraPanel" class="cameraPanel hidden" aria-label="카메라">
                     <div class="cameraHead">
