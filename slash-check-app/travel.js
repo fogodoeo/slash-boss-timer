@@ -18,6 +18,7 @@
     const saveStatus = document.querySelector('#saveStatus');
     const receiptGalleryInput = document.querySelector('#receiptGalleryInput');
     const openCameraButton = document.querySelector('#openCameraButton');
+    const openManualButton = document.querySelector('#openManualButton');
     const closeCameraButton = document.querySelector('#closeCameraButton');
     const closeCameraTopButton = document.querySelector('#closeCameraTopButton');
     const captureShotButton = document.querySelector('#captureShotButton');
@@ -36,6 +37,10 @@
     const modalAiNote = document.querySelector('#modalAiNote');
     const modalReceiptLink = document.querySelector('#modalReceiptLink');
     const modalCloseButton = document.querySelector('#modalCloseButton');
+    const budgetOpenButton = document.querySelector('#budgetOpenButton');
+    const budgetModal = document.querySelector('#budgetModal');
+    const budgetCloseButton = document.querySelector('#budgetCloseButton');
+    const manualEntryDetails = document.querySelector('#manualEntryDetails');
     const receiptInputs = [receiptGalleryInput].filter(Boolean);
     const bottomNavLinks = Array.from(document.querySelectorAll('.bottomNav a'));
 
@@ -423,6 +428,8 @@
         const hanaWallet = walletSource.find((item) => item.id === 'hana-jpy') || DEFAULT_WALLETS[0];
         const hanaBalance = computedWallet(hanaWallet).balance;
         const hanaDiff = hanaBalance - remainingJpy;
+        document.querySelector('#hanaSummaryJpy').textContent = formatYen(hanaBalance);
+        document.querySelector('#budgetSummaryLine').textContent = '세부 예산 보기';
         document.querySelector('#spentTotal').textContent = formatKrw(spent);
         document.querySelector('#spentMeta').textContent = movementCount
             ? `${spendingCount}건 · 이동 ${movementCount}건 · ${currentRate}원/엔`
@@ -646,6 +653,23 @@
         document.body.classList.remove('cameraOpen');
     }
 
+    function openBudgetModal() {
+        budgetModal?.classList.remove('hidden');
+        document.body.classList.add('cameraOpen');
+    }
+
+    function closeBudgetModal() {
+        budgetModal?.classList.add('hidden');
+        document.body.classList.remove('cameraOpen');
+    }
+
+    function openManualEntry() {
+        if (manualEntryDetails) manualEntryDetails.open = true;
+        document.querySelector('#manualPanel')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        setActiveNav('#manualPanel');
+        window.setTimeout(() => document.querySelector('#quickManualText')?.focus(), 320);
+    }
+
     function setActiveNav(targetHash = '#receiptPanel') {
         if (!bottomNavLinks.length) return;
         bottomNavLinks.forEach((link) => {
@@ -812,6 +836,7 @@
     });
 
     openCameraButton?.addEventListener('click', openCamera);
+    openManualButton?.addEventListener('click', openManualEntry);
     closeCameraButton?.addEventListener('click', stopCamera);
     closeCameraTopButton?.addEventListener('click', stopCamera);
     captureShotButton?.addEventListener('click', captureCameraFrame);
@@ -940,6 +965,11 @@
     modalCloseButton?.addEventListener('click', closeReceiptModal);
     receiptModal?.addEventListener('click', (event) => {
         if (event.target === receiptModal) closeReceiptModal();
+    });
+    budgetOpenButton?.addEventListener('click', openBudgetModal);
+    budgetCloseButton?.addEventListener('click', closeBudgetModal);
+    budgetModal?.addEventListener('click', (event) => {
+        if (event.target === budgetModal) closeBudgetModal();
     });
 
     bottomNavLinks.forEach((link) => {
