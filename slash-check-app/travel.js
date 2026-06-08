@@ -1,5 +1,6 @@
 (() => {
     const PIN_KEY = 'travelExpensePin';
+    const DEFAULT_PIN = '1234';
     const RATE_KEY = 'travelExpenseRateV2';
     const DEFAULT_RATE = 9.39;
     const FIXED_TOTAL_KRW = 2111285;
@@ -44,7 +45,7 @@
     const receiptInputs = [receiptGalleryInput].filter(Boolean);
     const bottomNavLinks = Array.from(document.querySelectorAll('.bottomNav a'));
 
-    let pin = sessionStorage.getItem(PIN_KEY) || '';
+    let pin = sessionStorage.getItem(PIN_KEY) || DEFAULT_PIN;
     let receiptDataUrl = '';
     let cameraStream = null;
     let activeReceiptId = '';
