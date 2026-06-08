@@ -1,8 +1,10 @@
 (() => {
     const PIN_KEY = 'travelExpensePin';
-    const RATE_KEY = 'travelExpenseRate';
-    const FIXED_TOTAL_KRW = 2088685;
+    const RATE_KEY = 'travelExpenseRateV2';
+    const DEFAULT_RATE = 9.39;
+    const FIXED_TOTAL_KRW = 2111285;
     const BUDGET_KRW = 3000000;
+    const DEFAULT_HANA_JPY = 133227;
 
     const pinOverlay = document.querySelector('#pinOverlay');
     const pinForm = document.querySelector('#pinForm');
@@ -51,6 +53,13 @@
         'card-jpy': { name: '신용카드' }
     };
 
+    const DEFAULT_WALLETS = [
+        { id: 'hana-jpy', name: '하나머니', currency: 'JPY', balance: DEFAULT_HANA_JPY },
+        { id: 'cash-jpy', name: '현금', currency: 'JPY', balance: 0 },
+        { id: 'ic-jpy', name: 'IC카드', currency: 'JPY', balance: 0 },
+        { id: 'card-jpy', name: '신용카드', currency: 'JPY', balance: 0 }
+    ];
+
     function todayKst() {
         const now = new Date(Date.now() + 9 * 60 * 60 * 1000);
         return now.toISOString().slice(0, 10);
@@ -68,7 +77,19 @@
     }
 
     function rate() {
-        return Math.max(number(rateInput.value) || 9.5, 0);
+        return Math.max(number(rateInput.value) || DEFAULT_RATE, 0);
+    }
+
+    function formatYen(value) {
+        const rounded = Math.round(Number(value) || 0);
+        const sign = rounded < 0 ? '-' : '';
+        return `${sign}${Math.abs(rounded).toLocaleString('ko-KR')}엔`;
+    }
+
+    function formatSignedYen(value) {
+        const rounded = Math.round(Number(value) || 0);
+        if (!rounded) return '0엔';
+        return `${rounded > 0 ? '+' : '-'}${Math.abs(rounded).toLocaleString('ko-KR')}엔`;
     }
 
     function toKrw(item) {
@@ -365,12 +386,7 @@
     }
 
     function renderWallets() {
-        const items = wallets.length ? wallets : [
-            { id: 'hana-jpy', name: '하나머니', currency: 'JPY', balance: 0 },
-            { id: 'cash-jpy', name: '현금', currency: 'JPY', balance: 0 },
-            { id: 'ic-jpy', name: 'IC카드', currency: 'JPY', balance: 0 },
-            { id: 'card-jpy', name: '신용카드', currency: 'JPY', balance: 0 }
-        ];
+        const items = wallets.length ? wallets : DEFAULT_WALLETS;
 
         walletList.innerHTML = items.map((wallet) => {
             const label = WALLET_LABELS[wallet.id] || { name: wallet.name, note: wallet.note };
@@ -398,15 +414,27 @@
     function render() {
         renderWallets();
         const spent = expenses.reduce((sum, item) => sum + budgetImpactKrw(item), 0);
-        const movementTotal = expenses.reduce((sum, item) => sum + (isMovement(item) ? toKrw(item) : 0), 0);
         const spendingCount = expenses.filter((item) => budgetImpactKrw(item) !== 0).length;
         const movementCount = expenses.filter(isMovement).length;
         const remaining = BUDGET_KRW - FIXED_TOTAL_KRW - spent;
+        const currentRate = rate();
+        const remainingJpy = currentRate ? Math.round(remaining / currentRate) : 0;
+        const walletSource = wallets.length ? wallets : DEFAULT_WALLETS;
+        const hanaWallet = walletSource.find((item) => item.id === 'hana-jpy') || DEFAULT_WALLETS[0];
+        const hanaBalance = computedWallet(hanaWallet).balance;
+        const hanaDiff = hanaBalance - remainingJpy;
         document.querySelector('#spentTotal').textContent = formatKrw(spent);
         document.querySelector('#spentMeta').textContent = movementCount
-            ? `${spendingCount}건 · 이동 ${movementCount}건 · ${rate()}원`
-            : `${spendingCount}건 · ${rate()}원`;
+            ? `${spendingCount}건 · 이동 ${movementCount}건 · ${currentRate}원/엔`
+            : `${spendingCount}건 · ${currentRate}원/엔`;
         document.querySelector('#remainTotal').textContent = formatKrw(remaining);
+        document.querySelector('#remainMeta').textContent = `${formatYen(remainingJpy)} 한도`;
+        document.querySelector('#fixedTotal').textContent = formatKrw(FIXED_TOTAL_KRW);
+        document.querySelector('#budgetTotal').textContent = formatKrw(BUDGET_KRW);
+        document.querySelector('#localBudgetJpy').textContent = formatYen(remainingJpy);
+        document.querySelector('#hanaBudgetJpy').textContent = formatYen(hanaBalance);
+        document.querySelector('#hanaBudgetDiff').textContent = formatSignedYen(hanaDiff);
+        document.querySelector('#budgetRate').textContent = `${currentRate}원/엔`;
         document.querySelector('#entrySummary').textContent = `${expenses.length}건`;
         if (activeReceiptId) {
             const active = expenses.find((item) => item.id === activeReceiptId);
@@ -968,7 +996,7 @@
     document.querySelector('#dateInput').value = todayKst();
     document.querySelector('#quickManualDate').value = todayKst();
     document.querySelector('#manualDate').value = todayKst();
-    rateInput.value = localStorage.getItem(RATE_KEY) || '9.5';
+    rateInput.value = localStorage.getItem(RATE_KEY) || String(DEFAULT_RATE);
     setActiveNav(location.hash || '#receiptPanel');
     render();
 

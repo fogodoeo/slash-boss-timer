@@ -174,6 +174,41 @@
             line-height: 1.35;
         }
 
+        .budgetPanel {
+            margin-bottom: 14px;
+            padding: 12px;
+        }
+
+        .budgetPills {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 10px;
+        }
+
+        .budgetPill {
+            min-width: 0;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            padding: 10px 12px;
+            background: #fff;
+        }
+
+        .budgetPill span {
+            display: block;
+            margin-bottom: 6px;
+            color: var(--muted);
+            font-size: 12px;
+            font-weight: 900;
+        }
+
+        .budgetPill b {
+            display: block;
+            color: var(--text);
+            font-size: 18px;
+            line-height: 1.1;
+            word-break: keep-all;
+        }
+
         .travelLayout {
             display: grid;
             grid-template-columns: minmax(310px, .84fr) minmax(0, 1.36fr);
@@ -1083,6 +1118,24 @@
                 margin-bottom: 10px;
             }
 
+            .budgetPanel {
+                margin-bottom: 10px;
+                padding: 8px;
+            }
+
+            .budgetPills {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+                gap: 8px;
+            }
+
+            .budgetPill {
+                padding: 9px;
+            }
+
+            .budgetPill b {
+                font-size: 16px;
+            }
+
             .primaryMetric {
                 grid-column: auto;
             }
@@ -1320,8 +1373,8 @@
         <section class="travelGrid" aria-label="정산 요약">
             <article class="travelMetric primaryMetric">
                 <span>남은 예산</span>
-                <strong id="remainTotal">911,315원</strong>
-                <small>잔액</small>
+                <strong id="remainTotal">888,715원</strong>
+                <small id="remainMeta">94,645엔 한도</small>
             </article>
             <article class="travelMetric spendMetric">
                 <span>현지 등록액</span>
@@ -1330,7 +1383,7 @@
             </article>
             <article class="travelMetric fixedMetric">
                 <span>고정비</span>
-                <strong id="fixedTotal">2,088,685원</strong>
+                <strong id="fixedTotal">2,111,285원</strong>
                 <small>확정</small>
             </article>
             <article class="travelMetric budgetMetric">
@@ -1338,6 +1391,27 @@
                 <strong id="budgetTotal">3,000,000원</strong>
                 <small>공금</small>
             </article>
+        </section>
+
+        <section class="travelPanel budgetPanel" aria-label="현지 예산 기준">
+            <div class="budgetPills">
+                <div class="budgetPill">
+                    <span>현지 한도</span>
+                    <b id="localBudgetJpy">94,645엔</b>
+                </div>
+                <div class="budgetPill">
+                    <span>하나머니</span>
+                    <b id="hanaBudgetJpy">133,227엔</b>
+                </div>
+                <div class="budgetPill">
+                    <span>엔화 여유</span>
+                    <b id="hanaBudgetDiff">+38,582엔</b>
+                </div>
+                <div class="budgetPill">
+                    <span>기준 환율</span>
+                    <b id="budgetRate">9.39원/엔</b>
+                </div>
+            </div>
         </section>
 
         <section class="travelLayout">
@@ -1478,7 +1552,7 @@
                         </div>
                         <label class="rateControl">
                             <span class="label">환율</span>
-                            <input id="rateInput" type="number" inputmode="decimal" min="0" step="0.1" value="9.5">
+                            <input id="rateInput" type="number" inputmode="decimal" min="0" step="0.01" value="9.39">
                         </label>
                     </div>
                     <div id="travelList" class="travelList"></div>

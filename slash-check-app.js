@@ -1733,7 +1733,7 @@ function normalizeTravelTime(value) {
 
 const TRAVEL_TRANSACTION_TYPES = new Set(['지출', '현금인출', 'IC충전', '환전', '환급', '정산이동', '수수료', '기타']);
 const DEFAULT_TRAVEL_WALLETS = [
-    { id: 'hana-jpy', name: '하나머니', currency: 'JPY', balance: 0, note: '' },
+    { id: 'hana-jpy', name: '하나머니', currency: 'JPY', balance: 133227, note: '300만원 예산 기준 엔화 보유액' },
     { id: 'cash-jpy', name: '현금', currency: 'JPY', balance: 0, note: '' },
     { id: 'ic-jpy', name: 'IC카드', currency: 'JPY', balance: 0, note: '' },
     { id: 'card-jpy', name: '신용카드', currency: 'JPY', balance: 0, note: '' }
@@ -1756,12 +1756,17 @@ function normalizeTravelWallet(value, existing = null, options = {}) {
     const id = cleanText(value?.id || fallback.id, 80);
     const defaultWallet = DEFAULT_TRAVEL_WALLETS.find((wallet) => wallet.id === id) || {};
     const nowIso = new Date().toISOString();
+    const legacyUntouchedHana = id === 'hana-jpy'
+        && Number(value?.balance) === 0
+        && !value?.updatedAt
+        && !fallback.updatedAt
+        && Number(defaultWallet.balance) > 0;
 
     return {
         id: id || cleanText(defaultWallet.id, 80) || randomUUID(),
         name: cleanText(value?.name || fallback.name || defaultWallet.name || '지갑', 40),
         currency: normalizeTravelCurrency(value?.currency || fallback.currency || defaultWallet.currency || 'JPY'),
-        balance: normalizeTravelAmount(value?.balance ?? fallback.balance ?? defaultWallet.balance ?? 0),
+        balance: normalizeTravelAmount(legacyUntouchedHana ? defaultWallet.balance : (value?.balance ?? fallback.balance ?? defaultWallet.balance ?? 0)),
         note: cleanText(value?.note || fallback.note || defaultWallet.note || '', 160),
         updatedAt: options.touch ? nowIso : (fallback.updatedAt || value?.updatedAt || null)
     };

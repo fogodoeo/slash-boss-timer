@@ -15,6 +15,7 @@ const TRAVEL_CONTEXT = process.env.TRAVEL_CONTEXT || [
     'Main area: Kansai Airport, Wakayama, Shirahama, Nachi/Kii-Katsuura, possibly airport and Korea-side transit.',
     'Travelers are three adults using public transportation, taxis, buses, JR, cafes, restaurants, convenience stores, tourist sites, and occasional shopping.',
     'Hotel breakfast and dinner are mostly prepaid, so ordinary hotel meal receipts are less likely unless they are extra charges.',
+    'Budget context: group budget is 3,000,000 KRW. Fixed net costs are 2,111,285 KRW. Local spending cap is about 94,645 JPY at 9.39 KRW/JPY. Hana Money starts with 133,227 JPY.',
     'Expected Japanese merchants/places may include Shirahama, Shirarahama, Shiraraso Grand Hotel, Kagerou Cafe, Yamanouchi, Toretore Market, Sandanbeki, Senjojiki, Engetsu Island, Nachi Falls, Kii-Katsuura, Wakayama, Kansai Airport.',
     'Korea-side receipts may be airport meals, buses, trains, taxis, or convenience stores before/after the Japan trip.',
     'Use this context to choose category and currency, but do not invent unreadable merchant names or totals.'
