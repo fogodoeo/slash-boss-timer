@@ -20,6 +20,7 @@
     const receiptGalleryInput = document.querySelector('#receiptGalleryInput');
     const openCameraButton = document.querySelector('#openCameraButton');
     const openManualButton = document.querySelector('#openManualButton');
+    const showLedgerButton = document.querySelector('#showLedgerButton');
     const closeCameraButton = document.querySelector('#closeCameraButton');
     const closeCameraTopButton = document.querySelector('#closeCameraTopButton');
     const captureShotButton = document.querySelector('#captureShotButton');
@@ -42,6 +43,17 @@
     const budgetModal = document.querySelector('#budgetModal');
     const budgetCloseButton = document.querySelector('#budgetCloseButton');
     const manualEntryDetails = document.querySelector('#manualEntryDetails');
+    const entryActionModal = document.querySelector('#entryActionModal');
+    const entryActionTitle = document.querySelector('#entryActionTitle');
+    const entryActionSummary = document.querySelector('#entryActionSummary');
+    const entryActionCloseButton = document.querySelector('#entryActionCloseButton');
+    const entryEditButton = document.querySelector('#entryEditButton');
+    const entryReanalyzeButton = document.querySelector('#entryReanalyzeButton');
+    const entryReceiptButton = document.querySelector('#entryReceiptButton');
+    const entryDeleteButton = document.querySelector('#entryDeleteButton');
+    const editModal = document.querySelector('#editModal');
+    const editForm = document.querySelector('#editForm');
+    const editCloseButton = document.querySelector('#editCloseButton');
     const receiptInputs = [receiptGalleryInput].filter(Boolean);
     const bottomNavLinks = Array.from(document.querySelectorAll('.bottomNav a'));
 
@@ -49,6 +61,11 @@
     let receiptDataUrl = '';
     let cameraStream = null;
     let activeReceiptId = '';
+    let activeEntryId = '';
+    let longPressTimer = null;
+    let pressedEntry = null;
+    let pressStartX = 0;
+    let pressStartY = 0;
     let expenses = [];
     let wallets = [];
 
@@ -484,12 +501,6 @@
             const statusTag = ['분석대기', '문장분석대기', '분석중', '확인필요', '분석실패'].includes(item.analysisStatus)
                 ? `<span class="entryStatus">${status}</span>`
                 : '';
-            const needsLineItemReanalysis = receiptImage
-                && !expenseLineItems(item).length
-                && !['분석대기', '문장분석대기', '분석중'].includes(item.analysisStatus);
-            const reanalyzeButton = needsLineItemReanalysis
-                ? `<button class="receiptLink aiNoteButton" type="button" data-reanalyze="${escapeHtml(item.id)}">재분석</button>`
-                : '';
             const timeText = item.paymentTime ? ` ${escapeHtml(item.paymentTime)}` : '';
             const location = item.location ? `<div class="travelEntryMeta">${escapeHtml(item.location)}</div>` : '';
             const icBalance = Number(item.icBalance || 0) > 0
@@ -517,13 +528,7 @@
                     </div>
                     <div class="entryFooter">
                         ${statusTag}
-                        <details class="entryManage">
-                            <summary>관리</summary>
-                            <div class="entryMenu">
-                                ${reanalyzeButton}
-                                <button class="travelDangerButton" type="button" data-delete="${escapeHtml(item.id)}">삭제</button>
-                            </div>
-                        </details>
+                        <span class="travelEntryMeta">길게 눌러 관리</span>
                     </div>
                     ${item.memo ? `<div class="travelEntryMeta">${escapeHtml(item.memo)}</div>` : ''}
                 </article>
@@ -659,6 +664,133 @@
         document.body.classList.remove('cameraOpen');
     }
 
+    function expenseById(id = activeEntryId) {
+        return expenses.find((item) => item.id === id) || null;
+    }
+
+    function actionSummaryHtml(item) {
+        if (!item) return '';
+        const details = lineItemsHtml(item);
+        const fallback = itemFallbackText(item);
+        return `
+            <div class="travelEntryTop">
+                <div>
+                    <b>${escapeHtml(item.merchant || item.item || '결제 내역')}</b>
+                    <div class="travelEntryMeta">${escapeHtml(item.date || '')}${item.paymentTime ? ` ${escapeHtml(item.paymentTime)}` : ''} · ${escapeHtml(item.method || '')} · ${escapeHtml(transactionType(item))}</div>
+                </div>
+                <div class="travelAmount">${escapeHtml(formatCurrencyAmount(item.currency, item.amount))}</div>
+            </div>
+            ${details}
+            ${!details && fallback ? `<div class="entryItemFallback">${escapeHtml(fallback)}</div>` : ''}
+            ${item.aiNote ? `<div class="travelEntryMeta">${escapeHtml(item.aiNote)}</div>` : ''}
+        `;
+    }
+
+    function openEntryActionModal(item) {
+        if (!item || !entryActionModal) return;
+        activeEntryId = item.id;
+        entryActionTitle.textContent = item.merchant || item.item || '내역 관리';
+        entryActionSummary.innerHTML = actionSummaryHtml(item);
+        entryReceiptButton.disabled = !item.receipt?.id;
+        entryReanalyzeButton.disabled = !(item.receipt?.id || item.aiRaw?.inputText || item.memo);
+        entryActionModal.classList.remove('hidden');
+        document.body.classList.add('cameraOpen');
+    }
+
+    function closeEntryActionModal() {
+        entryActionModal?.classList.add('hidden');
+        document.body.classList.remove('cameraOpen');
+    }
+
+    function setSelectValue(selector, value, fallback = '') {
+        const select = document.querySelector(selector);
+        if (!select) return;
+        const nextValue = value || fallback;
+        if (nextValue && !Array.from(select.options).some((option) => option.value === nextValue || option.textContent === nextValue)) {
+            select.append(new Option(nextValue, nextValue));
+        }
+        select.value = nextValue;
+    }
+
+    function openEditModal(item) {
+        if (!item || !editModal) return;
+        activeEntryId = item.id;
+        document.querySelector('#editDate').value = item.date || todayKst();
+        document.querySelector('#editTime').value = item.paymentTime || '';
+        document.querySelector('#editMerchant').value = item.merchant || item.item || '';
+        document.querySelector('#editAmount').value = item.amount || 0;
+        document.querySelector('#editLocation').value = item.location || '';
+        document.querySelector('#editMemo').value = item.memo || '';
+        setSelectValue('#editCurrency', item.currency, 'JPY');
+        setSelectValue('#editMethod', item.method, '기타');
+        setSelectValue('#editTransactionType', transactionType(item), '지출');
+        closeEntryActionModal();
+        editModal.classList.remove('hidden');
+        document.body.classList.add('cameraOpen');
+    }
+
+    function closeEditModal() {
+        editModal?.classList.add('hidden');
+        document.body.classList.remove('cameraOpen');
+    }
+
+    function editPayload() {
+        const existing = expenseById();
+        if (!existing) return null;
+        const merchant = document.querySelector('#editMerchant').value.trim();
+        return {
+            ...existing,
+            date: document.querySelector('#editDate').value || existing.date || todayKst(),
+            paymentTime: document.querySelector('#editTime').value || '',
+            merchant,
+            item: existing.item || merchant || '기타',
+            amount: document.querySelector('#editAmount').value,
+            currency: document.querySelector('#editCurrency').value || existing.currency || 'JPY',
+            method: document.querySelector('#editMethod').value || existing.method || '기타',
+            transactionType: document.querySelector('#editTransactionType').value || transactionType(existing),
+            location: document.querySelector('#editLocation').value.trim(),
+            memo: document.querySelector('#editMemo').value.trim(),
+            analysisStatus: '수동'
+        };
+    }
+
+    async function reanalyzeEntry(id = activeEntryId) {
+        if (!id) return;
+        try {
+            showStatus('재분석 대기 등록 중');
+            const data = await api('/api/travel/expenses/reanalyze', {
+                method: 'POST',
+                body: JSON.stringify({ id })
+            });
+            expenses = Array.isArray(data.expenses) ? data.expenses : expenses;
+            wallets = Array.isArray(data.wallets) ? data.wallets : wallets;
+            activeReceiptId = id;
+            closeEntryActionModal();
+            render();
+            showStatus('재분석 대기');
+        } catch (err) {
+            showStatus(err.message, 'error');
+        }
+    }
+
+    async function deleteEntry(id = activeEntryId) {
+        if (!id) return;
+        if (!confirm('이 결제 내역을 삭제할까요?')) return;
+        try {
+            const data = await api('/api/travel/expenses/delete', {
+                method: 'POST',
+                body: JSON.stringify({ id })
+            });
+            expenses = Array.isArray(data.expenses) ? data.expenses : [];
+            wallets = Array.isArray(data.wallets) ? data.wallets : wallets;
+            closeEntryActionModal();
+            render();
+            showStatus('삭제됨');
+        } catch (err) {
+            showStatus(err.message, 'error');
+        }
+    }
+
     function openBudgetModal() {
         budgetModal?.classList.remove('hidden');
         document.body.classList.add('cameraOpen');
@@ -674,6 +806,44 @@
         document.querySelector('#manualPanel')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
         setActiveNav('#manualPanel');
         window.setTimeout(() => document.querySelector('#quickManualText')?.focus(), 320);
+    }
+
+    function showLedger() {
+        document.querySelector('#ledgerPanel')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    function clearLongPress() {
+        window.clearTimeout(longPressTimer);
+        longPressTimer = null;
+        pressedEntry?.classList.remove('pressing');
+        pressedEntry = null;
+    }
+
+    function entryCardFromEvent(event) {
+        if (event.target.closest('button, a, input, select, textarea, label, summary')) return null;
+        return event.target.closest('.travelEntry');
+    }
+
+    function startLongPress(event) {
+        const card = entryCardFromEvent(event);
+        if (!card) return;
+        clearLongPress();
+        pressedEntry = card;
+        pressStartX = event.clientX || 0;
+        pressStartY = event.clientY || 0;
+        card.classList.add('pressing');
+        longPressTimer = window.setTimeout(() => {
+            const item = expenseById(card.dataset.id);
+            clearLongPress();
+            openEntryActionModal(item);
+        }, 520);
+    }
+
+    function moveLongPress(event) {
+        if (!longPressTimer) return;
+        const dx = Math.abs((event.clientX || 0) - pressStartX);
+        const dy = Math.abs((event.clientY || 0) - pressStartY);
+        if (dx > 12 || dy > 12) clearLongPress();
     }
 
     function setActiveNav(targetHash = '#receiptPanel') {
@@ -843,6 +1013,7 @@
 
     openCameraButton?.addEventListener('click', openCamera);
     openManualButton?.addEventListener('click', openManualEntry);
+    showLedgerButton?.addEventListener('click', showLedger);
     closeCameraButton?.addEventListener('click', stopCamera);
     closeCameraTopButton?.addEventListener('click', stopCamera);
     captureShotButton?.addEventListener('click', captureCameraFrame);
@@ -934,38 +1105,19 @@
             openReceiptModal(item);
             return;
         }
-        const reanalyzeId = event.target.closest('[data-reanalyze]')?.dataset.reanalyze;
-        if (reanalyzeId) {
-            try {
-                showStatus('재분석 대기 등록 중');
-                const data = await api('/api/travel/expenses/reanalyze', {
-                    method: 'POST',
-                    body: JSON.stringify({ id: reanalyzeId })
-                });
-                expenses = Array.isArray(data.expenses) ? data.expenses : expenses;
-                wallets = Array.isArray(data.wallets) ? data.wallets : wallets;
-                activeReceiptId = reanalyzeId;
-                render();
-                showStatus('품목 재분석 대기');
-            } catch (err) {
-                showStatus(err.message, 'error');
-            }
-            return;
-        }
-        const id = event.target.dataset.delete;
-        if (!id) return;
-        if (!confirm('이 결제 내역을 삭제할까요?')) return;
-        try {
-            const data = await api('/api/travel/expenses/delete', {
-                method: 'POST',
-                body: JSON.stringify({ id })
-            });
-            expenses = Array.isArray(data.expenses) ? data.expenses : [];
-            render();
-            showStatus('삭제했습니다.');
-        } catch (err) {
-            showStatus(err.message, 'error');
-        }
+    });
+
+    travelList.addEventListener('pointerdown', startLongPress);
+    travelList.addEventListener('pointermove', moveLongPress);
+    travelList.addEventListener('pointerup', clearLongPress);
+    travelList.addEventListener('pointercancel', clearLongPress);
+    travelList.addEventListener('pointerleave', clearLongPress);
+    travelList.addEventListener('contextmenu', (event) => {
+        const card = entryCardFromEvent(event);
+        if (!card) return;
+        event.preventDefault();
+        clearLongPress();
+        openEntryActionModal(expenseById(card.dataset.id));
     });
 
     modalCloseButton?.addEventListener('click', closeReceiptModal);
@@ -976,6 +1128,45 @@
     budgetCloseButton?.addEventListener('click', closeBudgetModal);
     budgetModal?.addEventListener('click', (event) => {
         if (event.target === budgetModal) closeBudgetModal();
+    });
+    entryActionCloseButton?.addEventListener('click', closeEntryActionModal);
+    entryActionModal?.addEventListener('click', (event) => {
+        if (event.target === entryActionModal) closeEntryActionModal();
+    });
+    entryEditButton?.addEventListener('click', () => openEditModal(expenseById()));
+    entryReceiptButton?.addEventListener('click', () => {
+        const item = expenseById();
+        closeEntryActionModal();
+        openReceiptModal(item);
+    });
+    entryReanalyzeButton?.addEventListener('click', () => reanalyzeEntry());
+    entryDeleteButton?.addEventListener('click', () => deleteEntry());
+    editCloseButton?.addEventListener('click', closeEditModal);
+    editModal?.addEventListener('click', (event) => {
+        if (event.target === editModal) closeEditModal();
+    });
+    editForm?.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const payload = editPayload();
+        if (!payload) return;
+        if (number(payload.amount) <= 0) {
+            showStatus('금액 필요', 'error');
+            return;
+        }
+        try {
+            showStatus('수정 중');
+            const data = await api('/api/travel/expenses/update', {
+                method: 'POST',
+                body: JSON.stringify(payload)
+            });
+            expenses = Array.isArray(data.expenses) ? data.expenses : expenses;
+            wallets = Array.isArray(data.wallets) ? data.wallets : wallets;
+            closeEditModal();
+            render();
+            showStatus('수정됨');
+        } catch (err) {
+            showStatus(err.message, 'error');
+        }
     });
 
     bottomNavLinks.forEach((link) => {

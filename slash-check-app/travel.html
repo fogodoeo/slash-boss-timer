@@ -256,6 +256,23 @@
             margin-bottom: 10px;
         }
 
+        .captureUtility {
+            display: contents;
+        }
+
+        .captureUtility .travelForm {
+            display: contents;
+            padding: 0;
+        }
+
+        .topStatus {
+            min-height: 22px;
+            margin: -3px 2px 7px;
+            color: var(--muted);
+            font-size: 13px;
+            font-weight: 850;
+        }
+
         .actionPanel .travelForm {
             padding: 10px;
         }
@@ -779,6 +796,14 @@
             border: 1px solid var(--line);
             border-radius: 8px;
             background: #fff;
+            cursor: pointer;
+            touch-action: pan-y;
+            transition: border-color .15s ease, background .15s ease;
+        }
+
+        .travelEntry.pressing {
+            border-color: #8bb8ff;
+            background: #f8fbff;
         }
 
         .travelEntryBody {
@@ -1053,6 +1078,61 @@
             padding: 12px;
             border-top: 1px solid var(--line-soft);
             background: #fff;
+        }
+
+        .actionSheetDialog {
+            width: min(420px, 100%);
+        }
+
+        .sheetActions {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 8px;
+            padding: 12px;
+            border-top: 1px solid var(--line-soft);
+        }
+
+        .sheetActions button,
+        .sheetActions a {
+            justify-content: center;
+            min-height: 44px;
+        }
+
+        .editForm {
+            display: grid;
+            gap: 10px;
+        }
+
+        .editForm .two {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 10px;
+        }
+
+        .editForm label {
+            display: grid;
+            gap: 6px;
+        }
+
+        .editForm label span {
+            color: var(--muted);
+            font-size: 12px;
+            font-weight: 900;
+        }
+
+        .editForm input,
+        .editForm select,
+        .editForm textarea {
+            width: 100%;
+            min-height: 42px;
+            border: 1px solid var(--line);
+            border-radius: 7px;
+            padding: 8px 10px;
+        }
+
+        .editForm textarea {
+            min-height: 78px;
+            resize: vertical;
         }
 
         .emptyEntry {
@@ -1394,19 +1474,23 @@
                 backdrop-filter: blur(12px);
             }
 
-            .bottomNav a {
+            .bottomNav button,
+            .bottomNav label {
                 display: inline-flex;
                 min-height: 44px;
                 align-items: center;
                 justify-content: center;
+                border: 0;
                 border-radius: 7px;
+                background: transparent;
                 color: var(--text-soft);
                 font-size: 13px;
                 font-weight: 950;
                 text-decoration: none;
+                cursor: pointer;
             }
 
-            .bottomNav a.active {
+            .bottomNav button:first-child {
                 background: var(--blue);
                 color: #fff;
             }
@@ -1447,16 +1531,12 @@
             </button>
         </section>
 
-        <section id="receiptPanel" class="travelPanel capturePanel actionPanel">
+        <div id="saveStatus" class="topStatus statusLine"></div>
+
+        <section id="receiptPanel" class="captureUtility">
             <form id="expenseForm" class="travelForm captureForm">
-                <div class="actionButtons" aria-label="빠른 결제 추가">
-                    <button id="openCameraButton" class="actionButton primary" type="button">촬영</button>
-                    <label class="actionButton" for="receiptGalleryInput">앨범</label>
-                    <input id="receiptGalleryInput" type="file" accept="image/*">
-                    <button id="openManualButton" class="actionButton" type="button">수동</button>
-                    <div id="quickCaptureStatus" class="captureStatus"></div>
-                </div>
-                <span id="saveStatus" class="statusLine"></span>
+                <input id="receiptGalleryInput" type="file" accept="image/*">
+                <div id="quickCaptureStatus" class="captureStatus hidden"></div>
 
                 <section id="cameraPanel" class="cameraPanel hidden" aria-label="카메라">
                     <div class="cameraHead">
@@ -1477,7 +1557,7 @@
                 <img id="photoPreview" class="photoPreview" alt="영수증 미리보기">
                 <div id="receiptFileName" class="captureFile"></div>
 
-                <details class="uploadOptions">
+                <details class="uploadOptions hidden">
                     <summary>옵션</summary>
                     <div class="two">
                         <label>
@@ -1651,12 +1731,101 @@
         </section>
     </main>
 
-    <nav class="bottomNav" aria-label="여행 정산 이동">
-        <a class="active" href="#receiptPanel">촬영</a>
-        <a href="#ledgerPanel">내역</a>
-        <a href="#walletPanel">지갑</a>
-        <a href="#manualPanel">수동</a>
+    <nav class="bottomNav" aria-label="여행 정산 빠른 실행">
+        <button id="openCameraButton" type="button">촬영</button>
+        <label for="receiptGalleryInput">앨범</label>
+        <button id="openManualButton" type="button">수동</button>
+        <button id="showLedgerButton" type="button">내역</button>
     </nav>
+
+    <section id="entryActionModal" class="receiptModal hidden" aria-modal="true" role="dialog" aria-label="내역 관리">
+        <article class="receiptDialog actionSheetDialog">
+            <div class="receiptDialogHead">
+                <strong id="entryActionTitle">내역 관리</strong>
+                <button id="entryActionCloseButton" class="travelGhostButton" type="button">닫기</button>
+            </div>
+            <div class="receiptDialogBody">
+                <div id="entryActionSummary" class="modalExpenseSummary"></div>
+            </div>
+            <div class="sheetActions">
+                <button id="entryEditButton" class="travelGhostButton" type="button">수정</button>
+                <button id="entryReanalyzeButton" class="travelGhostButton" type="button">재분석</button>
+                <button id="entryReceiptButton" class="travelGhostButton" type="button">영수증</button>
+                <button id="entryDeleteButton" class="travelDangerButton" type="button">삭제</button>
+            </div>
+        </article>
+    </section>
+
+    <section id="editModal" class="receiptModal hidden" aria-modal="true" role="dialog" aria-label="내역 수정">
+        <article class="receiptDialog">
+            <div class="receiptDialogHead">
+                <strong>내역 수정</strong>
+                <button id="editCloseButton" class="travelGhostButton" type="button">닫기</button>
+            </div>
+            <form id="editForm" class="receiptDialogBody editForm">
+                <div class="two">
+                    <label>
+                        <span>날짜</span>
+                        <input id="editDate" type="date">
+                    </label>
+                    <label>
+                        <span>시간</span>
+                        <input id="editTime" type="time">
+                    </label>
+                </div>
+                <label>
+                    <span>내용</span>
+                    <input id="editMerchant" type="text" placeholder="상호/내용">
+                </label>
+                <div class="two">
+                    <label>
+                        <span>금액</span>
+                        <input id="editAmount" type="number" inputmode="numeric" min="0" step="1">
+                    </label>
+                    <label>
+                        <span>통화</span>
+                        <select id="editCurrency">
+                            <option>JPY</option>
+                            <option>KRW</option>
+                        </select>
+                    </label>
+                </div>
+                <div class="two">
+                    <label>
+                        <span>수단</span>
+                        <select id="editMethod">
+                            <option>현금</option>
+                            <option>교통카드</option>
+                            <option>카드</option>
+                            <option>기타</option>
+                        </select>
+                    </label>
+                    <label>
+                        <span>유형</span>
+                        <select id="editTransactionType">
+                            <option>지출</option>
+                            <option>현금인출</option>
+                            <option>IC충전</option>
+                            <option>환전</option>
+                            <option>환급</option>
+                            <option>수수료</option>
+                            <option>정산이동</option>
+                            <option>기타</option>
+                        </select>
+                    </label>
+                </div>
+                <label>
+                    <span>위치</span>
+                    <input id="editLocation" type="text" placeholder="선택">
+                </label>
+                <label>
+                    <span>메모</span>
+                    <textarea id="editMemo" placeholder="선택"></textarea>
+                </label>
+                <button class="travelButton full" type="submit">저장</button>
+            </form>
+        </article>
+    </section>
 
     <section id="budgetModal" class="receiptModal hidden" aria-modal="true" role="dialog" aria-label="예산 상세">
         <article class="receiptDialog budgetDialog">
