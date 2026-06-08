@@ -3,7 +3,7 @@
     const DEFAULT_PIN = '1234';
     const RATE_KEY = 'travelExpenseRateV2';
     const DEFAULT_RATE = 9.39;
-    const FIXED_TOTAL_KRW = 2111285;
+    const FIXED_TOTAL_KRW = 2138065;
     const BUDGET_KRW = 3000000;
     const DEFAULT_HANA_JPY = 133227;
 
