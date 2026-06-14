@@ -3861,12 +3861,16 @@ async function handleApi(req, res, url) {
 
 async function serveStatic(req, res) {
     const url = new URL(req.url, `http://${req.headers.host}`);
+    if (url.pathname === '/memo.txt' || url.pathname === '/prompt.txt') {
+        send(res, 200, publicPrivateMemo().content, 'text/plain; charset=utf-8');
+        return;
+    }
     const memoReadPath = url.pathname === '/memo.html'
         || url.pathname === '/memo'
         || url.pathname === '/memo-edit.html'
         || url.pathname === '/memo-edit';
     const memoEditorRequested = (url.pathname === '/memo-edit.html' || url.pathname === '/memo-edit')
-        && url.searchParams.get('admin') === '1';
+        && url.searchParams.get('unlock') === '1';
     if (memoReadPath && !memoEditorRequested) {
         send(res, 200, renderPublicMemoHtml(), 'text/html; charset=utf-8');
         return;
