@@ -116,6 +116,15 @@ function cleanText(value, max = 40) {
     return String(value || '').trim().replace(/\s+/g, ' ').slice(0, max);
 }
 
+function escapeHtml(value) {
+    return String(value || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
 function normalizePrivateMemo(value) {
     const source = value && typeof value === 'object' ? value : {};
     return {
@@ -137,6 +146,61 @@ function publicPrivateMemo() {
         updatedAt: memo.updatedAt,
         updatedBy: memo.updatedBy
     };
+}
+
+function renderPublicMemoHtml() {
+    const content = escapeHtml(publicPrivateMemo().content);
+    return `<!doctype html>
+<html lang="ko">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>개인 메모</title>
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            min-height: 100vh;
+            background: #f5f7fb;
+            color: #101828;
+            font-family: Pretendard, "Malgun Gothic", "Segoe UI", sans-serif;
+            -webkit-font-smoothing: antialiased;
+        }
+        main {
+            width: min(980px, 100%);
+            min-height: 100vh;
+            margin: 0 auto;
+            padding: 10px;
+        }
+        pre {
+            min-height: calc(100vh - 20px);
+            margin: 0;
+            border-radius: 8px;
+            background: #ffffff;
+            box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
+            padding: 18px;
+            font: inherit;
+            font-size: 16px;
+            font-weight: 650;
+            line-height: 1.7;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+        @media (max-width: 640px) {
+            main { padding: 6px; }
+            pre {
+                min-height: calc(100vh - 12px);
+                border-radius: 7px;
+                padding: 14px;
+                font-size: 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <main><pre>${content}</pre></main>
+</body>
+</html>`;
 }
 
 function parseMembers(value) {
@@ -3797,8 +3861,14 @@ async function handleApi(req, res, url) {
 
 async function serveStatic(req, res) {
     const url = new URL(req.url, `http://${req.headers.host}`);
+    if ((url.pathname === '/memo.html' || url.pathname === '/memo') && url.searchParams.get('edit') !== '1') {
+        send(res, 200, renderPublicMemoHtml(), 'text/html; charset=utf-8');
+        return;
+    }
+
     const routeAliases = {
         '/gecko': '/gecko.html',
+        '/memo': '/memo.html',
         '/travel': '/travel.html',
         '/receipts': '/travel.html'
     };
