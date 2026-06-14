@@ -51,8 +51,7 @@ const defaultState = {
     bossCutRecords: [],
     bossCutLocks: {},
     bossAuditLogs: [],
-    bosses: [],
-    privateMemo: { content: '', updatedAt: null, updatedBy: '' }
+    bosses: []
 };
 
 const DEFAULT_BOSS_EVENTS = [
@@ -125,31 +124,10 @@ function escapeHtml(value) {
         .replace(/'/g, '&#39;');
 }
 
-function normalizePrivateMemo(value) {
-    const source = value && typeof value === 'object' ? value : {};
-    return {
-        content: String(source.content || '').slice(0, 200000),
-        updatedAt: cleanText(source.updatedAt, 40) || null,
-        updatedBy: cleanText(source.updatedBy, 24)
-    };
-}
-
-function privateMemoState() {
-    state.privateMemo = normalizePrivateMemo(state.privateMemo);
-    return state.privateMemo;
-}
-
-function publicPrivateMemo() {
-    const memo = privateMemoState();
-    return {
-        content: memo.content,
-        updatedAt: memo.updatedAt,
-        updatedBy: memo.updatedBy
-    };
-}
-
 function renderPublicMemoHtml() {
-    const content = escapeHtml(publicPrivateMemo().content);
+    return '';
+    /*
+    const content = '';
     return `<!doctype html>
 <html lang="ko">
 <head>
@@ -201,6 +179,8 @@ function renderPublicMemoHtml() {
     <main><pre>${content}</pre></main>
 </body>
 </html>`;
+}
+*/
 }
 
 function parseMembers(value) {
@@ -1701,8 +1681,7 @@ async function loadState() {
             bossCutRecords: normalizeBossCutRecords(parsed.bossCutRecords),
             bossCutLocks: normalizeBossCutLocks(parsed.bossCutLocks),
             bossAuditLogs: normalizeBossAuditLogs(parsed.bossAuditLogs),
-            bosses: normalizeBosses(parsed.bosses),
-            privateMemo: normalizePrivateMemo(parsed.privateMemo)
+            bosses: normalizeBosses(parsed.bosses)
         };
         const bossCountBeforeDefaults = state.bosses.length;
         state.bosses = ensureDefaultBossEvents(state.bosses);
@@ -2103,30 +2082,8 @@ async function handleApi(req, res, url) {
         return true;
     }
 
-    if (url.pathname === '/api/private-memo/public' && req.method === 'GET') {
-        sendJson(res, 200, { memo: { content: publicPrivateMemo().content } });
-        return true;
-    }
-
-    if (url.pathname === '/api/private-memo' && req.method === 'POST') {
-        const body = await readJson(req);
-        if (rejectInvalidAdmin(res, body.adminPassword)) return true;
-        sendJson(res, 200, { memo: publicPrivateMemo() });
-        return true;
-    }
-
-    if (url.pathname === '/api/private-memo' && req.method === 'PUT') {
-        const body = await readJson(req);
-        if (rejectInvalidAdmin(res, body.adminPassword)) return true;
-
-        const nowIso = new Date().toISOString();
-        state.privateMemo = normalizePrivateMemo({
-            content: body.content,
-            updatedAt: nowIso,
-            updatedBy: cleanText(body.updatedBy || body.actorName, 24)
-        });
-        await saveState();
-        sendJson(res, 200, { memo: publicPrivateMemo() });
+    if (url.pathname === '/api/private-memo/public' || url.pathname === '/api/private-memo') {
+        sendJson(res, 404, { error: 'Not found' });
         return true;
     }
 
@@ -3861,24 +3818,8 @@ async function handleApi(req, res, url) {
 
 async function serveStatic(req, res) {
     const url = new URL(req.url, `http://${req.headers.host}`);
-    if (url.pathname === '/memo.txt' || url.pathname === '/prompt.txt') {
-        send(res, 200, publicPrivateMemo().content, 'text/plain; charset=utf-8');
-        return;
-    }
-    const memoReadPath = url.pathname === '/memo.html'
-        || url.pathname === '/memo'
-        || url.pathname === '/memo-edit.html'
-        || url.pathname === '/memo-edit';
-    const memoEditorRequested = (url.pathname === '/memo-edit.html' || url.pathname === '/memo-edit')
-        && url.searchParams.get('unlock') === '1';
-    if (memoReadPath && !memoEditorRequested) {
-        send(res, 200, renderPublicMemoHtml(), 'text/html; charset=utf-8');
-        return;
-    }
-
     const routeAliases = {
         '/gecko': '/gecko.html',
-        '/memo-edit': '/memo-edit.html',
         '/travel': '/travel.html',
         '/receipts': '/travel.html'
     };
