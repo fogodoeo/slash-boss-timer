@@ -1,3 +1,5 @@
+const memoReadPanel = document.querySelector('#memoReadPanel');
+const memoReadContent = document.querySelector('#memoReadContent');
 const memoLockPanel = document.querySelector('#memoLockPanel');
 const memoEditorPanel = document.querySelector('#memoEditorPanel');
 const memoUnlockForm = document.querySelector('#memoUnlockForm');
@@ -13,6 +15,7 @@ const memoStatusText = document.querySelector('#memoStatusText');
 
 const ADMIN_PASSWORD_KEY = 'slashCheckAdminPassword';
 const MEMBER_KEY = 'slashCheckMemberName';
+const editMode = new URLSearchParams(window.location.search).get('edit') === '1';
 let adminPassword = localStorage.getItem(ADMIN_PASSWORD_KEY) || '';
 let lastSavedContent = '';
 let saveTimer = null;
@@ -66,8 +69,35 @@ async function memoApi(method, body) {
     return data;
 }
 
+async function loadPublicMemo() {
+    document.body.classList.add('memoReadMode');
+    memoReadPanel.classList.remove('hidden');
+    memoLockPanel.classList.add('hidden');
+    memoEditorPanel.classList.add('hidden');
+    try {
+        const res = await fetch('./api/private-memo/public', { cache: 'no-store' });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || '메모를 불러오지 못했습니다.');
+        memoReadContent.textContent = data.memo?.content || '';
+    } catch {
+        memoReadContent.textContent = '';
+    }
+}
+
+function showUnlock() {
+    document.body.classList.add('memoEditMode');
+    document.body.classList.remove('memoReadMode');
+    memoReadPanel.classList.add('hidden');
+    memoLockPanel.classList.remove('hidden');
+    memoEditorPanel.classList.add('hidden');
+    memoPasswordInput.focus();
+}
+
 function showEditor(memo) {
     isUnlocked = true;
+    document.body.classList.add('memoEditMode');
+    document.body.classList.remove('memoReadMode');
+    memoReadPanel.classList.add('hidden');
     memoLockPanel.classList.add('hidden');
     memoEditorPanel.classList.remove('hidden');
     setLockMessage('');
@@ -154,9 +184,11 @@ document.addEventListener('keydown', (event) => {
     }
 });
 
-if (adminPassword) {
+if (!editMode) {
+    loadPublicMemo();
+} else if (adminPassword) {
     memoPasswordInput.value = adminPassword;
     unlockMemo();
 } else {
-    memoPasswordInput.focus();
+    showUnlock();
 }

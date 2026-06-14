@@ -13154,6 +13154,25 @@ body {
     padding: 0;
 }
 
+.memoReadPanel {
+    min-height: calc(100vh - 20px);
+    border-radius: 8px;
+    background: #ffffff;
+    box-shadow: var(--shadow);
+    padding: 18px;
+}
+
+.memoReadPanel pre {
+    margin: 0;
+    color: var(--text);
+    font-family: inherit;
+    font-size: 16px;
+    font-weight: 650;
+    line-height: 1.7;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
 .memoUnlockForm {
     display: grid;
     grid-template-columns: minmax(0, 1fr) 64px;
@@ -13257,6 +13276,16 @@ body {
 
     .memoEditorPanel {
         min-height: calc(100vh - 12px);
+    }
+
+    .memoReadPanel {
+        min-height: calc(100vh - 12px);
+        border-radius: 7px;
+        padding: 14px;
+    }
+
+    .memoReadPanel pre {
+        font-size: 15px;
     }
 
     .memoEditorPanel textarea {

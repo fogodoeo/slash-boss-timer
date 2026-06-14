@@ -2039,6 +2039,11 @@ async function handleApi(req, res, url) {
         return true;
     }
 
+    if (url.pathname === '/api/private-memo/public' && req.method === 'GET') {
+        sendJson(res, 200, { memo: { content: publicPrivateMemo().content } });
+        return true;
+    }
+
     if (url.pathname === '/api/private-memo' && req.method === 'POST') {
         const body = await readJson(req);
         if (rejectInvalidAdmin(res, body.adminPassword)) return true;
