@@ -51,7 +51,8 @@ const defaultState = {
     bossCutRecords: [],
     bossCutLocks: {},
     bossAuditLogs: [],
-    bosses: []
+    bosses: [],
+    privateMemo: { content: '', updatedAt: null, updatedBy: '' }
 };
 
 const DEFAULT_BOSS_EVENTS = [
@@ -113,6 +114,29 @@ function sendJson(res, status, data) {
 
 function cleanText(value, max = 40) {
     return String(value || '').trim().replace(/\s+/g, ' ').slice(0, max);
+}
+
+function normalizePrivateMemo(value) {
+    const source = value && typeof value === 'object' ? value : {};
+    return {
+        content: String(source.content || '').slice(0, 200000),
+        updatedAt: cleanText(source.updatedAt, 40) || null,
+        updatedBy: cleanText(source.updatedBy, 24)
+    };
+}
+
+function privateMemoState() {
+    state.privateMemo = normalizePrivateMemo(state.privateMemo);
+    return state.privateMemo;
+}
+
+function publicPrivateMemo() {
+    const memo = privateMemoState();
+    return {
+        content: memo.content,
+        updatedAt: memo.updatedAt,
+        updatedBy: memo.updatedBy
+    };
 }
 
 function parseMembers(value) {
@@ -1613,7 +1637,8 @@ async function loadState() {
             bossCutRecords: normalizeBossCutRecords(parsed.bossCutRecords),
             bossCutLocks: normalizeBossCutLocks(parsed.bossCutLocks),
             bossAuditLogs: normalizeBossAuditLogs(parsed.bossAuditLogs),
-            bosses: normalizeBosses(parsed.bosses)
+            bosses: normalizeBosses(parsed.bosses),
+            privateMemo: normalizePrivateMemo(parsed.privateMemo)
         };
         const bossCountBeforeDefaults = state.bosses.length;
         state.bosses = ensureDefaultBossEvents(state.bosses);
@@ -2011,6 +2036,28 @@ async function handleApi(req, res, url) {
 
     if (url.pathname === '/health' && req.method === 'GET') {
         sendJson(res, 200, { ok: true, now: new Date().toISOString() });
+        return true;
+    }
+
+    if (url.pathname === '/api/private-memo' && req.method === 'POST') {
+        const body = await readJson(req);
+        if (rejectInvalidAdmin(res, body.adminPassword)) return true;
+        sendJson(res, 200, { memo: publicPrivateMemo() });
+        return true;
+    }
+
+    if (url.pathname === '/api/private-memo' && req.method === 'PUT') {
+        const body = await readJson(req);
+        if (rejectInvalidAdmin(res, body.adminPassword)) return true;
+
+        const nowIso = new Date().toISOString();
+        state.privateMemo = normalizePrivateMemo({
+            content: body.content,
+            updatedAt: nowIso,
+            updatedBy: cleanText(body.updatedBy || body.actorName, 24)
+        });
+        await saveState();
+        sendJson(res, 200, { memo: publicPrivateMemo() });
         return true;
     }
 
