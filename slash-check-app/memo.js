@@ -20,16 +20,20 @@ let isSaving = false;
 let isUnlocked = false;
 
 function setStatus(text, tone = '') {
+    if (!memoStatusText) return;
     memoStatusText.textContent = text;
     memoStatusText.dataset.tone = tone;
+    if (memoSaveButton && text) memoSaveButton.title = text;
 }
 
 function setState(text, tone = '') {
+    if (!memoState) return;
     memoState.textContent = text;
     memoState.dataset.tone = tone;
 }
 
 function setLockMessage(text = '', tone = '') {
+    if (!memoLockMessage) return;
     memoLockMessage.textContent = text;
     memoLockMessage.dataset.tone = tone;
 }
@@ -47,6 +51,7 @@ function formatKst(iso) {
 }
 
 function updateCount() {
+    if (!memoCountText) return;
     memoCountText.textContent = `${memoContentInput.value.length.toLocaleString('ko-KR')}자`;
 }
 
@@ -68,7 +73,7 @@ function showEditor(memo) {
     setLockMessage('');
     memoContentInput.value = memo.content || '';
     lastSavedContent = memoContentInput.value;
-    memoUpdatedText.textContent = `${formatKst(memo.updatedAt)}${memo.updatedBy ? ` · ${memo.updatedBy}` : ''}`;
+    if (memoUpdatedText) memoUpdatedText.textContent = `${formatKst(memo.updatedAt)}${memo.updatedBy ? ` · ${memo.updatedBy}` : ''}`;
     updateCount();
     setState('열림', 'open');
     setStatus('저장됨');
@@ -109,7 +114,7 @@ async function saveMemo({ silent = false } = {}) {
             updatedBy: localStorage.getItem(MEMBER_KEY) || ''
         });
         lastSavedContent = data.memo?.content || '';
-        memoUpdatedText.textContent = `${formatKst(data.memo?.updatedAt)}${data.memo?.updatedBy ? ` · ${data.memo.updatedBy}` : ''}`;
+        if (memoUpdatedText) memoUpdatedText.textContent = `${formatKst(data.memo?.updatedAt)}${data.memo?.updatedBy ? ` · ${data.memo.updatedBy}` : ''}`;
         setStatus('저장됨', 'ok');
     } catch (err) {
         setStatus(err.message, 'error');
@@ -140,7 +145,7 @@ function lockMemo() {
 
 memoUnlockForm.addEventListener('submit', unlockMemo);
 memoSaveButton.addEventListener('click', () => saveMemo());
-memoLockButton.addEventListener('click', lockMemo);
+memoLockButton?.addEventListener('click', lockMemo);
 memoContentInput.addEventListener('input', scheduleSave);
 document.addEventListener('keydown', (event) => {
     if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') {

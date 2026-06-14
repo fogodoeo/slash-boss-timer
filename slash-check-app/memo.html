@@ -9,21 +9,7 @@
 </head>
 <body class="memoPage">
     <main class="memoShell">
-        <header class="memoHeader">
-            <div>
-                <span class="eyebrow">PRIVATE NOTE</span>
-                <h1>개인 메모</h1>
-                <p class="pageDesc">직접 주소와 비밀번호로만 여는 비공개 메모장입니다.</p>
-            </div>
-            <span id="memoState" class="memoState">잠김</span>
-        </header>
-
-        <section id="memoLockPanel" class="memoPanel memoLockPanel">
-            <div>
-                <span class="label">비밀번호</span>
-                <strong>메모 열기</strong>
-                <p>관리자 비밀번호를 입력하면 저장된 메모를 불러옵니다.</p>
-            </div>
+        <section id="memoLockPanel" class="memoLockPanel">
             <form id="memoUnlockForm" class="memoUnlockForm">
                 <input id="memoPasswordInput" type="password" autocomplete="current-password" placeholder="관리자 비밀번호">
                 <button type="submit">열기</button>
@@ -31,22 +17,17 @@
             <p id="memoLockMessage" class="memoLockMessage"></p>
         </section>
 
-        <section id="memoEditorPanel" class="memoPanel memoEditorPanel hidden">
-            <div class="memoToolbar">
-                <div>
-                    <span class="label">메모</span>
-                    <strong id="memoUpdatedText">저장 전</strong>
-                </div>
-                <div class="memoActions">
-                    <button id="memoLockButton" class="memoGhostButton" type="button">잠금</button>
-                    <button id="memoSaveButton" type="button">저장</button>
-                </div>
-            </div>
+        <section id="memoEditorPanel" class="memoEditorPanel hidden">
+            <button id="memoSaveButton" class="memoSaveIconButton" type="button" aria-label="저장" title="저장">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M5 3h12.2L21 6.8V21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Zm1 2v5h10V5H6Zm12 14v-10.9L16.1 6H18v6H6V5H5v14h13Zm-9-2h6v-3H9v3Z"/>
+                </svg>
+            </button>
             <textarea id="memoContentInput" spellcheck="false" placeholder="여기에 메모를 적으세요."></textarea>
-            <div class="memoFooter">
-                <span id="memoCountText">0자</span>
-                <span id="memoStatusText">저장됨</span>
-            </div>
+            <span id="memoState" class="memoSrOnly">잠김</span>
+            <span id="memoUpdatedText" class="memoSrOnly">저장 전</span>
+            <span id="memoCountText" class="memoSrOnly">0자</span>
+            <span id="memoStatusText" class="memoSrOnly">저장됨</span>
         </section>
     </main>
 
