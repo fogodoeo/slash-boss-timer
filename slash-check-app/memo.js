@@ -15,7 +15,7 @@ const memoStatusText = document.querySelector('#memoStatusText');
 
 const ADMIN_PASSWORD_KEY = 'slashCheckAdminPassword';
 const MEMBER_KEY = 'slashCheckMemberName';
-const editMode = new URLSearchParams(window.location.search).get('edit') === '1';
+const editMode = /\/memo-edit(?:\.html)?$/i.test(window.location.pathname);
 let adminPassword = localStorage.getItem(ADMIN_PASSWORD_KEY) || '';
 let lastSavedContent = '';
 let saveTimer = null;

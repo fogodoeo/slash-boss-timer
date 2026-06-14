@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="ko">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>개인 메모 편집</title>
+    <link rel="icon" href="./favicon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="./styles.css">
+</head>
+<body class="memoPage memoEditMode">
+    <main class="memoShell">
+        <section id="memoReadPanel" class="memoReadPanel hidden">
+            <pre id="memoReadContent"></pre>
+        </section>
+
+        <section id="memoLockPanel" class="memoLockPanel">
+            <form id="memoUnlockForm" class="memoUnlockForm">
+                <input id="memoPasswordInput" type="password" autocomplete="current-password" placeholder="관리자 비밀번호">
+                <button type="submit">열기</button>
+            </form>
+            <p id="memoLockMessage" class="memoLockMessage"></p>
+        </section>
+
+        <section id="memoEditorPanel" class="memoEditorPanel hidden">
+            <button id="memoSaveButton" class="memoSaveIconButton" type="button" aria-label="저장" title="저장">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M5 3h12.2L21 6.8V21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Zm1 2v5h10V5H6Zm12 14v-10.9L16.1 6H18v6H6V5H5v14h13Zm-9-2h6v-3H9v3Z"/>
+                </svg>
+            </button>
+            <textarea id="memoContentInput" spellcheck="false" placeholder="여기에 메모를 적으세요."></textarea>
+            <span id="memoState" class="memoSrOnly">잠김</span>
+            <span id="memoUpdatedText" class="memoSrOnly">저장 전</span>
+            <span id="memoCountText" class="memoSrOnly">0자</span>
+            <span id="memoStatusText" class="memoSrOnly">저장됨</span>
+        </section>
+    </main>
+
+    <script src="./memo.js"></script>
+</body>
+</html>

@@ -3861,14 +3861,14 @@ async function handleApi(req, res, url) {
 
 async function serveStatic(req, res) {
     const url = new URL(req.url, `http://${req.headers.host}`);
-    if ((url.pathname === '/memo.html' || url.pathname === '/memo') && url.searchParams.get('edit') !== '1') {
+    if (url.pathname === '/memo.html' || url.pathname === '/memo') {
         send(res, 200, renderPublicMemoHtml(), 'text/html; charset=utf-8');
         return;
     }
 
     const routeAliases = {
         '/gecko': '/gecko.html',
-        '/memo': '/memo.html',
+        '/memo-edit': '/memo-edit.html',
         '/travel': '/travel.html',
         '/receipts': '/travel.html'
     };
