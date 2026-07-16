@@ -24,7 +24,8 @@ RUN apt-get update \
 
 WORKDIR /app
 
-COPY package.json package-lock.json ./
+COPY package.json package-lock.json .puppeteerrc.cjs ./
+COPY tools/install-render-chrome.cjs ./tools/
 RUN npm ci --omit=dev && npm cache clean --force
 
 COPY . .

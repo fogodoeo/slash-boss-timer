@@ -17,7 +17,8 @@
 서비스를 만들지 않는다.
 
 현재 Native Node 서비스에서는 `puppeteer`가 빌드 중 Linux용 Headless Chrome을
-프로젝트의 `.cache/puppeteer`에 설치한다. `render_start.py`가 그 실행 파일을 찾아
+`node_modules/.cache/puppeteer`에 설치한다. 루트 `postinstall`은 Render에서만
+Chrome 설치 명령을 명시적으로 실행한다. `render_start.py`가 그 실행 파일을 찾아
 기존 웹앱과 BAND 모니터를 함께 실행한다.
 
 Docker 런타임을 사용하는 서비스에서는 `Dockerfile`에 포함된 시스템 Chromium을
