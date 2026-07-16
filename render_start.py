@@ -58,7 +58,9 @@ def start_node() -> subprocess.Popen[bytes]:
     return subprocess.Popen(command, cwd=ROOT, env=environment)
 
 
-def resolve_chrome_executable(environment: dict[str, str]) -> str:
+def resolve_chrome_executable(
+    environment: dict[str, str], root: Path = ROOT
+) -> str:
     """Find Chromium from Docker or Puppeteer's native-runtime download."""
     configured = environment.get("BAND_CHROME_EXECUTABLE", "").strip()
     if configured and Path(configured).is_file():
@@ -67,6 +69,21 @@ def resolve_chrome_executable(environment: dict[str, str]) -> str:
     system_chromium = Path("/usr/bin/chromium")
     if system_chromium.is_file():
         return str(system_chromium)
+
+    bundled_pattern = (
+        root
+        / "node_modules"
+        / ".cache"
+        / "puppeteer"
+        / "chrome"
+    )
+    bundled_candidates = sorted(
+        bundled_pattern.glob("linux-*/chrome-linux64/chrome"),
+        reverse=True,
+    )
+    for candidate in bundled_candidates:
+        if candidate.is_file():
+            return str(candidate)
 
     try:
         result = subprocess.run(

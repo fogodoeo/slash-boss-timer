@@ -27,6 +27,24 @@ class RenderHealthIntegrationTests(unittest.TestCase):
             )
             self.assertEqual(resolved, str(chrome))
 
+    def test_supervisor_finds_render_puppeteer_chrome(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            chrome = (
+                root
+                / "node_modules"
+                / ".cache"
+                / "puppeteer"
+                / "chrome"
+                / "linux-150.0.0.0"
+                / "chrome-linux64"
+                / "chrome"
+            )
+            chrome.parent.mkdir(parents=True)
+            chrome.write_bytes(b"test")
+            resolved = render_start.resolve_chrome_executable({}, root=root)
+            self.assertEqual(resolved, str(chrome))
+
     @unittest.skipUnless(shutil.which("node"), "Node.js is required")
     def test_health_exposes_band_monitor_status(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
