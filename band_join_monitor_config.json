@@ -1,0 +1,55 @@
+{
+  "chrome_port": 9333,
+  "chrome_executable": "",
+  "chrome_profile_dir": ".band_join_chrome_profile",
+  "chrome_headless": false,
+  "chrome_extra_args": [],
+  "band_start_url": "https://www.band.us/band/101992972/applications",
+  "monitor_enabled": true,
+  "notification_enabled": true,
+  "notification_trigger_enabled": true,
+  "notification_refresh_cooldown_seconds": 2,
+  "application_count_poll_seconds": 0.5,
+  "applications_safety_refresh_seconds": 60,
+  "auto_approve_enabled": true,
+  "auto_reject_enabled": false,
+  "dom_action_enabled": true,
+  "poll_fallback_seconds": 3,
+  "dom_event_poll_seconds": 0.1,
+  "approval_delay_seconds": 0.5,
+  "action_rate_limit_seconds": 0,
+  "diagnostic_mode": false,
+  "diagnostic_file": "band_join_diagnostics.jsonl",
+  "state_file": "band_join_monitor_state.json",
+  "log_file": "band_join_monitor.log",
+  "runtime_status_file": "band_join_monitor_runtime.json",
+  "max_applicants": 500,
+  "max_event_queue": 1000,
+  "processed_state_limit": 500,
+  "missing_expire_seconds": 15,
+  "profile_rules": {
+    "name_min_length": 2,
+    "name_max_length": 5,
+    "require_010_phone": true,
+    "phone_digits": 11,
+    "ignore_region_words": true
+  },
+  "answer_rules": {
+    "required": true,
+    "allowed_codes": [
+      "R",
+      "G",
+      "B",
+      "Y"
+    ],
+    "case_insensitive": true
+  },
+  "follow_up_question": {
+    "enabled": true,
+    "recheck_seconds": 2,
+    "prepare_retry_seconds": 10,
+    "profile_message": "프로필명을 '한글이름 010전화번호' 형식으로 수정해 주세요. 예: 김상정 01049278600\n수정 후 '수정완료'라고 답변해 주세요.",
+    "answer_message": "기숙사 코드를 R, G, B, Y 중 하나만 답변해 주세요.",
+    "profile_and_answer_message": "가입 조건 확인이 필요합니다.\n1. 프로필명을 '한글이름 010전화번호' 형식으로 수정해 주세요. 예: 김상정 01049278600\n2. 이 추가 질문에는 기숙사 코드 R, G, B, Y 중 하나만 답변해 주세요.\n수정한 내용은 자동으로 다시 확인합니다."
+  }
+}

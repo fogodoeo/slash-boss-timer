@@ -2,6 +2,8 @@
 config.json
 node_modules/
 npm-debug.log*
+__pycache__/
+*.pyc
 
 slash-check-state.json
 gecko-state.json
@@ -30,3 +32,10 @@ bosscut.txt
 
 *.local
 storage/
+
+# Standalone BAND join monitor local/runtime data
+/.band_join_chrome_profile/
+/band_join_monitor.log*
+/band_join_monitor_state.json
+/band_join_monitor_runtime.json
+/band_join_diagnostics.jsonl*

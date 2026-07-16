@@ -1,0 +1,9 @@
+{
+  "event": "membership_join_request",
+  "payload": {
+    "request_id": "fixture-request-001",
+    "profile_name": "김테스트 01012345678",
+    "requested_at": "2026-07-17T10:00:00+09:00",
+    "status": "pending"
+  }
+}

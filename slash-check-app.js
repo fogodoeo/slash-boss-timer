@@ -17,6 +17,7 @@ const TRAVEL_STATE_FILE = process.env.TRAVEL_STATE_FILE || path.join(STATE_DIR, 
 const LEGACY_BOSS_STATE_FILE = path.join(ROOT, 'local-boss-state.json');
 const PHOTO_PROOF_DIR = path.join(STATE_DIR, 'boss-photo-proofs');
 const TRAVEL_RECEIPT_DIR = process.env.TRAVEL_RECEIPT_DIR || path.join(STATE_DIR, 'travel-receipts');
+const BAND_MONITOR_STATUS_FILE = process.env.BAND_MONITOR_STATUS_FILE || path.join(STATE_DIR, 'band-monitor-runtime.json');
 
 const mimeTypes = {
     '.html': 'text/html; charset=utf-8',
@@ -2074,11 +2075,26 @@ async function publicStateWithBosses() {
     };
 }
 
+async function readBandMonitorStatus() {
+    try {
+        const raw = await fs.readFile(BAND_MONITOR_STATUS_FILE, 'utf8');
+        const value = JSON.parse(raw);
+        return value && typeof value === 'object' ? value : { state: 'UNKNOWN' };
+    } catch (err) {
+        if (err.code !== 'ENOENT') console.warn('[band-monitor] status read failed:', err.message);
+        return { state: 'UNKNOWN', connected: false };
+    }
+}
+
 async function handleApi(req, res, url) {
     if (cleanupExpiredReservations() || cleanupExpiredBossCutLocks() || cleanupExpiredParticipantProofs()) await saveState();
 
     if (url.pathname === '/health' && req.method === 'GET') {
-        sendJson(res, 200, { ok: true, now: new Date().toISOString() });
+        sendJson(res, 200, {
+            ok: true,
+            now: new Date().toISOString(),
+            bandMonitor: await readBandMonitorStatus()
+        });
         return true;
     }
 

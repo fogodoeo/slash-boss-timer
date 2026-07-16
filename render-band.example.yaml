@@ -1,0 +1,25 @@
+# Example only. Importing this Blueprint creates a service and can incur cost.
+# To reuse an existing Starter service, apply the same Docker/environment/disk
+# settings from its Render dashboard instead of importing this file blindly.
+services:
+  - type: web
+    name: slash-boss-timer-band
+    runtime: docker
+    plan: starter
+    healthCheckPath: /health
+    autoDeployTrigger: commit
+    envVars:
+      - key: BAND_MONITOR_ENABLED
+        value: "true"
+      - key: BAND_CHROME_HEADLESS
+        value: "true"
+      - key: BAND_START_URL
+        value: https://www.band.us/band/101992972/applications
+      - key: BAND_COOKIE_HEADER
+        sync: false
+      - key: NODE_OPTIONS
+        value: --max-old-space-size=160
+    disk:
+      name: app-data
+      mountPath: /var/data
+      sizeGB: 1

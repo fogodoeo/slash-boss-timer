@@ -1,0 +1,12 @@
+{
+  "result": {
+    "membership_requests": [
+      {
+        "join_request_id": "fixture-request-002",
+        "display_name": "전북/이테스트/010-9876-5432",
+        "created_at": "2026-07-17T10:01:00+09:00",
+        "state": "pending"
+      }
+    ]
+  }
+}
