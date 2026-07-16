@@ -58,9 +58,58 @@ def start_node() -> subprocess.Popen[bytes]:
     return subprocess.Popen(command, cwd=ROOT, env=environment)
 
 
+def resolve_chrome_executable(environment: dict[str, str]) -> str:
+    """Find Chromium from Docker or Puppeteer's native-runtime download."""
+    configured = environment.get("BAND_CHROME_EXECUTABLE", "").strip()
+    if configured and Path(configured).is_file():
+        return configured
+
+    system_chromium = Path("/usr/bin/chromium")
+    if system_chromium.is_file():
+        return str(system_chromium)
+
+    try:
+        result = subprocess.run(
+            [
+                "node",
+                "-e",
+                (
+                    "const p=require('puppeteer');"
+                    "process.stdout.write(p.executablePath())"
+                ),
+            ],
+            cwd=ROOT,
+            env=environment,
+            check=True,
+            capture_output=True,
+            text=True,
+            timeout=15,
+        )
+        candidate = result.stdout.strip()
+        if candidate and Path(candidate).is_file():
+            return candidate
+        print(
+            "[render-supervisor] Puppeteer Chrome path is missing",
+            flush=True,
+        )
+    except (OSError, subprocess.SubprocessError) as exc:
+        print(
+            f"[render-supervisor] Puppeteer Chrome lookup failed: {exc}",
+            flush=True,
+        )
+    return configured
+
+
 def start_band_monitor() -> subprocess.Popen[bytes]:
     environment = os.environ.copy()
     environment["PYTHONUNBUFFERED"] = "1"
+    chrome_executable = resolve_chrome_executable(environment)
+    if chrome_executable:
+        environment["BAND_CHROME_EXECUTABLE"] = chrome_executable
+        print(
+            "[render-supervisor] Headless Chrome is ready",
+            flush=True,
+        )
     config_path = environment.get(
         "BAND_MONITOR_CONFIG", str(ROOT / "band_join_monitor_config.json")
     )

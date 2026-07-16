@@ -60,6 +60,7 @@
 - `tests/test_band_join_monitor.py`: 단위 테스트
 - `render_start.py`: Render에서 기존 Node 웹앱과 BAND 모니터를 함께 실행
 - `Dockerfile`: Python, Node, Headless Chromium을 포함한 Render 이미지
+- `.puppeteerrc.cjs`: Native Node 빌드용 Headless Chrome 설치 위치
 - `RENDER_BAND_SETUP.md`: Render Starter 배포 및 로그인 세션 설정 안내
 
 ## 현재 중요 설정
@@ -106,7 +107,7 @@
 ## Render Starter 지원
 
 - Linux Headless Chromium을 사용한다.
-- Chrome 프로필, 중복 방지 상태, 로그를 `/var/data`에 저장한다.
+- Chrome 프로필, 중복 방지 상태, 로그를 Render Persistent Disk에 저장한다.
 - Node 힙 160MB, Chromium V8 힙 128MB, 렌더러 1개로 제한한다.
 - 기존 웹서비스 `/health` 응답에서 BAND 모니터 연결 상태를 확인할 수 있다.
 - BAND 모니터가 종료되면 감독 프로세스가 10초 후 재시작한다.

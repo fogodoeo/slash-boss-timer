@@ -26,6 +26,7 @@
     "google-tts-api": "^2.0.2",
     "lowdb": "^7.0.1",
     "node-cron": "^3.0.3",
+    "puppeteer": "^25.3.0",
     "uuid": "^13.0.0"
   }
 }

@@ -39,3 +39,4 @@ storage/
 /band_join_monitor_state.json
 /band_join_monitor_runtime.json
 /band_join_diagnostics.jsonl*
+/.cache/puppeteer/

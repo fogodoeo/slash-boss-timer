@@ -13,21 +13,36 @@
 ## 비용이 발생하지 않도록 주의
 
 `render-band.example.yaml`을 새 Blueprint로 가져오면 새 Starter 서비스가 만들어져
-서비스 요금이 하나 더 발생할 수 있다. 기존 월 $7 서비스를 재사용하려면 기존
-서비스의 데이터부터 백업한 뒤 같은 서비스의 런타임을 Docker로 변경한다.
+서비스 요금이 하나 더 발생할 수 있다. 기존 월 $7 서비스를 재사용할 때는 새
+서비스를 만들지 않는다.
 
-Render 공식 문서 기준으로 기존 서비스의 런타임은 Render API의 Update service
-요청이나 기존 Blueprint의 `runtime` 변경으로 전환할 수 있다. 새 서비스를 만들거나
-기존 서비스를 삭제하지 않는다.
+현재 Native Node 서비스에서는 `puppeteer`가 빌드 중 Linux용 Headless Chrome을
+프로젝트의 `.cache/puppeteer`에 설치한다. `render_start.py`가 그 실행 파일을 찾아
+기존 웹앱과 BAND 모니터를 함께 실행한다.
 
-전환 시 기존 서비스 ID, URL, 요금제 및 연결된 Persistent Disk 설정은 유지하고,
-Docker 이미지 안에서 기존 웹앱과 BAND 모니터를 함께 실행한다.
+Docker 런타임을 사용하는 서비스에서는 `Dockerfile`에 포함된 시스템 Chromium을
+사용한다. 두 방식 모두 서비스 ID, URL, 요금제 및 기존 Persistent Disk 설정을
+유지한다.
 
-실제 전환 전에는 `/var/data`의 기존 상태 파일을 반드시 백업한다.
+실제 배포 전에는 기존 Persistent Disk 상태 파일을 반드시 백업한다.
 
-## 필요한 Render 설정
+## 기존 Native Node 서비스 설정
 
-Docker 서비스의 환경변수:
+Build Command:
+
+```text
+npm install
+```
+
+Start Command:
+
+```text
+python3 render_start.py
+```
+
+## 필요한 Render 환경변수
+
+환경변수:
 
 ```text
 BAND_MONITOR_ENABLED=true
@@ -39,9 +54,12 @@ NODE_OPTIONS=--max-old-space-size=160
 Persistent Disk:
 
 ```text
-Mount Path: /var/data
+Mount Path: 기존 경로 유지
 Size: 1 GB
 ```
+
+기존 디스크가 `/opt/render/project/src/storage`에 연결돼 있으면 BAND 상태 파일과
+Chrome 프로필 경로도 그 아래로 지정한다.
 
 첫 배포부터 `BAND_MONITOR_ENABLED=true`로 실행한다. BAND 세션이 아직 없다면
 기존 웹서비스는 정상 실행되고 `/health`의 `bandMonitor.state`만
@@ -61,8 +79,8 @@ Render의 Secret 환경변수 `BAND_COOKIE_HEADER`에 넣는 부트스트랩 방
 - 노출됐다고 의심되면 BAND에서 모든 기기 로그아웃 후 다시 로그인한다.
 
 세션을 입력한 다음 재배포한다. 첫 실행에서
-쿠키가 Chromium 프로필에 적용되고 이후 프로필은 `/var/data/band-chrome-profile`에
-유지된다.
+쿠키가 Chromium 프로필에 적용되고 이후 프로필은 지정한 Persistent Disk 경로의
+`band-chrome-profile`에 유지된다.
 
 ## 확인
 

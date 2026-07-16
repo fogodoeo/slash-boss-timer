@@ -9,7 +9,9 @@ ENV NODE_ENV=production \
     BAND_MONITOR_LOG_FILE=/var/data/band-join-monitor.log \
     BAND_MONITOR_STATUS_FILE=/var/data/band-monitor-runtime.json \
     BAND_MONITOR_ENABLED=true \
-    BAND_CHROME_HEADLESS=true
+    BAND_CHROME_HEADLESS=true \
+    PUPPETEER_SKIP_DOWNLOAD=true \
+    PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \

@@ -11,11 +11,22 @@ import time
 import unittest
 import urllib.request
 
+import render_start
+
 
 ROOT = Path(__file__).resolve().parents[1]
 
 
 class RenderHealthIntegrationTests(unittest.TestCase):
+    def test_supervisor_uses_configured_chrome(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            chrome = Path(temp_dir) / "chrome"
+            chrome.write_bytes(b"test")
+            resolved = render_start.resolve_chrome_executable(
+                {"BAND_CHROME_EXECUTABLE": str(chrome)}
+            )
+            self.assertEqual(resolved, str(chrome))
+
     @unittest.skipUnless(shutil.which("node"), "Node.js is required")
     def test_health_exposes_band_monitor_status(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
