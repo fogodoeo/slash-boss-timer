@@ -52,6 +52,7 @@ def write_disabled_status() -> None:
 def start_node() -> subprocess.Popen[bytes]:
     environment = os.environ.copy()
     environment.pop("BAND_COOKIE_HEADER", None)
+    environment.pop("BAND_COOKIE_JSON", None)
     environment.setdefault("NODE_OPTIONS", "--max-old-space-size=160")
     command = ["node", str(ROOT / "slash-check-app.js")]
     print(f"[render-supervisor] starting web app: {' '.join(command)}", flush=True)

@@ -349,7 +349,16 @@ class ChromeSelectionTests(unittest.TestCase):
             config["runtime_status_file"] = str(Path(temp_dir) / "runtime.json")
             monitor = BandJoinMonitor(config, Path(temp_dir))
             monitor.tab = {"url": "https://auth.band.us/login"}
-            monitor.bootstrap_cookies = [("BAND_SID", "secret")]
+            monitor.bootstrap_cookies = [
+                {
+                    "name": "BAND_SID",
+                    "value": "secret",
+                    "domain": ".band.us",
+                    "path": "/",
+                    "secure": True,
+                    "httpOnly": False,
+                }
+            ]
             connection = _CookieConnection()
             monitor._enable_cdp(connection)  # type: ignore[arg-type]
             methods = [method for method, _params in connection.calls]
@@ -697,6 +706,10 @@ class FollowUpQuestionTests(unittest.TestCase):
             connection = _CookieConnection()
             monitor._install_bootstrap_cookies(connection)  # type: ignore[arg-type]
             self.assertEqual(len(connection.cookies), 1)
+            self.assertEqual(
+                connection.calls[0][0],
+                "Network.clearBrowserCookies",
+            )
             self.assertEqual(connection.cookies[0]["name"], "BAND_SID")
             self.assertEqual(connection.cookies[0]["value"], secret)
             monitor.set_state("CONNECTED", "render test")
@@ -707,6 +720,37 @@ class FollowUpQuestionTests(unittest.TestCase):
                 if path.is_file()
             )
             self.assertNotIn(secret, stored_text)
+
+    def test_bootstrap_cookie_json_preserves_host_domains(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            secret = "host-cookie-secret"
+            cookies = [
+                {
+                    "name": "SESSION",
+                    "value": secret,
+                    "domain": "auth.band.us",
+                    "path": "/",
+                    "secure": True,
+                    "httpOnly": True,
+                    "sameSite": "Lax",
+                }
+            ]
+            with mock.patch.dict(
+                os.environ,
+                {"BAND_COOKIE_JSON": json.dumps(cookies)},
+                clear=False,
+            ):
+                monitor = self._monitor(temp_dir)
+            connection = _CookieConnection()
+            monitor._install_bootstrap_cookies(connection)  # type: ignore[arg-type]
+            self.assertEqual(len(connection.cookies), 1)
+            self.assertEqual(
+                connection.cookies[0]["url"],
+                "https://auth.band.us/",
+            )
+            self.assertNotIn("domain", connection.cookies[0])
+            self.assertTrue(connection.cookies[0]["httpOnly"])
+            monitor.stop()
 
     def test_runtime_status_file_contains_no_applicant_data(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

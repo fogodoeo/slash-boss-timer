@@ -2018,7 +2018,52 @@ class BandJoinMonitor:
         self._dom_install_needed = True
 
     @staticmethod
-    def _read_bootstrap_cookies() -> list[tuple[str, str]]:
+    def _read_bootstrap_cookies() -> list[dict[str, Any]]:
+        serialized = os.environ.pop("BAND_COOKIE_JSON", "").strip()
+        if serialized:
+            try:
+                raw_cookies = json.loads(serialized)
+            except (TypeError, ValueError):
+                raw_cookies = []
+            cookies: list[dict[str, Any]] = []
+            if isinstance(raw_cookies, list):
+                for raw_cookie in raw_cookies:
+                    if not isinstance(raw_cookie, Mapping):
+                        continue
+                    name = str(raw_cookie.get("name", "")).strip()
+                    value = str(raw_cookie.get("value", ""))
+                    domain = str(raw_cookie.get("domain", "")).strip().lower()
+                    normalized_domain = domain.lstrip(".")
+                    if (
+                        not name
+                        or not domain
+                        or (
+                            normalized_domain != "band.us"
+                            and not normalized_domain.endswith(".band.us")
+                        )
+                    ):
+                        continue
+                    cookie: dict[str, Any] = {
+                        "name": name,
+                        "value": value,
+                        "domain": domain,
+                        "path": str(raw_cookie.get("path", "/")) or "/",
+                        "secure": bool(raw_cookie.get("secure", True)),
+                        "httpOnly": bool(raw_cookie.get("httpOnly", False)),
+                    }
+                    same_site = str(raw_cookie.get("sameSite", ""))
+                    if same_site in {"Strict", "Lax", "None"}:
+                        cookie["sameSite"] = same_site
+                    try:
+                        expires = float(raw_cookie.get("expires", -1))
+                    except (TypeError, ValueError):
+                        expires = -1
+                    if expires > 0:
+                        cookie["expires"] = expires
+                    cookies.append(cookie)
+            if cookies:
+                return cookies
+
         header = os.environ.pop("BAND_COOKIE_HEADER", "").strip()
         if not header:
             return []
@@ -2031,7 +2076,7 @@ class BandJoinMonitor:
             "httponly",
             "samesite",
         }
-        cookies: list[tuple[str, str]] = []
+        cookies = []
         for part in header.split(";"):
             if "=" not in part:
                 continue
@@ -2039,24 +2084,47 @@ class BandJoinMonitor:
             name = name.strip()
             if not name or name.lower() in ignored:
                 continue
-            cookies.append((name, value.strip()))
+            cookies.append(
+                {
+                    "name": name,
+                    "value": value.strip(),
+                    "domain": ".band.us",
+                    "path": "/",
+                    "secure": True,
+                    "httpOnly": False,
+                }
+            )
         return cookies
 
     def _install_bootstrap_cookies(self, connection: CDPConnection) -> int:
         if not self.bootstrap_cookies:
             return 0
+        try:
+            connection.call("Network.clearBrowserCookies", timeout=3)
+        except Exception:
+            pass
         installed = 0
-        for name, value in self.bootstrap_cookies:
+        for cookie in self.bootstrap_cookies:
+            name = str(cookie.get("name", ""))
+            value = str(cookie.get("value", ""))
+            domain = str(cookie.get("domain", ".band.us"))
             params: dict[str, Any] = {
                 "name": name,
                 "value": value,
-                "path": "/",
-                "secure": True,
+                "path": str(cookie.get("path", "/")) or "/",
+                "secure": bool(cookie.get("secure", True)),
+                "httpOnly": bool(cookie.get("httpOnly", False)),
             }
-            if name.startswith("__Host-"):
-                params["url"] = "https://www.band.us/"
+            if domain.startswith(".") and not name.startswith("__Host-"):
+                params["domain"] = domain
             else:
-                params["domain"] = ".band.us"
+                params["url"] = f"https://{domain.lstrip('.')}/"
+            same_site = cookie.get("sameSite")
+            if same_site in {"Strict", "Lax", "None"}:
+                params["sameSite"] = same_site
+            expires = cookie.get("expires")
+            if isinstance(expires, (int, float)) and expires > 0:
+                params["expires"] = expires
             try:
                 result = connection.call("Network.setCookie", params, timeout=3)
                 if result.get("success", True):
