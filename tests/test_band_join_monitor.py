@@ -865,9 +865,9 @@ class FollowUpQuestionTests(unittest.TestCase):
             monitor.registry.upsert(request)
             success, _message = monitor.send_follow_up_question(request)
             self.assertTrue(success)
-            script = connection.calls[-1][1]["expression"]
-            self.assertIn("_askJoinQuestionBtn", script)
-            self.assertIn("button._btnConfirm", script)
+            scripts = [call[1]["expression"] for call in connection.calls]
+            self.assertTrue(any("_askJoinQuestionBtn" in script for script in scripts))
+            self.assertTrue(any("button._btnConfirm" in script for script in scripts))
             self.assertEqual(
                 monitor.registry.follow_up_status(request.follow_up_identity),
                 "SENT",

@@ -3362,8 +3362,8 @@ class BandJoinMonitor:
             return False, f"동일 신청에 추가 질문 발송 기록이 있습니다: {status}"
         self.registry.set_status(request.stable_key, "QUESTION_SENDING")
 
-        script = f"""
-        new Promise((resolve) => {{
+        open_script = f"""
+        (() => {{
           const clean = (value) => String(value || "").replace(/\\s+/g, " ").trim();
           const visible = (element) => Boolean(
             element && element.getClientRects && element.getClientRects().length
@@ -3389,66 +3389,112 @@ class BandJoinMonitor:
             return name === targetName && (!targetAnswer || answer === targetAnswer);
           }});
           if (!row) {{
-            resolve({{ok: false, reason: "applicant-row-not-found"}});
-            return;
+            return {{ok: false, reason: "applicant-row-not-found"}};
           }}
           const askButton = row.querySelector("._askJoinQuestionBtn");
           if (!visible(askButton)) {{
-            resolve({{ok: false, reason: "ask-button-not-found"}});
-            return;
+            return {{ok: false, reason: "ask-button-not-found"}};
           }}
           askButton.click();
-          const deadline = Date.now() + 2500;
-          const timer = setInterval(() => {{
-            const confirm = Array.from(
-              document.querySelectorAll("button._btnConfirm")
-            ).find(visible);
-            if (confirm) {{
-              const layer = confirm.closest(
-                "[role='dialog'],[class*='Layer'],[class*='layer']"
-              );
-              const layerText = clean(layer && layer.textContent);
-              if (!layerText || !layerText.includes(targetName)) {{
-                clearInterval(timer);
-                resolve({{ok: false, reason: "confirmation-target-mismatch"}});
-                return;
-              }}
-              clearInterval(timer);
-              confirm.click();
-              setTimeout(() => resolve({{ok: true}}), 300);
-              return;
-            }}
-            if (Date.now() >= deadline) {{
-              clearInterval(timer);
-              resolve({{ok: false, reason: "confirmation-timeout"}});
-            }}
-          }}, 50);
-        }})
+          return {{ok: true}};
+        }})()
         """
         try:
-            result = connection.call(
+            opened = runtime_value(connection.call(
                 "Runtime.evaluate",
                 {
-                    "expression": script,
+                    "expression": open_script,
                     "returnByValue": True,
-                    "awaitPromise": True,
                 },
-                timeout=5,
-            )
-            value = runtime_value(result)
+                timeout=3,
+            ))
         except Exception as exc:
-            detail = f"추가 질문 DOM 결과 확인 실패: {exc}"
+            detail = f"추가 질문 확인창 열기 실패: {exc}"
             self.registry.finish_follow_up(identity, "FAILED", detail)
             self.registry.set_status(request.stable_key, "QUESTION_FAILED")
             return False, f"{detail}. 중복 방지를 위해 자동 재전송하지 않습니다."
+
+        if not isinstance(opened, Mapping) or not opened.get("ok"):
+            reason = opened.get("reason", "") if isinstance(opened, Mapping) else ""
+            detail = f"BAND 추가 질문 확인창 열기 실패: {reason or '알 수 없는 오류'}"
+            self.registry.finish_follow_up(identity, "FAILED", detail)
+            self.registry.set_status(request.stable_key, "QUESTION_FAILED")
+            return False, detail
+
+        marker = request.stable_key
+        confirm_script = f"""
+        (() => {{
+          const clean = (value) => String(value || "").replace(/\\s+/g, " ").trim();
+          const visible = (element) => Boolean(
+            element && element.getClientRects && element.getClientRects().length
+          );
+          const targetName = {json.dumps(request.display_name)};
+          const confirms = Array.from(
+            document.querySelectorAll("button._btnConfirm")
+          ).filter(visible);
+          const confirm = confirms.find((button) => {{
+            let node = button;
+            for (let depth = 0; node && depth < 9; depth += 1, node = node.parentElement) {{
+              const text = clean(node.textContent);
+              if (text.includes(targetName) && text.includes("가입질문")) return true;
+            }}
+            return false;
+          }});
+          if (!confirm) return {{ok: false, reason: "confirmation-not-ready"}};
+          sessionStorage.setItem(
+            "__bandJoinQuestionMarker",
+            {json.dumps(marker)}
+          );
+          confirm.click();
+          return {{ok: true}};
+        }})()
+        """
+        marker_script = f"""
+        (() => ({{
+          ok: sessionStorage.getItem("__bandJoinQuestionMarker") === {json.dumps(marker)}
+        }}))()
+        """
+        value: Any = None
+        last_error = "confirmation-not-ready"
+        for _attempt in range(12):
+            if self.stop_event.wait(0.15):
+                last_error = "monitor-stopping"
+                break
+            try:
+                value = runtime_value(connection.call(
+                    "Runtime.evaluate",
+                    {
+                        "expression": confirm_script,
+                        "returnByValue": True,
+                    },
+                    timeout=3,
+                ))
+            except Exception as exc:
+                last_error = str(exc)
+                try:
+                    value = runtime_value(connection.call(
+                        "Runtime.evaluate",
+                        {
+                            "expression": marker_script,
+                            "returnByValue": True,
+                        },
+                        timeout=2,
+                    ))
+                except Exception:
+                    value = None
+                if isinstance(value, Mapping) and value.get("ok"):
+                    break
+            if isinstance(value, Mapping) and value.get("ok"):
+                break
+            if isinstance(value, Mapping):
+                last_error = str(value.get("reason", last_error))
 
         if isinstance(value, Mapping) and value.get("ok"):
             self.registry.finish_follow_up(identity, "SENT")
             self.registry.set_status(request.stable_key, "AWAITING_CORRECTION")
             return True, "BAND 가입 질문을 해당 신청자에게 1회 다시 보냈습니다."
 
-        reason = value.get("reason", "") if isinstance(value, Mapping) else ""
-        detail = f"BAND 추가 질문 DOM 동작 실패: {reason or '알 수 없는 오류'}"
+        detail = f"BAND 추가 질문 DOM 동작 실패: {last_error or '알 수 없는 오류'}"
         self.registry.finish_follow_up(identity, "FAILED", detail)
         self.registry.set_status(request.stable_key, "QUESTION_FAILED")
         return False, f"{detail}. 중복 방지를 위해 자동 재전송하지 않습니다."
