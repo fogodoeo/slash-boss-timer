@@ -1224,6 +1224,40 @@ class ChromeManager:
                 candidates.append(Path(found))
         return next((path for path in candidates if path and path.exists()), None)
 
+    def _clear_stale_profile_locks(self) -> None:
+        """Remove Chromium locks left on a persistent disk by an old instance."""
+        removed: list[str] = []
+        for name in ("SingletonLock", "SingletonSocket", "SingletonCookie"):
+            path = self.profile_dir / name
+            try:
+                path.unlink()
+                removed.append(name)
+            except FileNotFoundError:
+                continue
+            except OSError as exc:
+                self.logger.warning(
+                    "Chrome profile lock cleanup failed (%s): %s",
+                    name,
+                    safe_for_log(exc),
+                )
+        if removed:
+            self.logger.info(
+                "Removed stale Chrome profile locks: %s", ", ".join(removed)
+            )
+
+    def stop(self) -> None:
+        """Stop only the Chrome process launched by this monitor."""
+        process = self.process
+        self.process = None
+        if process is None or process.poll() is not None:
+            return
+        process.terminate()
+        try:
+            process.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            process.kill()
+            process.wait(timeout=2)
+
     def ensure_running(self, wait_seconds: float = 15.0) -> bool:
         if self.ready():
             return True
@@ -1234,6 +1268,7 @@ class ChromeManager:
                 "설정의 chrome_executable 값을 지정하세요."
             )
         self.profile_dir.mkdir(parents=True, exist_ok=True)
+        self._clear_stale_profile_locks()
         args = [
             str(executable),
             f"--remote-debugging-port={self.port}",
@@ -2100,6 +2135,7 @@ class BandJoinMonitor:
             connection.close()
         if self.supervisor and self.supervisor.is_alive():
             self.supervisor.join(timeout=3)
+        self.chrome.stop()
         self.set_state("DISCONNECTED", "사용자 종료")
         for handler in list(self.logger.handlers):
             try:

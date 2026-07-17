@@ -12,6 +12,7 @@ from band_join_monitor import (
     BandJoinMonitor,
     BandJoinRequest,
     BandTabFinder,
+    ChromeManager,
     DEFAULT_CONFIG,
     DeduplicationStateManager,
     DiagnosticSanitizer,
@@ -31,6 +32,29 @@ from band_join_monitor import (
 
 
 FIXTURE_DIR = Path(__file__).parent / "fixtures"
+
+
+class ChromeManagerTests(unittest.TestCase):
+    def test_clears_stale_profile_locks_from_persistent_disk(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            profile_dir = Path(temporary_directory)
+            lock_names = ("SingletonLock", "SingletonSocket", "SingletonCookie")
+            for name in lock_names:
+                (profile_dir / name).write_text("stale", encoding="utf-8")
+
+            manager = ChromeManager(
+                port=9333,
+                executable="chrome",
+                profile_dir=profile_dir,
+                start_url="https://www.band.us/",
+                headless=True,
+                extra_args=[],
+                logger=mock.Mock(),
+            )
+            manager._clear_stale_profile_locks()
+
+            for name in lock_names:
+                self.assertFalse((profile_dir / name).exists())
 
 
 class ProfileRuleMatcherTests(unittest.TestCase):
