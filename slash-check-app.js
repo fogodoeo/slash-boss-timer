@@ -2,6 +2,7 @@ const http = require('http');
 const fs = require('fs/promises');
 const path = require('path');
 const { createHash, randomUUID } = require('crypto');
+const { createBandOAuth } = require('./band-oauth');
 
 const PORT = Number(process.env.PORT || process.env.SLASH_CHECK_PORT || process.argv[2] || 3101);
 const HOST = process.env.SLASH_CHECK_HOST || '0.0.0.0';
@@ -18,6 +19,7 @@ const LEGACY_BOSS_STATE_FILE = path.join(ROOT, 'local-boss-state.json');
 const PHOTO_PROOF_DIR = path.join(STATE_DIR, 'boss-photo-proofs');
 const TRAVEL_RECEIPT_DIR = process.env.TRAVEL_RECEIPT_DIR || path.join(STATE_DIR, 'travel-receipts');
 const BAND_MONITOR_STATUS_FILE = process.env.BAND_MONITOR_STATUS_FILE || path.join(STATE_DIR, 'band-monitor-runtime.json');
+const bandOAuth = createBandOAuth();
 
 const mimeTypes = {
     '.html': 'text/html; charset=utf-8',
@@ -2088,6 +2090,8 @@ async function readBandMonitorStatus() {
 
 async function handleApi(req, res, url) {
     if (cleanupExpiredReservations() || cleanupExpiredBossCutLocks() || cleanupExpiredParticipantProofs()) await saveState();
+
+    if (await bandOAuth.handle(req, res, url)) return true;
 
     if (url.pathname === '/health' && req.method === 'GET') {
         sendJson(res, 200, {
