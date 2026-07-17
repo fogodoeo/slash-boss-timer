@@ -2980,7 +2980,6 @@ class BandJoinMonitor:
                     and not self.registry.follow_up_status(
                         stored.follow_up_identity
                     )
-                    and "BAND_API" in stored.source.split("+")
                 ):
                     self._enqueue_follow_up(stored)
                 continue
@@ -3024,10 +3023,7 @@ class BandJoinMonitor:
             if stored.eligible and bool(self.config["auto_approve_enabled"]):
                 self.auto_queue.put(("approve", stored.stable_key))
             elif not stored.eligible and self._follow_up_enabled():
-                if (
-                    not follow_up_status
-                    and "BAND_API" in stored.source.split("+")
-                ):
+                if not follow_up_status:
                     self._enqueue_follow_up(stored)
             elif not stored.eligible and bool(self.config["auto_reject_enabled"]):
                 self.auto_queue.put(("reject", stored.stable_key))
@@ -3206,8 +3202,15 @@ class BandJoinMonitor:
 
         band_no = self._band_no()
         applicant_key = request.applicant_key or request.request_id
-        if not band_no or not applicant_key:
-            return False, "추가 질문 전송에 필요한 신청자 식별자가 없습니다."
+        if not band_no:
+            return False, "추가 질문 전송에 필요한 밴드 식별자가 없습니다."
+
+        if not applicant_key or "BAND_API" not in request.source.split("+"):
+            return self._send_follow_up_question_dom(
+                request,
+                reason_codes,
+                message,
+            )
 
         with self.connection_lock:
             connection = self.connection
@@ -3250,12 +3253,11 @@ class BandJoinMonitor:
         except Exception as exc:
             return False, f"추가 질문 API 준비 확인 실패: {exc}"
         if not isinstance(preflight, Mapping) or not preflight.get("ok"):
-            reason = (
-                preflight.get("reason", "")
-                if isinstance(preflight, Mapping)
-                else ""
+            return self._send_follow_up_question_dom(
+                request,
+                reason_codes,
+                message,
             )
-            return False, f"추가 질문 API 준비 대기: {reason or '알 수 없는 오류'}"
 
         identity = request.follow_up_identity
         if not self.registry.begin_follow_up(
@@ -3332,6 +3334,121 @@ class BandJoinMonitor:
 
         reason = value.get("reason", "") if isinstance(value, Mapping) else ""
         detail = f"BAND 추가 질문 API 거부: {reason or '알 수 없는 오류'}"
+        self.registry.finish_follow_up(identity, "FAILED", detail)
+        self.registry.set_status(request.stable_key, "QUESTION_FAILED")
+        return False, f"{detail}. 중복 방지를 위해 자동 재전송하지 않습니다."
+
+    def _send_follow_up_question_dom(
+        self,
+        request: BandJoinRequest,
+        reason_codes: Iterable[str],
+        message: str,
+    ) -> tuple[bool, str]:
+        if not bool(self.config.get("dom_action_enabled", False)):
+            return False, "추가 질문 DOM 동작이 비활성화되어 있습니다."
+        with self.connection_lock:
+            connection = self.connection
+        if not connection or not connection.connected:
+            return False, "Chrome/BAND 연결이 없습니다."
+
+        identity = request.follow_up_identity
+        if not self.registry.begin_follow_up(
+            identity,
+            stable_key=request.stable_key,
+            reason_codes=reason_codes,
+            message=message,
+        ):
+            status = self.registry.follow_up_status(identity) or "기록됨"
+            return False, f"동일 신청에 추가 질문 발송 기록이 있습니다: {status}"
+        self.registry.set_status(request.stable_key, "QUESTION_SENDING")
+
+        script = f"""
+        new Promise((resolve) => {{
+          const clean = (value) => String(value || "").replace(/\\s+/g, " ").trim();
+          const visible = (element) => Boolean(
+            element && element.getClientRects && element.getClientRects().length
+          );
+          const targetName = {json.dumps(request.display_name)};
+          const targetAnswer = {json.dumps(request.application_answer)};
+          const rows = Array.from(document.querySelectorAll(
+            "li.requestJoinMemberItem,[data-viewname='DBandApplicationItemView']"
+          ));
+          const row = rows.find((candidate) => {{
+            const nameElement = candidate.querySelector(
+              ".text.-flex .ellipsis,img[alt],[data-profile-name]"
+            );
+            const name = clean(
+              nameElement && (
+                nameElement.getAttribute("alt") ||
+                nameElement.getAttribute("data-profile-name") ||
+                nameElement.textContent
+              )
+            );
+            const answerElement = candidate.querySelector("dd.answerText");
+            const answer = clean(answerElement && answerElement.textContent);
+            return name === targetName && (!targetAnswer || answer === targetAnswer);
+          }});
+          if (!row) {{
+            resolve({{ok: false, reason: "applicant-row-not-found"}});
+            return;
+          }}
+          const askButton = row.querySelector("._askJoinQuestionBtn");
+          if (!visible(askButton)) {{
+            resolve({{ok: false, reason: "ask-button-not-found"}});
+            return;
+          }}
+          askButton.click();
+          const deadline = Date.now() + 2500;
+          const timer = setInterval(() => {{
+            const confirm = Array.from(
+              document.querySelectorAll("button._btnConfirm")
+            ).find(visible);
+            if (confirm) {{
+              const layer = confirm.closest(
+                "[role='dialog'],[class*='Layer'],[class*='layer']"
+              );
+              const layerText = clean(layer && layer.textContent);
+              if (!layerText || !layerText.includes(targetName)) {{
+                clearInterval(timer);
+                resolve({{ok: false, reason: "confirmation-target-mismatch"}});
+                return;
+              }}
+              clearInterval(timer);
+              confirm.click();
+              setTimeout(() => resolve({{ok: true}}), 300);
+              return;
+            }}
+            if (Date.now() >= deadline) {{
+              clearInterval(timer);
+              resolve({{ok: false, reason: "confirmation-timeout"}});
+            }}
+          }}, 50);
+        }})
+        """
+        try:
+            result = connection.call(
+                "Runtime.evaluate",
+                {
+                    "expression": script,
+                    "returnByValue": True,
+                    "awaitPromise": True,
+                },
+                timeout=5,
+            )
+            value = runtime_value(result)
+        except Exception as exc:
+            detail = f"추가 질문 DOM 결과 확인 실패: {exc}"
+            self.registry.finish_follow_up(identity, "FAILED", detail)
+            self.registry.set_status(request.stable_key, "QUESTION_FAILED")
+            return False, f"{detail}. 중복 방지를 위해 자동 재전송하지 않습니다."
+
+        if isinstance(value, Mapping) and value.get("ok"):
+            self.registry.finish_follow_up(identity, "SENT")
+            self.registry.set_status(request.stable_key, "AWAITING_CORRECTION")
+            return True, "BAND 가입 질문을 해당 신청자에게 1회 다시 보냈습니다."
+
+        reason = value.get("reason", "") if isinstance(value, Mapping) else ""
+        detail = f"BAND 추가 질문 DOM 동작 실패: {reason or '알 수 없는 오류'}"
         self.registry.finish_follow_up(identity, "FAILED", detail)
         self.registry.set_status(request.stable_key, "QUESTION_FAILED")
         return False, f"{detail}. 중복 방지를 위해 자동 재전송하지 않습니다."

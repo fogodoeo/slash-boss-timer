@@ -694,6 +694,23 @@ class FollowUpQuestionTests(unittest.TestCase):
             self.assertEqual(action, "question")
             monitor.stop()
 
+    def test_invalid_dom_application_is_queued_for_question(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            monitor = self._monitor(temp_dir)
+            request = BandJoinRequest(
+                stable_key="dom-invalid-1",
+                display_name="김기미",
+                request_id="",
+                applicant_key="",
+                application_time="2026-07-17",
+                application_answer="FF",
+                source="DOM",
+            )
+            monitor._accept_requests([request])
+            action, _key = monitor.auto_queue.get(timeout=0.1)
+            self.assertEqual(action, "question")
+            monitor.stop()
+
     def test_bootstrap_cookie_is_injected_without_persisting_secret(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             secret = "do-not-write-this-cookie"
@@ -824,6 +841,36 @@ class FollowUpQuestionTests(unittest.TestCase):
             ]
             self.assertTrue(
                 any("createApplicantComment" in script for script in scripts)
+            )
+            monitor.stop()
+
+    def test_dom_question_uses_visible_band_confirmation(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            monitor = self._monitor(temp_dir)
+            monitor.config["dom_action_enabled"] = True
+            monitor.tab = {
+                "url": "https://www.band.us/band/101992972/applications"
+            }
+            connection = _FollowUpConnection()
+            monitor.connection = connection  # type: ignore[assignment]
+            request = BandJoinRequest(
+                stable_key="dom-question-1",
+                display_name="김기미",
+                request_id="",
+                applicant_key="",
+                application_time="2026-07-17",
+                application_answer="FF",
+                source="DOM",
+            )
+            monitor.registry.upsert(request)
+            success, _message = monitor.send_follow_up_question(request)
+            self.assertTrue(success)
+            script = connection.calls[-1][1]["expression"]
+            self.assertIn("_askJoinQuestionBtn", script)
+            self.assertIn("button._btnConfirm", script)
+            self.assertEqual(
+                monitor.registry.follow_up_status(request.follow_up_identity),
+                "SENT",
             )
             monitor.stop()
 
