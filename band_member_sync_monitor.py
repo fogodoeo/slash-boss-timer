@@ -1,0 +1,145 @@
+#!/usr/bin/env python3
+"""Run the BAND monitor and mirror successful approvals to Supabase."""
+
+from __future__ import annotations
+
+import datetime as dt
+import json
+import logging
+import os
+import re
+import time
+import urllib.error
+import urllib.parse
+import urllib.request
+from typing import Any
+
+import band_join_monitor as monitor_module
+
+
+TRUE_VALUES = {"1", "true", "yes", "y", "on"}
+IDENTIFIER_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+BaseBandJoinMonitor = monitor_module.BandJoinMonitor
+
+
+def enabled(name: str, default: bool = False) -> bool:
+    value = os.environ.get(name)
+    if value is None:
+        return default
+    return value.strip().lower() in TRUE_VALUES
+
+
+class SupabaseMemberDirectory:
+    def __init__(self, logger: logging.Logger):
+        self.logger = logger
+        self.enabled = enabled("BAND_MEMBER_SYNC_ENABLED", False)
+        self.url = os.environ.get("SUPABASE_URL", "").strip().rstrip("/")
+        self.service_role_key = os.environ.get(
+            "SUPABASE_SERVICE_ROLE_KEY", ""
+        ).strip()
+        table = os.environ.get("BAND_MEMBER_TABLE", "band_members").strip()
+        self.table = table if IDENTIFIER_RE.fullmatch(table) else ""
+        self.timeout = 7.0
+        self.attempts = 3
+        self.configured = bool(
+            self.enabled
+            and self.url.startswith("https://")
+            and self.service_role_key
+            and self.table
+        )
+
+    def upsert(
+        self,
+        *,
+        phone: str,
+        display_name: str,
+        member_key: str,
+    ) -> tuple[bool, str]:
+        if not self.enabled:
+            return True, "disabled"
+        if not self.configured:
+            return False, "Supabase 회원 명단 환경변수가 준비되지 않았습니다."
+        if not re.fullmatch(r"010\d{8}", phone):
+            return False, "승인 프로필에서 유효한 전화번호를 확인하지 못했습니다."
+
+        now = dt.datetime.now(dt.timezone.utc).isoformat()
+        body = json.dumps(
+            {
+                "phone_normalized": phone,
+                "display_name": display_name,
+                "band_member_key": member_key or None,
+                "is_active": True,
+                "joined_at": now,
+                "updated_at": now,
+            },
+            ensure_ascii=False,
+        ).encode("utf-8")
+        query = urllib.parse.urlencode({"on_conflict": "phone_normalized"})
+        endpoint = f"{self.url}/rest/v1/{self.table}?{query}"
+        request = urllib.request.Request(
+            endpoint,
+            data=body,
+            method="POST",
+            headers={
+                "apikey": self.service_role_key,
+                "Authorization": f"Bearer {self.service_role_key}",
+                "Content-Type": "application/json; charset=utf-8",
+                "Prefer": "resolution=merge-duplicates,return=minimal",
+            },
+        )
+
+        last_error = "unknown"
+        for attempt in range(self.attempts):
+            try:
+                with urllib.request.urlopen(request, timeout=self.timeout) as response:
+                    status = int(getattr(response, "status", 200))
+                if 200 <= status < 300:
+                    return True, "synced"
+                last_error = f"HTTP {status}"
+            except urllib.error.HTTPError as exc:
+                last_error = f"HTTP {exc.code}"
+            except (OSError, urllib.error.URLError) as exc:
+                last_error = type(exc).__name__
+            if attempt + 1 < self.attempts:
+                time.sleep(0.5 * (attempt + 1))
+        return False, f"Supabase 동기화 실패: {last_error}"
+
+
+class SyncedBandJoinMonitor(BaseBandJoinMonitor):
+    def __init__(self, *args: Any, **kwargs: Any):
+        super().__init__(*args, **kwargs)
+        self.member_directory = SupabaseMemberDirectory(self.logger)
+
+    def perform_action(self, request: Any, action: str) -> tuple[bool, str]:
+        success, message = super().perform_action(request, action)
+        if not success or action != "approve":
+            return success, message
+
+        profile = self.profile_matcher.match(request.display_name)
+        if not profile.eligible or not profile.phone:
+            self.logger.error(
+                "BAND 승인 후 회원 명단 동기화 생략: 프로필 전화번호 없음"
+            )
+            return True, f"{message} 회원 명단에는 전화번호를 확인하지 못해 등록하지 못했습니다."
+
+        synced, detail = self.member_directory.upsert(
+            phone=profile.phone,
+            display_name=profile.name,
+            member_key=request.applicant_key or request.request_id,
+        )
+        if synced:
+            if detail != "disabled":
+                self.logger.info("BAND 승인 회원을 Supabase 명단에 등록했습니다.")
+            return True, message
+
+        self.logger.error("BAND 승인 후 회원 명단 동기화 실패: %s", detail)
+        return True, f"{message} 다만 회원 명단 자동 등록은 실패했습니다."
+
+
+def main() -> int:
+    monitor_module.BandJoinMonitor = SyncedBandJoinMonitor
+    return monitor_module.main()
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

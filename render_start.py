@@ -133,7 +133,7 @@ def start_band_monitor() -> subprocess.Popen[bytes]:
     )
     command = [
         sys.executable,
-        str(ROOT / "band_join_monitor.py"),
+        str(ROOT / "band_member_sync_monitor.py"),
         "--config",
         config_path,
         "--daemon",
