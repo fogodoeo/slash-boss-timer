@@ -43,9 +43,9 @@ if "%USE_PY_LAUNCHER%"=="0" if not defined PYTHON_EXE (
 )
 
 if "%USE_PY_LAUNCHER%"=="1" (
-  py -3 "%SCRIPT%" --config "%CONFIG%"
+  py -3 "%SCRIPT%" --config "%CONFIG%" %*
 ) else (
-  "%PYTHON_EXE%" "%SCRIPT%" --config "%CONFIG%"
+  "%PYTHON_EXE%" "%SCRIPT%" --config "%CONFIG%" %*
 )
 
 set "EXIT_CODE=%ERRORLEVEL%"
