@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import os
 from pathlib import Path
 import socket
@@ -67,7 +68,10 @@ class BandApprovalApp:
     RED = "#ff6b78"
     AMBER = "#f0b85a"
 
-    def __init__(self, root: Any, monitor: SyncedBandJoinMonitor, lock: SingleInstance):
+    def __init__(
+        self, root: Any, monitor: SyncedBandJoinMonitor, lock: SingleInstance,
+        config_path: Path,
+    ):
         import tkinter as tk
         from tkinter import ttk
 
@@ -76,9 +80,13 @@ class BandApprovalApp:
         self.root = root
         self.monitor = monitor
         self.lock = lock
+        self.config_path = config_path
         self.closing = False
         self.busy = False
         self.row_cache: dict[str, Any] = {}
+        phone_rules = monitor.config.get("phone_verification_rules", {})
+        self.require_verified_var = tk.BooleanVar(value=bool(phone_rules.get("require_verified", True)))
+        self.require_match_var = tk.BooleanVar(value=bool(phone_rules.get("require_number_match", False)))
 
         root.title("BAND 가입 승인 센터 · CREWART 연동")
         root.geometry("1240x760")
@@ -167,17 +175,36 @@ class BandApprovalApp:
         self._button(toolbar, "BAND 창 열기", lambda: self._run_monitor_command(self.monitor.bring_to_front)).pack(side="right", padx=(8, 0))
         self._button(toolbar, "새로고침", lambda: self._run_monitor_command(self.monitor.refresh)).pack(side="right")
 
+        options = self.tk.Frame(shell, bg=self.PANEL, highlightbackground=self.LINE, highlightthickness=1)
+        options.pack(fill="x", pady=(0, 12))
+        self._label(options, "가입 조건", bg=self.PANEL, fg=self.MUTED, font=("Malgun Gothic", 9, "bold")).pack(side="left", padx=(15, 8), pady=9)
+        verified_check = self.tk.Checkbutton(
+            options, text="BAND 폰 인증 필수", variable=self.require_verified_var,
+            command=self._persist_phone_options, bg=self.PANEL, fg=self.TEXT,
+            activebackground=self.PANEL, activeforeground=self.TEXT, selectcolor=self.PANEL_2,
+            font=("Malgun Gothic", 10), cursor="hand2"
+        )
+        verified_check.pack(side="left", padx=(5, 20))
+        match_check = self.tk.Checkbutton(
+            options, text="프로필 번호 일치 필수", variable=self.require_match_var,
+            command=self._persist_phone_options, bg=self.PANEL, fg=self.TEXT,
+            activebackground=self.PANEL, activeforeground=self.TEXT, selectcolor=self.PANEL_2,
+            font=("Malgun Gothic", 10), cursor="hand2"
+        )
+        match_check.pack(side="left")
+        self._label(options, "번호가 달라도 가입시키려면 두 번째 옵션을 끄세요.", bg=self.PANEL, fg=self.MUTED, font=("Malgun Gothic", 9)).pack(side="right", padx=15)
+
         table_frame = self.tk.Frame(shell, bg=self.PANEL, highlightbackground=self.LINE, highlightthickness=1)
         table_frame.pack(fill="both", expand=True)
-        columns = ("no", "status", "name", "profile_phone", "verified_phone", "phone_auth", "decision", "sync", "time")
+        columns = ("no", "status", "name", "profile_phone", "verified_phone", "phone_auth", "phone_match", "decision", "sync", "time")
         self.tree = self.ttk.Treeview(table_frame, columns=columns, show="headings", style="Monitor.Treeview", selectmode="browse")
         headings = {
             "no": "번호", "status": "상태", "name": "가입자", "profile_phone": "프로필 번호",
-            "verified_phone": "BAND 인증번호", "phone_auth": "폰 인증", "decision": "판정",
+            "verified_phone": "BAND 인증번호", "phone_auth": "폰 인증", "phone_match": "번호 비교", "decision": "판정",
             "sync": "CREWART 동기화", "time": "신청 시각"
         }
         widths = {"no": 54, "status": 105, "name": 145, "profile_phone": 125, "verified_phone": 125,
-                  "phone_auth": 88, "decision": 80, "sync": 115, "time": 160}
+                  "phone_auth": 88, "phone_match": 88, "decision": 80, "sync": 115, "time": 160}
         for column in columns:
             self.tree.heading(column, text=headings[column])
             self.tree.column(column, width=widths[column], minwidth=50, anchor="center", stretch=column in {"name", "time"})
@@ -216,10 +243,16 @@ class BandApprovalApp:
             phone_auth = "미인증"
         else:
             phone_auth = "확인 대기"
+        profile_phone = getattr(profile, "phone", "") or ""
+        verified_phone = request.verified_phone or ""
+        if profile_phone and verified_phone:
+            phone_match = "일치" if profile_phone == verified_phone else "불일치"
+        else:
+            phone_match = "확인 대기"
         sync_text = "완료" if sync and sync.get("success") else ("실패" if sync else "-")
         return (
             str(request.sequence), request.status, getattr(profile, "name", "") or request.display_name,
-            getattr(profile, "phone", "") or "-", request.verified_phone or "-", phone_auth,
+            profile_phone or "-", verified_phone or "-", phone_auth, phone_match,
             "통과" if request.eligible else "보류", sync_text,
             request.application_time or request.first_seen,
         )
@@ -274,7 +307,11 @@ class BandApprovalApp:
         )
         auto_approve = bool(self.monitor.config.get("auto_approve_enabled"))
         auto_reject = bool(self.monitor.config.get("auto_reject_enabled"))
-        self.mode_text.configure(text=f"자동 승인 {'ON' if auto_approve else 'OFF'}  ·  자동 거절 {'ON' if auto_reject else 'OFF'}")
+        self.mode_text.configure(
+            text=(f"자동 승인 {'ON' if auto_approve else 'OFF'}  ·  자동 거절 {'ON' if auto_reject else 'OFF'}"
+                  f"  ·  폰 인증 {'필수' if self.require_verified_var.get() else '선택'}"
+                  f"  ·  번호 일치 {'필수' if self.require_match_var.get() else '표시만'}")
+        )
         self.root.after(800, self._refresh_ui)
 
     def _show_selected_detail(self, _event: Any = None) -> None:
@@ -284,6 +321,31 @@ class BandApprovalApp:
             self.detail.configure(text="신청자를 선택하면 판정 상세정보가 표시됩니다.")
             return
         self.detail.configure(text=f"#{request.sequence}  {request.display_name}  ·  {request.eligibility_reason or '판정 정보 없음'}")
+
+    def _persist_phone_options(self) -> None:
+        from tkinter import messagebox
+        rules = self.monitor.config.setdefault("phone_verification_rules", {})
+        previous_rules = dict(rules)
+        rules["enabled"] = True
+        rules["require_verified"] = bool(self.require_verified_var.get())
+        rules["require_number_match"] = bool(self.require_match_var.get())
+        try:
+            temporary = self.config_path.with_suffix(self.config_path.suffix + ".tmp")
+            temporary.write_text(
+                json.dumps(self.monitor.config, ensure_ascii=False, indent=2) + "\n",
+                encoding="utf-8",
+            )
+            temporary.replace(self.config_path)
+        except OSError as exc:
+            rules.clear()
+            rules.update(previous_rules)
+            self.require_verified_var.set(bool(rules.get("require_verified", True)))
+            self.require_match_var.set(bool(rules.get("require_number_match", False)))
+            messagebox.showerror("옵션 저장 실패", str(exc), parent=self.root)
+            return
+        self.monitor.phone_matcher = monitor_module.PhoneVerificationMatcher(rules)
+        _success, message = self.monitor.reclassify_pending_requests()
+        self.detail.configure(text=message)
 
     def _run_monitor_command(self, command: Callable[[], tuple[bool, str]]) -> None:
         if self.busy:
@@ -370,7 +432,7 @@ def main() -> int:
         return 0
     root = tk.Tk()
     monitor = SyncedBandJoinMonitor(config, config_path.parent)
-    BandApprovalApp(root, monitor, lock)
+    BandApprovalApp(root, monitor, lock, config_path)
     root.mainloop()
     return 0
 

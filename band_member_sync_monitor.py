@@ -158,11 +158,27 @@ class SyncedBandJoinMonitor(BaseBandJoinMonitor):
                 "등록하지 않았습니다."
             )
 
-        synced, detail = self.member_directory.upsert(
-            phone=phone_verification.phone,
-            display_name=profile.name,
-            member_key=request.applicant_key or request.request_id,
-        )
+        # When the profile number and BAND's verified number differ, retain both
+        # as membership aliases. Either number can then unlock CREWART results.
+        phones = list(dict.fromkeys(
+            phone for phone in (profile.phone, phone_verification.phone)
+            if re.fullmatch(r"010\d{8}", phone)
+        ))
+        results = [
+            self.member_directory.upsert(
+                phone=phone,
+                display_name=profile.name,
+                member_key=request.applicant_key or request.request_id,
+            )
+            for phone in phones
+        ]
+        synced = bool(results) and all(result[0] for result in results)
+        if results and all(result[1] == "disabled" for result in results):
+            detail = "disabled"
+        elif len(results) <= 1:
+            detail = results[0][1] if results else "no_phone"
+        else:
+            detail = "synced_profile_and_verified"
         if synced:
             self._record_member_sync(detail, True, request)
             if detail != "disabled":
@@ -170,6 +186,7 @@ class SyncedBandJoinMonitor(BaseBandJoinMonitor):
             return True, message
 
         self._record_member_sync("sync_failed", False, request)
+        detail = "; ".join(result[1] for result in results if not result[0]) or "no_phone"
         self.logger.error("BAND 승인 후 회원 명단 동기화 실패: %s", detail)
         return True, f"{message} 다만 회원 명단 자동 등록은 실패했습니다."
 

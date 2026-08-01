@@ -38,7 +38,7 @@ class RenderHealthIntegrationTests(unittest.TestCase):
             self.assertFalse(payload["monitor_enabled"])
             self.assertTrue(payload["auto_approve"])
             self.assertTrue(payload["auto_reject"])
-            self.assertTrue(payload["phone_verification"]["require_number_match"])
+            self.assertFalse(payload["phone_verification"]["require_number_match"])
             self.assertTrue(payload["member_sync"]["configured"])
             self.assertNotIn("service-role-secret", status_path.read_text(encoding="utf-8"))
 

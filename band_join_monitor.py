@@ -89,7 +89,7 @@ DEFAULT_CONFIG: dict[str, Any] = {
     "phone_verification_rules": {
         "enabled": False,
         "require_verified": True,
-        "require_number_match": True,
+        "require_number_match": False,
     },
     "answer_rules": {
         "enabled": True,
@@ -437,13 +437,14 @@ class PhoneVerificationMatch:
     definitive: bool
     phone: str = ""
     reason: str = ""
+    matches_profile_phone: Optional[bool] = None
 
 
 class PhoneVerificationMatcher:
     def __init__(self, config: Mapping[str, Any]):
         self.enabled = bool(config.get("enabled", False))
         self.require_verified = bool(config.get("require_verified", True))
-        self.require_number_match = bool(config.get("require_number_match", True))
+        self.require_number_match = bool(config.get("require_number_match", False))
 
     def match(
         self,
@@ -487,12 +488,21 @@ class PhoneVerificationMatcher:
                 True,
                 phone=verified_phone,
                 reason="프로필/인증 전화번호 불일치",
+                matches_profile_phone=False,
             )
+        matches_profile_phone: Optional[bool] = None
+        if profile.phone and verified_phone:
+            matches_profile_phone = profile.phone == verified_phone
         return PhoneVerificationMatch(
             True,
             True,
             phone=verified_phone or profile.phone,
-            reason="프로필/인증 전화번호 일치",
+            reason=(
+                "프로필/인증 전화번호 일치"
+                if matches_profile_phone is not False
+                else "프로필/인증 전화번호 불일치 (가입 허용)"
+            ),
+            matches_profile_phone=matches_profile_phone,
         )
 
 
@@ -3535,6 +3545,73 @@ class BandJoinMonitor:
             self.set_state("CONNECTED", "DOM 감시가 복구되었습니다.")
         return requests
 
+    def _classify_request(self, stored: BandJoinRequest) -> str:
+        profile = self.profile_matcher.match(stored.display_name)
+        original_answer = self.answer_matcher.match(
+            stored.application_answer
+        )
+        answer = original_answer
+        if not original_answer.eligible and stored.application_reply:
+            answer = self.answer_matcher.match(stored.application_reply)
+        phone_verification = self.phone_matcher.match(profile, stored)
+
+        stored.eligible = (
+            profile.eligible
+            and answer.eligible
+            and phone_verification.eligible
+        )
+        stored.auto_rejectable = (
+            not stored.eligible
+            and (
+                not profile.eligible
+                or not answer.eligible
+                or phone_verification.definitive
+            )
+        )
+        stored.eligibility_reason = "; ".join(
+            reason
+            for reason in (
+                profile.reason,
+                answer.reason,
+                phone_verification.reason,
+            )
+            if reason
+        )
+        follow_up_status = self.registry.follow_up_status(
+            stored.follow_up_identity
+        )
+        if stored.eligible:
+            stored.status = "ELIGIBLE"
+        elif not phone_verification.definitive and not stored.auto_rejectable:
+            stored.status = "VERIFICATION_PENDING"
+        elif follow_up_status == "SENT":
+            stored.status = "AWAITING_CORRECTION"
+        elif follow_up_status == "SENDING":
+            stored.status = "QUESTION_SENDING"
+        elif follow_up_status == "FAILED":
+            stored.status = "QUESTION_FAILED"
+        else:
+            stored.status = "INVALID"
+
+        return follow_up_status
+
+    def _schedule_classified_request(
+        self, stored: BandJoinRequest, follow_up_status: str
+    ) -> None:
+        if stored.eligible and bool(self.config["auto_approve_enabled"]):
+            self.auto_queue.put(("approve", stored.stable_key))
+        elif not stored.eligible and self._follow_up_enabled():
+            if not follow_up_status:
+                self._enqueue_follow_up(stored)
+            elif follow_up_status == "SENT" and stored.application_reply:
+                self._enqueue_feedback(stored)
+        elif (
+            not stored.eligible
+            and stored.auto_rejectable
+            and bool(self.config["auto_reject_enabled"])
+        ):
+            self.auto_queue.put(("reject", stored.stable_key))
+
     def _accept_requests(self, requests: Iterable[BandJoinRequest]) -> None:
         status_changed = False
         for request in requests:
@@ -3553,53 +3630,7 @@ class BandJoinMonitor:
                 continue
 
             status_changed = True
-
-            profile = self.profile_matcher.match(stored.display_name)
-            original_answer = self.answer_matcher.match(
-                stored.application_answer
-            )
-            answer = original_answer
-            if not original_answer.eligible and stored.application_reply:
-                answer = self.answer_matcher.match(stored.application_reply)
-            phone_verification = self.phone_matcher.match(profile, stored)
-
-            stored.eligible = (
-                profile.eligible
-                and answer.eligible
-                and phone_verification.eligible
-            )
-            stored.auto_rejectable = (
-                not stored.eligible
-                and (
-                    not profile.eligible
-                    or not answer.eligible
-                    or phone_verification.definitive
-                )
-            )
-            stored.eligibility_reason = "; ".join(
-                reason
-                for reason in (
-                    profile.reason,
-                    answer.reason,
-                    phone_verification.reason,
-                )
-                if reason
-            )
-            follow_up_status = self.registry.follow_up_status(
-                stored.follow_up_identity
-            )
-            if stored.eligible:
-                stored.status = "ELIGIBLE"
-            elif not phone_verification.definitive and not stored.auto_rejectable:
-                stored.status = "VERIFICATION_PENDING"
-            elif follow_up_status == "SENT":
-                stored.status = "AWAITING_CORRECTION"
-            elif follow_up_status == "SENDING":
-                stored.status = "QUESTION_SENDING"
-            elif follow_up_status == "FAILED":
-                stored.status = "QUESTION_FAILED"
-            else:
-                stored.status = "INVALID"
+            follow_up_status = self._classify_request(stored)
 
             if is_new:
                 self._print_new_request(stored)
@@ -3607,21 +3638,37 @@ class BandJoinMonitor:
             else:
                 self._print_updated_request(stored)
 
-            if stored.eligible and bool(self.config["auto_approve_enabled"]):
-                self.auto_queue.put(("approve", stored.stable_key))
-            elif not stored.eligible and self._follow_up_enabled():
-                if not follow_up_status:
-                    self._enqueue_follow_up(stored)
-                elif follow_up_status == "SENT" and stored.application_reply:
-                    self._enqueue_feedback(stored)
-            elif (
-                not stored.eligible
-                and stored.auto_rejectable
-                and bool(self.config["auto_reject_enabled"])
-            ):
-                self.auto_queue.put(("reject", stored.stable_key))
+            self._schedule_classified_request(stored, follow_up_status)
         if status_changed:
             self.write_runtime_status()
+
+    def reclassify_pending_requests(self) -> tuple[bool, str]:
+        """Apply changed GUI rules immediately to every unfinished request."""
+        changed_count = 0
+        for stored in self.registry.list_items():
+            if stored.status in {"APPROVED", "REJECTED", "EXPIRED", "ACTION_SENT"}:
+                continue
+            previous = (
+                stored.eligible,
+                stored.auto_rejectable,
+                stored.eligibility_reason,
+                stored.status,
+            )
+            follow_up_status = self._classify_request(stored)
+            current = (
+                stored.eligible,
+                stored.auto_rejectable,
+                stored.eligibility_reason,
+                stored.status,
+            )
+            if current == previous:
+                continue
+            changed_count += 1
+            self._print_updated_request(stored)
+            self._schedule_classified_request(stored, follow_up_status)
+        if changed_count:
+            self.write_runtime_status()
+        return True, f"가입 조건을 적용해 {changed_count}건을 다시 판정했습니다."
 
     def _follow_up_enabled(self) -> bool:
         settings = self.config.get("follow_up_question", {})
@@ -3780,6 +3827,28 @@ class BandJoinMonitor:
                 None,
             )
             if request:
+                if action == "approve" and (
+                    not request.eligible or request.status != "ELIGIBLE"
+                ):
+                    self.logger.info(
+                        "자동 승인 생략 #%s: 현재 판정=%s",
+                        request.sequence,
+                        safe_for_log(request.status),
+                    )
+                    self.write_runtime_status()
+                    continue
+                if action == "reject" and (
+                    request.eligible
+                    or not request.auto_rejectable
+                    or request.status != "INVALID"
+                ):
+                    self.logger.info(
+                        "자동 거절 생략 #%s: 현재 판정=%s",
+                        request.sequence,
+                        safe_for_log(request.status),
+                    )
+                    self.write_runtime_status()
+                    continue
                 if action in {"question", "feedback"}:
                     identity = (
                         request.follow_up_identity

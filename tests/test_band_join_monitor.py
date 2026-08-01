@@ -24,6 +24,7 @@ from band_join_monitor import (
     JoinActionAdapter,
     NetworkJoinParser,
     PhoneVerificationMatcher,
+    ProfileMatch,
     ProfileRuleMatcher,
     ReconnectPolicy,
     WebSocketJoinParser,
@@ -138,6 +139,26 @@ class PhoneVerificationMatcherTests(unittest.TestCase):
         )
         self.assertFalse(result.eligible)
         self.assertTrue(result.definitive)
+
+    def test_mismatch_can_be_accepted_and_marked_separately(self) -> None:
+        matcher = PhoneVerificationMatcher(
+            {
+                "enabled": True,
+                "require_verified": True,
+                "require_number_match": False,
+            }
+        )
+        profile = ProfileMatch(True, name="홍길동", phone="01012345678")
+        request = BandJoinRequest(
+            stable_key="mismatch-allowed",
+            display_name="홍길동 01012345678",
+            verified_phone="01099998888",
+            phone_verified=True,
+        )
+        result = matcher.match(profile, request)
+        self.assertTrue(result.eligible)
+        self.assertTrue(result.definitive)
+        self.assertFalse(result.matches_profile_phone)
         self.assertIn("불일치", result.reason)
 
     def test_missing_public_number_waits_instead_of_rejecting(self) -> None:
@@ -939,6 +960,39 @@ class FollowUpQuestionTests(unittest.TestCase):
             )
             monitor._accept_requests([mismatch])
             self.assertEqual(monitor.auto_queue.get(timeout=0.1)[0], "reject")
+            monitor.stop()
+
+    def test_rule_change_reclassifies_existing_mismatch_as_eligible(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            monitor = self._verified_monitor(temp_dir)
+            monitor.config["auto_approve_enabled"] = False
+            monitor.config["auto_reject_enabled"] = False
+            mismatch = BandJoinRequest(
+                stable_key="verified-mismatch-reclassified",
+                display_name="홍길동 01012345678",
+                request_id="member-mismatch-reclassified",
+                verified_phone="01099998888",
+                phone_verified=True,
+                source="BAND_API",
+            )
+            monitor._accept_requests([mismatch])
+            stored = monitor.registry.list_items()[0]
+            self.assertEqual(stored.status, "INVALID")
+
+            monitor.phone_matcher = PhoneVerificationMatcher(
+                {
+                    "enabled": True,
+                    "require_verified": True,
+                    "require_number_match": False,
+                }
+            )
+            success, message = monitor.reclassify_pending_requests()
+
+            self.assertTrue(success)
+            self.assertIn("1건", message)
+            self.assertTrue(stored.eligible)
+            self.assertEqual(stored.status, "ELIGIBLE")
+            self.assertIn("불일치 (가입 허용)", stored.eligibility_reason)
             monitor.stop()
 
     def test_missing_verified_number_is_held_without_auto_action(self) -> None:

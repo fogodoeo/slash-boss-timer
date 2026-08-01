@@ -38,7 +38,7 @@
   "phone_verification_rules": {
     "enabled": true,
     "require_verified": true,
-    "require_number_match": true
+    "require_number_match": false
   },
   "answer_rules": {
     "enabled": false,
