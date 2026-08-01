@@ -149,9 +149,9 @@ class SyncedBandJoinMonitor(BaseBandJoinMonitor):
 
         phone_verification = self.phone_matcher.match(profile, request)
         if not phone_verification.eligible or not phone_verification.phone:
-            self._record_member_sync("verified_phone_mismatch", False, request)
+            self._record_member_sync("verified_phone_unavailable", False, request)
             self.logger.error(
-                "BAND 승인 후 회원 명단 동기화 생략: 인증 전화번호 불일치 또는 확인 대기"
+                "BAND 승인 후 회원 명단 동기화 생략: 인증 전화번호 확인 불가"
             )
             return True, (
                 f"{message} 인증 전화번호를 확인하지 못해 회원 명단에는 "

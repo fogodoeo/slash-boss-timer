@@ -116,7 +116,7 @@ class SyncedMonitorHookTests(unittest.TestCase):
             monitor.perform_action(request, "reject")
         monitor.member_directory.upsert.assert_not_called()
 
-    def test_unverified_or_mismatched_phone_is_never_synced(self) -> None:
+    def test_unavailable_verified_phone_is_never_synced(self) -> None:
         monitor = object.__new__(SyncedBandJoinMonitor)
         monitor.logger = logging.getLogger("test")
         monitor.profile_matcher = mock.Mock()
