@@ -4,13 +4,13 @@ chcp 65001 >nul
 cd /d "%~dp0"
 title BAND Join Monitor
 
-set "SCRIPT=%~dp0band_local_dashboard.py"
+set "SCRIPT=%~dp0band_local_app.py"
 set "CONFIG=%~dp0band_join_monitor_config.json"
 set "PYTHON_EXE="
 set "USE_PY_LAUNCHER=0"
 
 if not exist "%SCRIPT%" (
-  echo [ERROR] band_local_dashboard.py was not found.
+  echo [ERROR] band_local_app.py was not found.
   pause
   exit /b 1
 )
@@ -42,6 +42,27 @@ if "%USE_PY_LAUNCHER%"=="0" if not defined PYTHON_EXE (
   exit /b 1
 )
 
+if "%~1"=="--check-config" goto run_console
+
+where pyw >nul 2>nul
+if not errorlevel 1 (
+  start "" pyw -3 "%SCRIPT%" --config "%CONFIG%" %*
+  endlocal & exit /b 0
+)
+
+where pythonw >nul 2>nul
+if not errorlevel 1 (
+  start "" pythonw "%SCRIPT%" --config "%CONFIG%" %*
+  endlocal & exit /b 0
+)
+
+set "CODEX_PYW=%USERPROFILE%\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\pythonw.exe"
+if exist "%CODEX_PYW%" (
+  start "" "%CODEX_PYW%" "%SCRIPT%" --config "%CONFIG%" %*
+  endlocal & exit /b 0
+)
+
+:run_console
 if "%USE_PY_LAUNCHER%"=="1" (
   py -3 "%SCRIPT%" --config "%CONFIG%" %*
 ) else (
