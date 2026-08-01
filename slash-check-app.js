@@ -2081,11 +2081,88 @@ async function readBandMonitorStatus() {
     try {
         const raw = await fs.readFile(BAND_MONITOR_STATUS_FILE, 'utf8');
         const value = JSON.parse(raw);
-        return value && typeof value === 'object' ? value : { state: 'UNKNOWN' };
+        return normalizeBandMonitorStatus(value);
     } catch (err) {
         if (err.code !== 'ENOENT') console.warn('[band-monitor] status read failed:', err.message);
-        return { state: 'UNKNOWN', connected: false };
+        return normalizeBandMonitorStatus({ state: 'UNKNOWN', connected: false });
     }
+}
+
+function normalizeBandMonitorStatus(value) {
+    const source = value && typeof value === 'object' ? value : {};
+    const applications = source.applications && typeof source.applications === 'object'
+        ? source.applications
+        : {};
+    const phoneVerification = source.phone_verification && typeof source.phone_verification === 'object'
+        ? source.phone_verification
+        : {};
+    const memberSync = source.member_sync && typeof source.member_sync === 'object'
+        ? source.member_sync
+        : {};
+    const lastAction = source.last_action && typeof source.last_action === 'object'
+        ? source.last_action
+        : null;
+    const lastSync = memberSync.last_result && typeof memberSync.last_result === 'object'
+        ? memberSync.last_result
+        : null;
+    const safeCount = (key) => Math.max(0, Math.min(100000, Number.parseInt(applications[key], 10) || 0));
+    const cleanMonitorText = (text, max) => cleanText(text, max).replace(
+        /(?<!\d)01[016789](?:[\s./_-]*\d){7,8}(?!\d)/g,
+        (match) => {
+            const digits = match.replace(/\D/g, '');
+            return digits.length >= 7 ? `${digits.slice(0, 3)}-****-${digits.slice(-4)}` : '***';
+        }
+    );
+    const updatedAt = cleanText(source.updated_at, 80);
+    const updatedMs = Date.parse(updatedAt);
+    const ageSeconds = Number.isFinite(updatedMs)
+        ? Math.max(0, Math.floor((Date.now() - updatedMs) / 1000))
+        : null;
+    const state = cleanText(source.state || 'UNKNOWN', 40).toUpperCase();
+
+    return {
+        version: cleanText(source.version, 40),
+        updated_at: updatedAt || null,
+        age_seconds: ageSeconds,
+        stale: state !== 'DISABLED' && (ageSeconds === null || ageSeconds > 35),
+        state,
+        detail: cleanMonitorText(source.detail, 200),
+        connected: Boolean(source.connected),
+        monitor_enabled: Boolean(source.monitor_enabled),
+        headless: Boolean(source.headless),
+        auto_approve: Boolean(source.auto_approve),
+        auto_reject: Boolean(source.auto_reject),
+        follow_up_question: Boolean(source.follow_up_question),
+        phone_verification: {
+            enabled: Boolean(phoneVerification.enabled),
+            require_verified: Boolean(phoneVerification.require_verified),
+            require_number_match: Boolean(phoneVerification.require_number_match)
+        },
+        applications: {
+            tracked: safeCount('tracked'),
+            queued: safeCount('queued'),
+            eligible: safeCount('eligible'),
+            invalid: safeCount('invalid'),
+            verification_pending: safeCount('verification_pending'),
+            approved: safeCount('approved'),
+            rejected: safeCount('rejected'),
+            action_failed: safeCount('action_failed')
+        },
+        last_action: lastAction ? {
+            type: cleanText(lastAction.type, 24),
+            success: Boolean(lastAction.success),
+            at: cleanText(lastAction.at, 80) || null
+        } : null,
+        member_sync: {
+            enabled: Boolean(memberSync.enabled),
+            configured: Boolean(memberSync.configured),
+            last_result: lastSync ? {
+                result: cleanText(lastSync.result, 60),
+                success: Boolean(lastSync.success),
+                at: cleanText(lastSync.at, 80) || null
+            } : null
+        }
+    };
 }
 
 async function handleApi(req, res, url) {
@@ -2098,6 +2175,15 @@ async function handleApi(req, res, url) {
             ok: true,
             now: new Date().toISOString(),
             bandMonitor: await readBandMonitorStatus()
+        });
+        return true;
+    }
+
+    if (url.pathname === '/api/band-monitor/status' && req.method === 'GET') {
+        sendJson(res, 200, {
+            ok: true,
+            now: new Date().toISOString(),
+            monitor: await readBandMonitorStatus()
         });
         return true;
     }
@@ -3841,7 +3927,8 @@ async function serveStatic(req, res) {
     const routeAliases = {
         '/gecko': '/gecko.html',
         '/travel': '/travel.html',
-        '/receipts': '/travel.html'
+        '/receipts': '/travel.html',
+        '/band-monitor': '/band-monitor.html'
     };
     const routePath = routeAliases[url.pathname] || url.pathname;
     const safePath = routePath === '/' ? '/index.html' : decodeURIComponent(routePath);

@@ -32,12 +32,63 @@ def enabled(name: str, default: bool = False) -> bool:
 def write_disabled_status() -> None:
     try:
         STATUS_PATH.parent.mkdir(parents=True, exist_ok=True)
+        config_path = Path(
+            os.environ.get(
+                "BAND_MONITOR_CONFIG", str(ROOT / "band_join_monitor_config.json")
+            )
+        )
+        try:
+            config = json.loads(config_path.read_text(encoding="utf-8-sig"))
+        except (OSError, json.JSONDecodeError):
+            config = {}
+        phone_rules = config.get("phone_verification_rules", {})
+        if not isinstance(phone_rules, dict):
+            phone_rules = {}
+        sync_enabled = enabled("BAND_MEMBER_SYNC_ENABLED", False)
+        sync_configured = bool(
+            sync_enabled
+            and os.environ.get("SUPABASE_URL", "").strip().startswith("https://")
+            and os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "").strip()
+            and os.environ.get("BAND_MEMBER_TABLE", "band_members").strip()
+        )
         payload = {
             "version": "render-supervisor-1",
             "updated_at": dt.datetime.now(dt.timezone.utc).isoformat(),
             "state": "DISABLED",
             "detail": "BAND_MONITOR_ENABLED=false",
             "connected": False,
+            "monitor_enabled": False,
+            "headless": enabled("BAND_CHROME_HEADLESS", True),
+            "auto_approve": bool(config.get("auto_approve_enabled", False)),
+            "auto_reject": bool(config.get("auto_reject_enabled", False)),
+            "follow_up_question": bool(
+                config.get("follow_up_question", {}).get("enabled", False)
+                if isinstance(config.get("follow_up_question", {}), dict)
+                else False
+            ),
+            "phone_verification": {
+                "enabled": bool(phone_rules.get("enabled", False)),
+                "require_verified": bool(phone_rules.get("require_verified", False)),
+                "require_number_match": bool(
+                    phone_rules.get("require_number_match", False)
+                ),
+            },
+            "applications": {
+                "tracked": 0,
+                "queued": 0,
+                "eligible": 0,
+                "invalid": 0,
+                "verification_pending": 0,
+                "approved": 0,
+                "rejected": 0,
+                "action_failed": 0,
+            },
+            "last_action": None,
+            "member_sync": {
+                "enabled": sync_enabled,
+                "configured": sync_configured,
+                "last_result": None,
+            },
         }
         temporary = STATUS_PATH.with_suffix(STATUS_PATH.suffix + ".tmp")
         temporary.write_text(

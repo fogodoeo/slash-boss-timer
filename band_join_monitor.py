@@ -886,6 +886,9 @@ class BoundedQueue:
     def get(self, timeout: Optional[float] = None) -> Any:
         return self.queue.get(timeout=timeout)
 
+    def qsize(self) -> int:
+        return self.queue.qsize()
+
 
 class DiagnosticSanitizer:
     @staticmethod
@@ -2238,6 +2241,7 @@ class BandJoinMonitor:
         self._follow_up_retry_after: dict[str, float] = {}
         self._last_safety_refresh = time.monotonic()
         self._dom_install_needed = True
+        self._last_action: Optional[dict[str, Any]] = None
 
     @staticmethod
     def _read_bootstrap_cookies() -> list[dict[str, Any]]:
@@ -2366,17 +2370,44 @@ class BandJoinMonitor:
             return
         try:
             path.parent.mkdir(parents=True, exist_ok=True)
+            items = self.registry.list_items()
+            status_counts = collections.Counter(item.status for item in items)
+            phone_rules = self.config.get("phone_verification_rules", {})
+            if not isinstance(phone_rules, Mapping):
+                phone_rules = {}
             payload = {
                 "version": VERSION,
                 "updated_at": now_iso(),
                 "state": self.state,
                 "detail": safe_for_log(self.state_detail, 200),
                 "connected": self.connected_event.is_set(),
+                "monitor_enabled": bool(self.config.get("monitor_enabled", True)),
                 "headless": bool(self.config.get("chrome_headless", False)),
                 "auto_approve": bool(self.config.get("auto_approve_enabled", False)),
                 "auto_reject": bool(self.config.get("auto_reject_enabled", False)),
                 "follow_up_question": self._follow_up_enabled(),
+                "phone_verification": {
+                    "enabled": bool(phone_rules.get("enabled", False)),
+                    "require_verified": bool(phone_rules.get("require_verified", False)),
+                    "require_number_match": bool(
+                        phone_rules.get("require_number_match", False)
+                    ),
+                },
+                "applications": {
+                    "tracked": len(items),
+                    "queued": self.auto_queue.qsize(),
+                    "eligible": status_counts["ELIGIBLE"],
+                    "invalid": status_counts["INVALID"],
+                    "verification_pending": status_counts[
+                        "VERIFICATION_PENDING"
+                    ],
+                    "approved": status_counts["APPROVED"],
+                    "rejected": status_counts["REJECTED"],
+                    "action_failed": status_counts["ACTION_FAILED"],
+                },
+                "last_action": self._last_action,
             }
+            payload.update(self.runtime_status_extras())
             tmp = path.with_suffix(path.suffix + ".tmp")
             tmp.write_text(
                 json.dumps(payload, ensure_ascii=False, indent=2) + "\n",
@@ -2385,6 +2416,9 @@ class BandJoinMonitor:
             tmp.replace(path)
         except OSError as exc:
             self.logger.info("실행 상태 파일 저장 실패: %s", safe_for_log(exc))
+
+    def runtime_status_extras(self) -> dict[str, Any]:
+        return {}
 
     def set_state(self, state: str, detail: str) -> None:
         changed = state != self.state or detail != self.state_detail
@@ -3502,6 +3536,7 @@ class BandJoinMonitor:
         return requests
 
     def _accept_requests(self, requests: Iterable[BandJoinRequest]) -> None:
+        status_changed = False
         for request in requests:
             stored, is_new, changed = self.registry.upsert_detailed(request)
             if not changed:
@@ -3516,6 +3551,8 @@ class BandJoinMonitor:
                 continue
             if stored.status in {"APPROVED", "REJECTED", "EXPIRED"}:
                 continue
+
+            status_changed = True
 
             profile = self.profile_matcher.match(stored.display_name)
             original_answer = self.answer_matcher.match(
@@ -3583,6 +3620,8 @@ class BandJoinMonitor:
                 and bool(self.config["auto_reject_enabled"])
             ):
                 self.auto_queue.put(("reject", stored.stable_key))
+        if status_changed:
+            self.write_runtime_status()
 
     def _follow_up_enabled(self) -> bool:
         settings = self.config.get("follow_up_question", {})
@@ -3795,6 +3834,12 @@ class BandJoinMonitor:
                     "성공" if success else "실패",
                     safe_for_log(message),
                 )
+                self._last_action = {
+                    "type": action,
+                    "success": bool(success),
+                    "at": now_iso(),
+                }
+                self.write_runtime_status()
 
     def send_correction_feedback(
         self,

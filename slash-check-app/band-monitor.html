@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="ko">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#07131b">
+    <title>BAND 승인봇 상태판</title>
+    <link rel="icon" href="./favicon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="./band-monitor.css">
+</head>
+<body>
+    <main class="monitorShell">
+        <header class="monitorHeader">
+            <a class="backLink" href="./admin.html" aria-label="관리 페이지로 돌아가기">← 관리</a>
+            <div class="headerCopy">
+                <span class="eyebrow">CREO · BAND MEMBER FLOW</span>
+                <h1>승인봇 상태판</h1>
+                <p>신청자의 개인정보는 표시하지 않고, 연결과 자동 처리 상태만 실시간으로 확인합니다.</p>
+            </div>
+            <div class="refreshCluster">
+                <span id="livePulse" class="livePulse" aria-hidden="true"></span>
+                <span id="lastChecked">확인 중</span>
+                <button id="refreshButton" type="button">새로고침</button>
+            </div>
+        </header>
+
+        <section id="stateHero" class="stateHero tone-loading" aria-live="polite">
+            <div class="stateIcon" aria-hidden="true"><span></span></div>
+            <div>
+                <span id="stateKicker" class="stateKicker">상태 확인 중</span>
+                <h2 id="stateTitle">승인 프로그램에 연결하고 있습니다</h2>
+                <p id="stateDetail">Render에서 최신 실행 정보를 읽는 중입니다.</p>
+            </div>
+            <dl class="heroMeta">
+                <div><dt>마지막 신호</dt><dd id="heartbeatValue">—</dd></div>
+                <div><dt>실행 버전</dt><dd id="versionValue">—</dd></div>
+            </dl>
+        </section>
+
+        <section class="statusGrid" aria-label="핵심 상태">
+            <article class="statusCard">
+                <div class="cardTop"><span class="cardIcon">01</span><span id="monitorBadge" class="miniBadge neutral">확인 중</span></div>
+                <h3>승인 프로그램</h3>
+                <strong id="monitorValue">—</strong>
+                <p>Render의 BAND 감시 프로세스</p>
+            </article>
+            <article class="statusCard">
+                <div class="cardTop"><span class="cardIcon">02</span><span id="bandBadge" class="miniBadge neutral">확인 중</span></div>
+                <h3>BAND 연결</h3>
+                <strong id="bandValue">—</strong>
+                <p>로그인 세션과 가입 신청 화면</p>
+            </article>
+            <article class="statusCard">
+                <div class="cardTop"><span class="cardIcon">03</span><span id="decisionBadge" class="miniBadge neutral">확인 중</span></div>
+                <h3>자동 판정</h3>
+                <strong id="decisionValue">—</strong>
+                <p>일치 승인 · 불일치 반려</p>
+            </article>
+            <article class="statusCard">
+                <div class="cardTop"><span class="cardIcon">04</span><span id="syncBadge" class="miniBadge neutral">확인 중</span></div>
+                <h3>Supabase 연동</h3>
+                <strong id="syncValue">—</strong>
+                <p>승인 회원 전화번호 명단 등록</p>
+            </article>
+        </section>
+
+        <section class="contentGrid">
+            <article class="panel activityPanel">
+                <div class="panelHead">
+                    <div><span class="sectionLabel">LIVE COUNTS</span><h2>현재 처리 현황</h2></div>
+                    <span class="privacyPill">개인정보 미표시</span>
+                </div>
+                <div class="countGrid">
+                    <div><span>감지</span><strong id="trackedCount">0</strong></div>
+                    <div><span>처리 대기</span><strong id="queuedCount">0</strong></div>
+                    <div><span>조건 일치</span><strong id="eligibleCount">0</strong></div>
+                    <div><span>확인 대기</span><strong id="verificationCount">0</strong></div>
+                    <div><span>조건 불일치</span><strong id="invalidCount">0</strong></div>
+                    <div><span>처리 실패</span><strong id="failedCount">0</strong></div>
+                </div>
+                <div class="lastAction">
+                    <span class="sectionLabel">마지막 자동 동작</span>
+                    <strong id="lastActionValue">아직 동작 기록이 없습니다</strong>
+                    <time id="lastActionTime">—</time>
+                </div>
+            </article>
+
+            <article class="panel flowPanel">
+                <div class="panelHead"><div><span class="sectionLabel">SAFETY FLOW</span><h2>승인 조건</h2></div></div>
+                <ol class="flowList">
+                    <li id="phoneRuleStep"><span>1</span><div><strong>휴대폰 인증 확인</strong><p>인증된 번호와 프로필 번호를 비교</p></div><b>—</b></li>
+                    <li id="approveStep"><span>2</span><div><strong>자동 승인·반려</strong><p>두 번호가 같을 때만 승인</p></div><b>—</b></li>
+                    <li id="syncStep"><span>3</span><div><strong>회원 명단 동기화</strong><p>승인 성공 후 Supabase에 등록</p></div><b>—</b></li>
+                </ol>
+            </article>
+        </section>
+
+        <section class="panel renderGuide">
+            <div>
+                <span class="sectionLabel">RENDER SETTING</span>
+                <h2>켜야 하는 곳</h2>
+                <p><b>My project → Production → slash-boss-timer → Environment</b>에서 아래 두 값을 확인합니다. 저장하면 서비스가 다시 배포됩니다.</p>
+            </div>
+            <div class="envList">
+                <code><span>BAND_MONITOR_ENABLED</span><b>true</b></code>
+                <code><span>BAND_MEMBER_SYNC_ENABLED</span><b>true</b></code>
+            </div>
+        </section>
+    </main>
+    <script src="./band-monitor.js" defer></script>
+</body>
+</html>

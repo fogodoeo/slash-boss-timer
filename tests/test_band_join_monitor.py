@@ -420,6 +420,46 @@ class ChromeSelectionTests(unittest.TestCase):
         self.assertTrue(rendered["chrome_headless"])
         self.assertFalse(rendered["monitor_enabled"])
 
+    def test_runtime_status_contains_counts_without_applicant_identity(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            config = json.loads(json.dumps(DEFAULT_CONFIG))
+            config["log_file"] = str(Path(temp_dir) / "monitor.log")
+            config["state_file"] = str(Path(temp_dir) / "state.json")
+            config["diagnostic_file"] = str(Path(temp_dir) / "diagnostic.jsonl")
+            config["runtime_status_file"] = str(Path(temp_dir) / "runtime.json")
+            config["auto_approve_enabled"] = True
+            config["auto_reject_enabled"] = True
+            config["phone_verification_rules"] = {
+                "enabled": True,
+                "require_verified": True,
+                "require_number_match": True,
+            }
+            monitor = BandJoinMonitor(config, Path(temp_dir))
+            monitor.registry.upsert(
+                BandJoinRequest(
+                    stable_key="a" * 64,
+                    display_name="홍길동 01012345678",
+                    status="ELIGIBLE",
+                )
+            )
+            monitor._last_action = {
+                "type": "approve",
+                "success": True,
+                "at": "2026-08-01T00:00:00+00:00",
+            }
+            monitor.write_runtime_status()
+
+            status_path = Path(temp_dir) / "runtime.json"
+            payload = json.loads(status_path.read_text(encoding="utf-8"))
+            serialized = status_path.read_text(encoding="utf-8")
+            self.assertEqual(payload["applications"]["tracked"], 1)
+            self.assertEqual(payload["applications"]["eligible"], 1)
+            self.assertTrue(payload["phone_verification"]["require_number_match"])
+            self.assertEqual(payload["last_action"]["type"], "approve")
+            self.assertNotIn("홍길동", serialized)
+            self.assertNotIn("01012345678", serialized)
+            monitor.stop()
+
     def test_login_page_sets_login_required_status(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             config = json.loads(json.dumps(DEFAULT_CONFIG))

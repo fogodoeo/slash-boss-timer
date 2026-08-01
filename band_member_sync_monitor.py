@@ -109,6 +109,24 @@ class SyncedBandJoinMonitor(BaseBandJoinMonitor):
     def __init__(self, *args: Any, **kwargs: Any):
         super().__init__(*args, **kwargs)
         self.member_directory = SupabaseMemberDirectory(self.logger)
+        self._last_member_sync: dict[str, Any] | None = None
+
+    def runtime_status_extras(self) -> dict[str, Any]:
+        directory = getattr(self, "member_directory", None)
+        return {
+            "member_sync": {
+                "enabled": bool(directory and directory.enabled),
+                "configured": bool(directory and directory.configured),
+                "last_result": self._last_member_sync,
+            }
+        }
+
+    def _record_member_sync(self, result: str, success: bool) -> None:
+        self._last_member_sync = {
+            "result": result,
+            "success": success,
+            "at": dt.datetime.now(dt.timezone.utc).isoformat(),
+        }
 
     def perform_action(self, request: Any, action: str) -> tuple[bool, str]:
         success, message = super().perform_action(request, action)
@@ -117,6 +135,7 @@ class SyncedBandJoinMonitor(BaseBandJoinMonitor):
 
         profile = self.profile_matcher.match(request.display_name)
         if not profile.eligible or not profile.phone:
+            self._record_member_sync("profile_phone_missing", False)
             self.logger.error(
                 "BAND 승인 후 회원 명단 동기화 생략: 프로필 전화번호 없음"
             )
@@ -124,6 +143,7 @@ class SyncedBandJoinMonitor(BaseBandJoinMonitor):
 
         phone_verification = self.phone_matcher.match(profile, request)
         if not phone_verification.eligible or not phone_verification.phone:
+            self._record_member_sync("verified_phone_mismatch", False)
             self.logger.error(
                 "BAND 승인 후 회원 명단 동기화 생략: 인증 전화번호 불일치 또는 확인 대기"
             )
@@ -138,10 +158,12 @@ class SyncedBandJoinMonitor(BaseBandJoinMonitor):
             member_key=request.applicant_key or request.request_id,
         )
         if synced:
+            self._record_member_sync(detail, True)
             if detail != "disabled":
                 self.logger.info("BAND 승인 회원을 Supabase 명단에 등록했습니다.")
             return True, message
 
+        self._record_member_sync("sync_failed", False)
         self.logger.error("BAND 승인 후 회원 명단 동기화 실패: %s", detail)
         return True, f"{message} 다만 회원 명단 자동 등록은 실패했습니다."
 
