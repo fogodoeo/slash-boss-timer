@@ -10,20 +10,19 @@
 
 ## 현재 승인 기준
 
-다음 조건을 모두 만족해야 자동 수락한다.
+현재 운영 설정에서는 다음 조건을 검사한다.
 
 1. 프로필명에 한글 이름 2~5자가 포함되어야 한다.
 2. 프로필명에 `010`으로 시작하는 11자리 휴대전화 번호가 포함되어야 한다.
-3. 가입 질문 답변이 기숙사 코드 `R`, `G`, `B`, `Y` 중 하나여야 한다.
+3. `BAND 폰 인증 필수` 옵션이 켜져 있으면 BAND의 휴대폰 인증 상태가 확인되어야 한다.
+4. 프로필 번호와 BAND 인증번호의 일치 여부는 승인 조건이 아니다. 두 번호가 다르면 가입을 승인하고 로컬 UI에 `불일치`로 별도 표시한다.
 
-답변은 대소문자와 앞뒤 공백을 무시한다.
+가입 질문 답변 검사는 현재 꺼져 있다. 다시 켤 경우 답변은 대소문자와 앞뒤 공백을 무시한다.
 
 - 수락 예: `R`, `g`, ` B `
 - 추가 확인 필요 예: 공란, `A`, `RG`, `R입니다`
 
-조건을 하나라도 만족하지 못하면 즉시 거절하지 않고 BAND의
-`추가 질문하기`를 한 번만 실행한다. 이 기능은 자유 문구를 보내는 것이 아니라
-밴드에 설정된 기존 가입 질문을 신청자에게 다시 보내는 기능이다.
+프로필 형식이나 필수 폰 인증 조건이 맞지 않으면 운영 설정에 따라 자동 거절하거나 보류한다. 번호 불일치만으로는 거절하지 않는다.
 
 현재 BAND 가입 질문:
 
@@ -34,13 +33,14 @@
 1. Chrome을 CDP 포트 `9333`으로 연결한다.
 2. BAND의 `get_application_count` XHR을 약 0.5초마다 재실행해 신청 건수 증가를 확인한다.
 3. 건수가 증가하면 BAND 웹페이지 내부 API 클라이언트로 신청자 목록을 직접 조회한다.
-4. 신청자의 프로필명, 최초 `join_answer`, 추가 질문 답변을 검사한다.
-5. 조건 충족 시 `accept_application` API를 직접 호출한다.
+4. 신청자의 프로필명, 폰 인증 여부, 공개된 BAND 인증번호를 각각 읽는다.
+5. 조건 충족 시 `accept_application` API를 직접 호출한다. 프로필/BAND 번호 불일치는 별도 상태로 남기되 승인을 막지 않는다.
 6. 조건 불충족 시 해당 신청자 행의 공식 `추가 질문하기`와 확인 버튼을 한 번만 실행하고 신청을 보류한다.
 7. 질문을 보낸 신청자는 2초 간격으로 프로필과 답변 변경을 재검사한다.
 8. 수정 후 조건을 충족하면 자동 승인한다.
-9. 내부 API를 사용할 수 없으면 `/applications` 페이지 새로고침과 DOM 방식으로 복구한다.
-10. 60초마다 누락 방지용 안전 새로고침을 수행한다.
+9. 승인 성공 후 프로필 번호와 BAND 인증번호가 다르면 둘 다 같은 회원의 전화번호 별칭으로 Supabase 명단에 등록한다.
+10. 내부 API를 사용할 수 없으면 `/applications` 페이지 새로고침과 DOM 방식으로 복구한다.
+11. 60초마다 누락 방지용 안전 새로고침을 수행한다.
 
 정상적인 경우 전체 페이지를 새로고침하지 않고 처리한다. 목표 처리 시간은 신청 후 약 0.5~1.5초다.
 
@@ -75,19 +75,25 @@
   "application_count_poll_seconds": 0.5,
   "applications_safety_refresh_seconds": 60,
   "auto_approve_enabled": true,
-  "auto_reject_enabled": false,
+  "auto_reject_enabled": true,
   "dom_action_enabled": true,
   "approval_delay_seconds": 0.5,
   "action_rate_limit_seconds": 0,
   "answer_rules": {
-    "required": true,
+    "enabled": false,
+    "required": false,
     "allowed_codes": ["R", "G", "B", "Y"],
     "case_insensitive": true
   },
   "follow_up_question": {
-    "enabled": true,
+    "enabled": false,
     "recheck_seconds": 2,
     "prepare_retry_seconds": 10
+  },
+  "phone_verification_rules": {
+    "enabled": true,
+    "require_verified": true,
+    "require_number_match": false
   }
 }
 ```
@@ -100,11 +106,12 @@
 - 추가 질문 결과가 불확실하게 끊긴 경우에도 중복 전송을 막기 위해 자동 재전송하지 않는다.
 - BAND의 가입 질문 문구가 승인 기준과 일치해야 한다. 추가 질문은 이 문구를 그대로 다시 보낸다.
 - 프로필명이나 답변 필드의 BAND DOM/API 구조가 변경되면 파서 수정이 필요하다.
-- 자동 거절은 꺼져 있으므로 수정하지 않은 신청자는 대기 상태로 남는다.
+- 로컬 `BAND 가입 승인봇.bat`은 CMD 표가 아니라 별도 Windows UI를 실행한다.
+- UI의 `BAND 폰 인증 필수`는 독립 옵션이다. 번호 일치는 표시 전용으로 고정되어 있다.
 
 ## 현재 검증 상태
 
-- Python 및 Render 연동 테스트 45개 통과
+- Python 단위·Render 연동 테스트 68개와 Node OAuth 테스트 5개 통과
 - 실제 신청자 자동 거절 API 처리 성공 확인
 - BAND 내부 신청자 목록 API 호출 성공 확인
 - 약 0.5초 간격의 신청 건수 확인 동작 확인

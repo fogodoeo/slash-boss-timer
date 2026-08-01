@@ -54,7 +54,7 @@
                 <div class="cardTop"><span class="cardIcon">03</span><span id="decisionBadge" class="miniBadge neutral">확인 중</span></div>
                 <h3>자동 판정</h3>
                 <strong id="decisionValue">—</strong>
-                <p>일치 승인 · 불일치 반려</p>
+                <p>번호 불일치는 승인 · 상태만 별도 표시</p>
             </article>
             <article class="statusCard">
                 <div class="cardTop"><span class="cardIcon">04</span><span id="syncBadge" class="miniBadge neutral">확인 중</span></div>
@@ -75,6 +75,7 @@
                     <div><span>처리 대기</span><strong id="queuedCount">0</strong></div>
                     <div><span>조건 일치</span><strong id="eligibleCount">0</strong></div>
                     <div><span>확인 대기</span><strong id="verificationCount">0</strong></div>
+                    <div><span>번호 불일치</span><strong id="mismatchCount">0</strong></div>
                     <div><span>조건 불일치</span><strong id="invalidCount">0</strong></div>
                     <div><span>처리 실패</span><strong id="failedCount">0</strong></div>
                 </div>
@@ -88,8 +89,8 @@
             <article class="panel flowPanel">
                 <div class="panelHead"><div><span class="sectionLabel">SAFETY FLOW</span><h2>승인 조건</h2></div></div>
                 <ol class="flowList">
-                    <li id="phoneRuleStep"><span>1</span><div><strong>휴대폰 인증 확인</strong><p>인증된 번호와 프로필 번호를 비교</p></div><b>—</b></li>
-                    <li id="approveStep"><span>2</span><div><strong>자동 승인·반려</strong><p>두 번호가 같을 때만 승인</p></div><b>—</b></li>
+                    <li id="phoneRuleStep"><span>1</span><div><strong>휴대폰 인증 옵션</strong><p>폰 인증 필수 여부를 독립적으로 적용</p></div><b>—</b></li>
+                    <li id="approveStep"><span>2</span><div><strong>자동 승인·반려</strong><p>번호가 달라도 승인하고 불일치로 표시</p></div><b>—</b></li>
                     <li id="syncStep"><span>3</span><div><strong>회원 명단 동기화</strong><p>승인 성공 후 Supabase에 등록</p></div><b>—</b></li>
                 </ol>
             </article>

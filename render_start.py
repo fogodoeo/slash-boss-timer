@@ -69,9 +69,7 @@ def write_disabled_status() -> None:
             "phone_verification": {
                 "enabled": bool(phone_rules.get("enabled", False)),
                 "require_verified": bool(phone_rules.get("require_verified", False)),
-                "require_number_match": bool(
-                    phone_rules.get("require_number_match", False)
-                ),
+                "require_number_match": False,
             },
             "applications": {
                 "tracked": 0,
@@ -79,6 +77,7 @@ def write_disabled_status() -> None:
                 "eligible": 0,
                 "invalid": 0,
                 "verification_pending": 0,
+                "phone_mismatch": 0,
                 "approved": 0,
                 "rejected": 0,
                 "action_failed": 0,

@@ -129,7 +129,7 @@ class PhoneVerificationMatcherTests(unittest.TestCase):
         self.assertTrue(result.definitive)
         self.assertEqual(result.phone, "01040288600")
 
-    def test_mismatch_is_definitively_rejected(self) -> None:
+    def test_legacy_match_setting_cannot_reject_a_mismatch(self) -> None:
         result = self.matcher.match(
             self.profile,
             self.request(
@@ -137,8 +137,10 @@ class PhoneVerificationMatcherTests(unittest.TestCase):
                 phone_verified=True,
             ),
         )
-        self.assertFalse(result.eligible)
+        self.assertTrue(result.eligible)
         self.assertTrue(result.definitive)
+        self.assertFalse(result.matches_profile_phone)
+        self.assertIn("불일치 (가입 허용)", result.reason)
 
     def test_mismatch_can_be_accepted_and_marked_separately(self) -> None:
         matcher = PhoneVerificationMatcher(
@@ -161,14 +163,14 @@ class PhoneVerificationMatcherTests(unittest.TestCase):
         self.assertFalse(result.matches_profile_phone)
         self.assertIn("불일치", result.reason)
 
-    def test_missing_public_number_waits_instead_of_rejecting(self) -> None:
+    def test_verified_flag_is_enough_when_band_number_is_not_public(self) -> None:
         result = self.matcher.match(
             self.profile,
             self.request(phone_verified=True),
         )
-        self.assertFalse(result.eligible)
-        self.assertFalse(result.definitive)
-        self.assertIn("공개", result.reason)
+        self.assertTrue(result.eligible)
+        self.assertTrue(result.definitive)
+        self.assertIsNone(result.matches_profile_phone)
 
 
 class JoinAnswerMatcherTests(unittest.TestCase):
@@ -460,6 +462,8 @@ class ChromeSelectionTests(unittest.TestCase):
                 BandJoinRequest(
                     stable_key="a" * 64,
                     display_name="홍길동 01012345678",
+                    verified_phone="01099998888",
+                    phone_verified=True,
                     status="ELIGIBLE",
                 )
             )
@@ -475,7 +479,8 @@ class ChromeSelectionTests(unittest.TestCase):
             serialized = status_path.read_text(encoding="utf-8")
             self.assertEqual(payload["applications"]["tracked"], 1)
             self.assertEqual(payload["applications"]["eligible"], 1)
-            self.assertTrue(payload["phone_verification"]["require_number_match"])
+            self.assertFalse(payload["phone_verification"]["require_number_match"])
+            self.assertEqual(payload["applications"]["phone_mismatch"], 1)
             self.assertEqual(payload["last_action"]["type"], "approve")
             self.assertNotIn("홍길동", serialized)
             self.assertNotIn("01012345678", serialized)
@@ -936,7 +941,7 @@ class FollowUpQuestionTests(unittest.TestCase):
         )
         return monitor
 
-    def test_verified_phone_match_approves_and_mismatch_rejects(self) -> None:
+    def test_verified_phone_match_and_mismatch_are_both_approved(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             monitor = self._verified_monitor(temp_dir)
             matching = BandJoinRequest(
@@ -959,10 +964,16 @@ class FollowUpQuestionTests(unittest.TestCase):
                 source="BAND_API",
             )
             monitor._accept_requests([mismatch])
-            self.assertEqual(monitor.auto_queue.get(timeout=0.1)[0], "reject")
+            self.assertEqual(monitor.auto_queue.get(timeout=0.1)[0], "approve")
+            stored = next(
+                item
+                for item in monitor.registry.list_items()
+                if item.stable_key == "verified-mismatch"
+            )
+            self.assertIn("불일치 (가입 허용)", stored.eligibility_reason)
             monitor.stop()
 
-    def test_rule_change_reclassifies_existing_mismatch_as_eligible(self) -> None:
+    def test_phone_verification_requirement_reclassifies_independently(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             monitor = self._verified_monitor(temp_dir)
             monitor.config["auto_approve_enabled"] = False
@@ -972,7 +983,7 @@ class FollowUpQuestionTests(unittest.TestCase):
                 display_name="홍길동 01012345678",
                 request_id="member-mismatch-reclassified",
                 verified_phone="01099998888",
-                phone_verified=True,
+                phone_verified=False,
                 source="BAND_API",
             )
             monitor._accept_requests([mismatch])
@@ -982,8 +993,8 @@ class FollowUpQuestionTests(unittest.TestCase):
             monitor.phone_matcher = PhoneVerificationMatcher(
                 {
                     "enabled": True,
-                    "require_verified": True,
-                    "require_number_match": False,
+                    "require_verified": False,
+                    "require_number_match": True,
                 }
             )
             success, message = monitor.reclassify_pending_requests()
@@ -995,7 +1006,7 @@ class FollowUpQuestionTests(unittest.TestCase):
             self.assertIn("불일치 (가입 허용)", stored.eligibility_reason)
             monitor.stop()
 
-    def test_missing_verified_number_is_held_without_auto_action(self) -> None:
+    def test_verified_flag_without_public_number_is_approved(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             monitor = self._verified_monitor(temp_dir)
             request = BandJoinRequest(
@@ -1007,7 +1018,8 @@ class FollowUpQuestionTests(unittest.TestCase):
             )
             monitor._accept_requests([request])
             stored = monitor.registry.list_items()[0]
-            self.assertEqual(stored.status, "VERIFICATION_PENDING")
+            self.assertEqual(stored.status, "ELIGIBLE")
+            self.assertEqual(monitor.auto_queue.get(timeout=0.1)[0], "approve")
             self.assertEqual(monitor.auto_queue.queue.qsize(), 0)
             monitor.stop()
 

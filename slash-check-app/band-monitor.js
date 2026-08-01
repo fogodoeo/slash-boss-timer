@@ -60,7 +60,7 @@
         $('bandValue').textContent = bandReady ? '연결됨' : monitor.state === 'LOGIN_REQUIRED' ? '로그인 필요' : '연결 안 됨';
         setBadge('bandBadge', bandReady ? '정상' : monitor.state === 'CONNECTING' ? '연결 중' : '점검', bandReady ? 'good' : monitor.state === 'CONNECTING' ? 'warn' : 'bad');
 
-        const decisionReady = monitor.auto_approve && monitor.auto_reject && monitor.phone_verification?.require_number_match;
+        const decisionReady = monitor.auto_approve && monitor.auto_reject;
         $('decisionValue').textContent = decisionReady ? '승인·반려 ON' : '설정 확인';
         setBadge('decisionBadge', decisionReady ? '자동' : '미완료', decisionReady ? 'good' : 'warn');
 
@@ -73,6 +73,7 @@
         $('queuedCount').textContent = counts.queued || 0;
         $('eligibleCount').textContent = counts.eligible || 0;
         $('verificationCount').textContent = counts.verification_pending || 0;
+        $('mismatchCount').textContent = counts.phone_mismatch || 0;
         $('invalidCount').textContent = counts.invalid || 0;
         $('failedCount').textContent = counts.action_failed || 0;
 
@@ -85,8 +86,15 @@
             $('lastActionTime').textContent = '—';
         }
 
-        const phoneReady = monitor.phone_verification?.enabled && monitor.phone_verification?.require_verified && monitor.phone_verification?.require_number_match;
-        setFlow('phoneRuleStep', phoneReady, '설정 확인');
+        const phoneRuleEnabled = monitor.phone_verification?.enabled;
+        setFlow(
+            'phoneRuleStep',
+            phoneRuleEnabled,
+            phoneRuleEnabled ? '선택 적용' : '꺼짐'
+        );
+        if (phoneRuleEnabled) {
+            $('phoneRuleStep').querySelector('b').textContent = monitor.phone_verification?.require_verified ? '필수' : '선택';
+        }
         setFlow('approveStep', monitor.auto_approve && monitor.auto_reject, '설정 확인');
         setFlow('syncStep', syncReady, monitor.member_sync?.enabled ? '키 확인' : '꺼짐');
 

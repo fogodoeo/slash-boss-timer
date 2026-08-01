@@ -2144,6 +2144,7 @@ function normalizeBandMonitorStatus(value) {
             eligible: safeCount('eligible'),
             invalid: safeCount('invalid'),
             verification_pending: safeCount('verification_pending'),
+            phone_mismatch: safeCount('phone_mismatch'),
             approved: safeCount('approved'),
             rejected: safeCount('rejected'),
             action_failed: safeCount('action_failed')

@@ -86,7 +86,6 @@ class BandApprovalApp:
         self.row_cache: dict[str, Any] = {}
         phone_rules = monitor.config.get("phone_verification_rules", {})
         self.require_verified_var = tk.BooleanVar(value=bool(phone_rules.get("require_verified", True)))
-        self.require_match_var = tk.BooleanVar(value=bool(phone_rules.get("require_number_match", False)))
 
         root.title("BAND 가입 승인 센터 · CREWART 연동")
         root.geometry("1240x760")
@@ -158,11 +157,12 @@ class BandApprovalApp:
             ("band", "BAND 연결", "연결 대기"),
             ("pending", "처리 대기", "0명"),
             ("verified", "폰 인증 완료", "0명"),
+            ("mismatch", "번호 불일치", "0명"),
             ("sync", "CREWART 명단", "확인 중"),
         ]
         for index, (key, label, value) in enumerate(definitions):
             card = self.tk.Frame(cards, bg=self.PANEL, highlightbackground=self.LINE, highlightthickness=1)
-            card.grid(row=0, column=index, sticky="nsew", padx=(0 if index == 0 else 6, 0 if index == 3 else 6))
+            card.grid(row=0, column=index, sticky="nsew", padx=(0 if index == 0 else 5, 0 if index == len(definitions) - 1 else 5))
             cards.grid_columnconfigure(index, weight=1)
             self._label(card, label, bg=self.PANEL, fg=self.MUTED, font=("Malgun Gothic", 9, "bold")).pack(anchor="w", padx=16, pady=(14, 4))
             value_label = self._label(card, value, bg=self.PANEL, font=("Malgun Gothic", 17, "bold"))
@@ -185,14 +185,11 @@ class BandApprovalApp:
             font=("Malgun Gothic", 10), cursor="hand2"
         )
         verified_check.pack(side="left", padx=(5, 20))
-        match_check = self.tk.Checkbutton(
-            options, text="프로필 번호 일치 필수", variable=self.require_match_var,
-            command=self._persist_phone_options, bg=self.PANEL, fg=self.TEXT,
-            activebackground=self.PANEL, activeforeground=self.TEXT, selectcolor=self.PANEL_2,
-            font=("Malgun Gothic", 10), cursor="hand2"
-        )
-        match_check.pack(side="left")
-        self._label(options, "번호가 달라도 가입시키려면 두 번째 옵션을 끄세요.", bg=self.PANEL, fg=self.MUTED, font=("Malgun Gothic", 9)).pack(side="right", padx=15)
+        self._label(
+            options,
+            "프로필 번호와 BAND 인증번호가 달라도 가입 승인 · 불일치는 표에 별도 표시",
+            bg=self.PANEL, fg=self.MUTED, font=("Malgun Gothic", 9)
+        ).pack(side="right", padx=15)
 
         table_frame = self.tk.Frame(shell, bg=self.PANEL, highlightbackground=self.LINE, highlightthickness=1)
         table_frame.pack(fill="both", expand=True)
@@ -246,7 +243,7 @@ class BandApprovalApp:
         profile_phone = getattr(profile, "phone", "") or ""
         verified_phone = request.verified_phone or ""
         if profile_phone and verified_phone:
-            phone_match = "일치" if profile_phone == verified_phone else "불일치"
+            phone_match = "일치" if profile_phone == verified_phone else "⚠ 불일치"
         else:
             phone_match = "확인 대기"
         sync_text = "완료" if sync and sync.get("success") else ("실패" if sync else "-")
@@ -288,6 +285,13 @@ class BandApprovalApp:
 
         pending = sum(item.status not in {"APPROVED", "REJECTED", "EXPIRED"} for item in items)
         verified = sum(item.phone_verified is True for item in items)
+        mismatch = 0
+        for item in items:
+            profile = self.monitor.profile_matcher.match(item.display_name)
+            profile_phone = getattr(profile, "phone", "") or ""
+            verified_phone = monitor_module.normalize_phone(item.verified_phone)
+            if profile_phone and verified_phone and profile_phone != verified_phone:
+                mismatch += 1
         connected = self.monitor.connected_event.is_set()
         sync_configured = self.monitor.member_directory.configured
         state_label = {
@@ -300,6 +304,7 @@ class BandApprovalApp:
         self.card_values["band"].configure(text="연결됨" if connected else "연결 대기", fg=self.GREEN if connected else self.AMBER)
         self.card_values["pending"].configure(text=f"{pending}명", fg=self.AMBER if pending else self.TEXT)
         self.card_values["verified"].configure(text=f"{verified}명", fg=self.GREEN if verified else self.TEXT)
+        self.card_values["mismatch"].configure(text=f"{mismatch}명", fg=self.AMBER if mismatch else self.TEXT)
         self.card_values["sync"].configure(text="연결됨" if sync_configured else "설정 필요", fg=self.GREEN if sync_configured else self.RED)
         self.live_pill.configure(
             text="● 실시간 감시 중" if connected else f"● {state_label}",
@@ -310,7 +315,7 @@ class BandApprovalApp:
         self.mode_text.configure(
             text=(f"자동 승인 {'ON' if auto_approve else 'OFF'}  ·  자동 거절 {'ON' if auto_reject else 'OFF'}"
                   f"  ·  폰 인증 {'필수' if self.require_verified_var.get() else '선택'}"
-                  f"  ·  번호 일치 {'필수' if self.require_match_var.get() else '표시만'}")
+                  "  ·  번호 일치 표시만")
         )
         self.root.after(800, self._refresh_ui)
 
@@ -328,7 +333,7 @@ class BandApprovalApp:
         previous_rules = dict(rules)
         rules["enabled"] = True
         rules["require_verified"] = bool(self.require_verified_var.get())
-        rules["require_number_match"] = bool(self.require_match_var.get())
+        rules["require_number_match"] = False
         try:
             temporary = self.config_path.with_suffix(self.config_path.suffix + ".tmp")
             temporary.write_text(
@@ -340,7 +345,6 @@ class BandApprovalApp:
             rules.clear()
             rules.update(previous_rules)
             self.require_verified_var.set(bool(rules.get("require_verified", True)))
-            self.require_match_var.set(bool(rules.get("require_number_match", False)))
             messagebox.showerror("옵션 저장 실패", str(exc), parent=self.root)
             return
         self.monitor.phone_matcher = monitor_module.PhoneVerificationMatcher(rules)

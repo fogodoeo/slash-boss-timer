@@ -44,7 +44,7 @@ from typing import Any, Iterable, Mapping, Optional
 
 
 APP_NAME = "BAND 가입 신청 모니터"
-VERSION = "0.3.1"
+VERSION = "0.3.2"
 DEFAULT_CONFIG_FILE = "band_join_monitor_config.json"
 DOM_SIGNAL_BINDING = "__bandJoinMonitorSignal"
 BAND_NO_RE = re.compile(r"/band/(\d+)")
@@ -444,7 +444,11 @@ class PhoneVerificationMatcher:
     def __init__(self, config: Mapping[str, Any]):
         self.enabled = bool(config.get("enabled", False))
         self.require_verified = bool(config.get("require_verified", True))
-        self.require_number_match = bool(config.get("require_number_match", False))
+        # Number equality is diagnostic information, never an admission rule.
+        # Keep the public attribute for older status consumers/config files, but
+        # deliberately ignore a legacy true value so a mismatch cannot reject a
+        # valid applicant.
+        self.require_number_match = False
 
     def match(
         self,
@@ -475,20 +479,6 @@ class PhoneVerificationMatcher:
                 False,
                 False,
                 reason="BAND 번호인증 정보 확인 대기",
-            )
-        if self.require_number_match and not verified_phone:
-            return PhoneVerificationMatch(
-                False,
-                False,
-                reason="BAND 인증 전화번호 공개 확인 대기",
-            )
-        if self.require_number_match and profile.phone != verified_phone:
-            return PhoneVerificationMatch(
-                False,
-                True,
-                phone=verified_phone,
-                reason="프로필/인증 전화번호 불일치",
-                matches_profile_phone=False,
             )
         matches_profile_phone: Optional[bool] = None
         if profile.phone and verified_phone:
@@ -2399,9 +2389,7 @@ class BandJoinMonitor:
                 "phone_verification": {
                     "enabled": bool(phone_rules.get("enabled", False)),
                     "require_verified": bool(phone_rules.get("require_verified", False)),
-                    "require_number_match": bool(
-                        phone_rules.get("require_number_match", False)
-                    ),
+                    "require_number_match": False,
                 },
                 "applications": {
                     "tracked": len(items),
@@ -2411,6 +2399,15 @@ class BandJoinMonitor:
                     "verification_pending": status_counts[
                         "VERIFICATION_PENDING"
                     ],
+                    "phone_mismatch": sum(
+                        1
+                        for item in items
+                        if (
+                            (profile := self.profile_matcher.match(item.display_name)).phone
+                            and normalize_phone(item.verified_phone)
+                            and profile.phone != normalize_phone(item.verified_phone)
+                        )
+                    ),
                     "approved": status_counts["APPROVED"],
                     "rejected": status_counts["REJECTED"],
                     "action_failed": status_counts["ACTION_FAILED"],
@@ -4445,7 +4442,7 @@ class BandJoinMonitor:
             f"DOM동작={'ON' if self.config['dom_action_enabled'] else 'OFF'}, "
             f"자동승인={'ON' if self.config['auto_approve_enabled'] else 'OFF'}, "
             f"자동거절={'ON' if self.config['auto_reject_enabled'] else 'OFF'}, "
-            f"번호대조={'ON' if phone_verification_enabled else 'OFF'}, "
+            f"폰인증검사={'ON' if phone_verification_enabled else 'OFF'}, "
             f"추가질문={'ON' if follow_up_enabled else 'OFF'}"
         )
 
