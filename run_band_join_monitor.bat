@@ -4,13 +4,13 @@ chcp 65001 >nul
 cd /d "%~dp0"
 title BAND Join Monitor
 
-set "SCRIPT=%~dp0band_join_monitor.py"
+set "SCRIPT=%~dp0band_local_dashboard.py"
 set "CONFIG=%~dp0band_join_monitor_config.json"
 set "PYTHON_EXE="
 set "USE_PY_LAUNCHER=0"
 
 if not exist "%SCRIPT%" (
-  echo [ERROR] band_join_monitor.py was not found.
+  echo [ERROR] band_local_dashboard.py was not found.
   pause
   exit /b 1
 )

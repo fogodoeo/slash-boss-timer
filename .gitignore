@@ -1,4 +1,5 @@
 .env
+.env.band-local
 config.json
 node_modules/
 npm-debug.log*
