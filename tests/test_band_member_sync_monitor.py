@@ -79,12 +79,19 @@ class SyncedMonitorHookTests(unittest.TestCase):
             phone="01012345678",
             name="홍길동",
         )
+        monitor.phone_matcher = mock.Mock()
+        monitor.phone_matcher.match.return_value = SimpleNamespace(
+            eligible=True,
+            phone="01012345678",
+        )
         monitor.member_directory = mock.Mock()
         monitor.member_directory.upsert.return_value = (True, "synced")
         request = SimpleNamespace(
             display_name="홍길동 01012345678",
             applicant_key="member-1",
             request_id="member-1",
+            verified_phone="01012345678",
+            phone_verified=True,
         )
 
         with mock.patch.object(
@@ -107,6 +114,38 @@ class SyncedMonitorHookTests(unittest.TestCase):
             return_value=(True, "거절 완료"),
         ):
             monitor.perform_action(request, "reject")
+        monitor.member_directory.upsert.assert_not_called()
+
+    def test_unverified_or_mismatched_phone_is_never_synced(self) -> None:
+        monitor = object.__new__(SyncedBandJoinMonitor)
+        monitor.logger = logging.getLogger("test")
+        monitor.profile_matcher = mock.Mock()
+        monitor.profile_matcher.match.return_value = SimpleNamespace(
+            eligible=True,
+            phone="01012345678",
+            name="홍길동",
+        )
+        monitor.phone_matcher = mock.Mock()
+        monitor.phone_matcher.match.return_value = SimpleNamespace(
+            eligible=False,
+            phone="01099998888",
+        )
+        monitor.member_directory = mock.Mock()
+        request = SimpleNamespace(
+            display_name="홍길동 01012345678",
+            applicant_key="member-1",
+            request_id="member-1",
+            verified_phone="01099998888",
+            phone_verified=True,
+        )
+
+        with mock.patch.object(
+            BaseBandJoinMonitor,
+            "perform_action",
+            return_value=(True, "승인 완료"),
+        ):
+            success, _message = monitor.perform_action(request, "approve")
+        self.assertTrue(success)
         monitor.member_directory.upsert.assert_not_called()
 
 

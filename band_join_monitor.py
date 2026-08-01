@@ -44,7 +44,7 @@ from typing import Any, Iterable, Mapping, Optional
 
 
 APP_NAME = "BAND 가입 신청 모니터"
-VERSION = "0.2.0"
+VERSION = "0.3.1"
 DEFAULT_CONFIG_FILE = "band_join_monitor_config.json"
 DOM_SIGNAL_BINDING = "__bandJoinMonitorSignal"
 BAND_NO_RE = re.compile(r"/band/(\d+)")
@@ -64,6 +64,7 @@ DEFAULT_CONFIG: dict[str, Any] = {
     "applications_safety_refresh_seconds": 60,
     "auto_approve_enabled": False,
     "auto_reject_enabled": False,
+    "dom_read_enabled": True,
     "dom_action_enabled": False,
     "poll_fallback_seconds": 3,
     "dom_event_poll_seconds": 0.1,
@@ -85,7 +86,13 @@ DEFAULT_CONFIG: dict[str, Any] = {
         "phone_digits": 11,
         "ignore_region_words": True,
     },
+    "phone_verification_rules": {
+        "enabled": False,
+        "require_verified": True,
+        "require_number_match": True,
+    },
     "answer_rules": {
+        "enabled": True,
         "required": True,
         "allowed_codes": ["R", "G", "B", "Y"],
         "case_insensitive": True,
@@ -94,6 +101,7 @@ DEFAULT_CONFIG: dict[str, Any] = {
         "enabled": False,
         "recheck_seconds": 2,
         "prepare_retry_seconds": 10,
+        "max_feedback_messages": 2,
         "profile_message": (
             "프로필명을 '한글이름 010전화번호' 형식으로 수정해 주세요. "
             "예: 김상정 01049278600\n"
@@ -109,6 +117,21 @@ DEFAULT_CONFIG: dict[str, Any] = {
             "2. 이 추가 질문에는 기숙사 코드 R, G, B, Y 중 하나만 "
             "답변해 주세요.\n"
             "수정한 내용은 자동으로 다시 확인합니다."
+        ),
+        "feedback_profile_message": (
+            "추가 답변은 확인했습니다. 다만 프로필명이 아직 조건에 맞지 않습니다.\n"
+            "프로필명을 '한글이름 010전화번호' 형식으로 수정해 주세요. "
+            "예: 김상정 01049278600"
+        ),
+        "feedback_answer_message": (
+            "추가 답변에서 기숙사 코드를 확인하지 못했습니다.\n"
+            "'네/확인/수정완료'가 아니라 R, G, B, Y 중 "
+            "본인 코드 한 글자만 다시 입력해 주세요."
+        ),
+        "feedback_profile_and_answer_message": (
+            "아직 가입 조건을 모두 확인하지 못했습니다.\n"
+            "1. 프로필명을 '한글이름 010전화번호' 형식으로 수정해 주세요.\n"
+            "2. 답변에는 R, G, B, Y 중 본인 코드 한 글자만 입력해 주세요."
         ),
     },
 }
@@ -216,6 +239,13 @@ def mask_phone(text: str) -> str:
         return f"{digits[:3]}-****-{digits[-4:]}"
 
     return PHONE_ANY_RE.sub(repl, text)
+
+
+def normalize_phone(value: Any) -> str:
+    digits = re.sub(r"\D", "", str(value or ""))
+    if digits.startswith("82") and len(digits) == 12:
+        digits = f"0{digits[2:]}"
+    return digits if re.fullmatch(r"010\d{8}", digits) else ""
 
 
 def safe_for_log(text: Any, limit: int = 400) -> str:
@@ -402,6 +432,71 @@ class ProfileRuleMatcher:
 
 
 @dataclasses.dataclass(slots=True)
+class PhoneVerificationMatch:
+    eligible: bool
+    definitive: bool
+    phone: str = ""
+    reason: str = ""
+
+
+class PhoneVerificationMatcher:
+    def __init__(self, config: Mapping[str, Any]):
+        self.enabled = bool(config.get("enabled", False))
+        self.require_verified = bool(config.get("require_verified", True))
+        self.require_number_match = bool(config.get("require_number_match", True))
+
+    def match(
+        self,
+        profile: ProfileMatch,
+        request: "BandJoinRequest",
+    ) -> PhoneVerificationMatch:
+        if not self.enabled:
+            return PhoneVerificationMatch(
+                True,
+                True,
+                phone=profile.phone,
+                reason="BAND 번호인증 비교 사용 안 함",
+            )
+
+        verified_phone = normalize_phone(request.verified_phone)
+        verified = request.phone_verified
+        if verified is None and verified_phone:
+            verified = True
+
+        if self.require_verified and verified is False:
+            return PhoneVerificationMatch(
+                False,
+                True,
+                reason="BAND 휴대폰 번호 미인증",
+            )
+        if self.require_verified and verified is None:
+            return PhoneVerificationMatch(
+                False,
+                False,
+                reason="BAND 번호인증 정보 확인 대기",
+            )
+        if self.require_number_match and not verified_phone:
+            return PhoneVerificationMatch(
+                False,
+                False,
+                reason="BAND 인증 전화번호 공개 확인 대기",
+            )
+        if self.require_number_match and profile.phone != verified_phone:
+            return PhoneVerificationMatch(
+                False,
+                True,
+                phone=verified_phone,
+                reason="프로필/인증 전화번호 불일치",
+            )
+        return PhoneVerificationMatch(
+            True,
+            True,
+            phone=verified_phone or profile.phone,
+            reason="프로필/인증 전화번호 일치",
+        )
+
+
+@dataclasses.dataclass(slots=True)
 class AnswerMatch:
     eligible: bool
     code: str = ""
@@ -410,6 +505,7 @@ class AnswerMatch:
 
 class JoinAnswerMatcher:
     def __init__(self, config: Mapping[str, Any]):
+        self.enabled = bool(config.get("enabled", True))
         self.required = bool(config.get("required", True))
         self.case_insensitive = bool(config.get("case_insensitive", True))
         supplied = config.get("allowed_codes", ["R", "G", "B", "Y"])
@@ -426,6 +522,8 @@ class JoinAnswerMatcher:
 
     def match(self, answer: str) -> AnswerMatch:
         code = self._normalize(answer)
+        if not self.enabled:
+            return AnswerMatch(True, code=code, reason="Join answer ignored")
         if not code:
             if self.required:
                 return AnswerMatch(False, reason="기숙사 코드 답변 없음")
@@ -449,6 +547,8 @@ class BandJoinRequest:
     application_time: str = ""
     application_answer: str = ""
     application_reply: str = ""
+    verified_phone: str = ""
+    phone_verified: Optional[bool] = None
     status: str = "PENDING"
     source: str = "UNKNOWN"
     first_seen: str = dataclasses.field(default_factory=now_iso)
@@ -456,6 +556,7 @@ class BandJoinRequest:
     sequence: int = 0
     eligible: bool = False
     eligibility_reason: str = ""
+    auto_rejectable: bool = False
     observation_fingerprint: str = ""
 
     @property
@@ -474,8 +575,15 @@ class BandJoinRequest:
                 self.display_name.strip(),
                 self.application_answer.strip(),
                 self.application_reply.strip(),
+                self.verified_phone.strip(),
+                "unknown" if self.phone_verified is None else str(self.phone_verified),
             )
         )
+        return hashlib.sha256(raw.encode("utf-8", errors="replace")).hexdigest()
+
+    @property
+    def feedback_identity(self) -> str:
+        raw = f"feedback:{self.follow_up_identity}|{self.content_fingerprint()}"
         return hashlib.sha256(raw.encode("utf-8", errors="replace")).hexdigest()
 
 
@@ -592,6 +700,18 @@ class DeduplicationStateManager:
                 ):
                     existing.application_reply = request.application_reply
                     changed = True
+                if (
+                    request.verified_phone
+                    and request.verified_phone != existing.verified_phone
+                ):
+                    existing.verified_phone = request.verified_phone
+                    changed = True
+                if (
+                    request.phone_verified is not None
+                    and request.phone_verified != existing.phone_verified
+                ):
+                    existing.phone_verified = request.phone_verified
+                    changed = True
                 if request.source not in existing.source.split("+"):
                     existing.source = f"{existing.source}+{request.source}"
                 fingerprint = existing.content_fingerprint()
@@ -660,6 +780,8 @@ class DeduplicationStateManager:
         stable_key: str,
         reason_codes: Iterable[str],
         message: str,
+        kind: str = "initial",
+        parent_identity: str = "",
     ) -> bool:
         with self._lock:
             if identity in self._follow_up_questions:
@@ -671,11 +793,22 @@ class DeduplicationStateManager:
                 "message_hash": hashlib.sha256(
                     message.encode("utf-8", errors="replace")
                 ).hexdigest(),
+                "kind": kind,
+                "parent_identity": parent_identity,
                 "attempted_at": now_iso(),
             }
             self._trim_follow_up_questions()
             self._save()
             return True
+
+    def feedback_count(self, parent_identity: str) -> int:
+        with self._lock:
+            return sum(
+                1
+                for record in self._follow_up_questions.values()
+                if record.get("kind") == "feedback"
+                and record.get("parent_identity") == parent_identity
+            )
 
     def finish_follow_up(
         self,
@@ -1338,6 +1471,8 @@ class BandTabFinder:
             title = str(tab.get("title", "")).lower()
             if "/band/" in lowered:
                 score += 20
+            if re.search(r"/band/\d+/applications(?:[/?#]|$)", lowered):
+                score += 100
             if any(
                 term in lowered
                 for term in ("applications", "member", "join", "request")
@@ -1383,8 +1518,81 @@ def _first_string(
     return ""
 
 
+def _optional_bool(value: Any) -> Optional[bool]:
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, (int, float)) and value in (0, 1):
+        return bool(value)
+    if isinstance(value, str):
+        normalized = value.strip().lower()
+        if normalized in TRUE_VALUES | {"verified", "authenticated", "certified"}:
+            return True
+        if normalized in FALSE_VALUES | {"unverified", "not_verified", "none"}:
+            return False
+    return None
+
+
+def _extract_phone_verification(
+    mapping: Mapping[str, Any],
+    *,
+    depth: int = 0,
+) -> tuple[str, Optional[bool]]:
+    if depth > 3:
+        return "", None
+    verified_phone = ""
+    verified: Optional[bool] = None
+    for raw_key, value in mapping.items():
+        key = re.sub(r"[^a-z0-9]", "", str(raw_key).lower())
+        mentions_phone = any(
+            term in key for term in ("phone", "mobile", "cell", "tel", "contact")
+        )
+        mentions_verification = any(
+            term in key for term in ("verify", "verified", "auth", "cert", "confirm")
+        )
+        if mentions_phone and not isinstance(value, (Mapping, list)):
+            candidate = normalize_phone(value)
+            if candidate and not verified_phone:
+                verified_phone = candidate
+            if mentions_verification:
+                parsed = _optional_bool(value)
+                if parsed is not None:
+                    verified = parsed
+        if mentions_phone and mentions_verification:
+            parsed = _optional_bool(value)
+            if parsed is not None:
+                verified = parsed
+
+    for value in mapping.values():
+        if isinstance(value, Mapping):
+            child_phone, child_verified = _extract_phone_verification(
+                value,
+                depth=depth + 1,
+            )
+            if child_phone and not verified_phone:
+                verified_phone = child_phone
+            if child_verified is not None and verified is None:
+                verified = child_verified
+        elif isinstance(value, list) and depth < 2:
+            for child in value[:20]:
+                if not isinstance(child, Mapping):
+                    continue
+                child_phone, child_verified = _extract_phone_verification(
+                    child,
+                    depth=depth + 1,
+                )
+                if child_phone and not verified_phone:
+                    verified_phone = child_phone
+                if child_verified is not None and verified is None:
+                    verified = child_verified
+    if verified is None and verified_phone:
+        verified = True
+    return verified_phone, verified
+
+
 class BaseJoinParser:
     NAME_KEYS = (
+        "applicant_name",
+        "applicantname",
         "display_name",
         "profile_name",
         "member_name",
@@ -1393,6 +1601,8 @@ class BaseJoinParser:
         "name",
     )
     ID_KEYS = (
+        "member_key",
+        "memberkey",
         "request_id",
         "application_id",
         "join_request_id",
@@ -1445,6 +1655,7 @@ class BaseJoinParser:
             applicant_key = _first_string(value, self.APPLICANT_KEY_KEYS)
             application_time = _first_string(value, self.TIME_KEYS)
             application_answer = _first_string(value, self.ANSWER_KEYS)
+            verified_phone, phone_verified = _extract_phone_verification(value)
             status = _first_string(value, self.STATUS_KEYS) or "PENDING"
             if local_context and name and (
                 request_id or PHONE_ANY_RE.search(name) or len(value) >= 2
@@ -1463,6 +1674,8 @@ class BaseJoinParser:
                         applicant_key=applicant_key or request_id,
                         application_time=application_time,
                         application_answer=application_answer,
+                        verified_phone=verified_phone,
+                        phone_verified=phone_verified,
                         status=status.upper(),
                         source=source,
                     )
@@ -1537,6 +1750,10 @@ class DOMJoinParser:
             application_reply = str(
                 row.get("application_reply") or ""
             ).strip()
+            verified_phone = normalize_phone(row.get("verified_phone"))
+            phone_verified = _optional_bool(row.get("phone_verified"))
+            if phone_verified is None and verified_phone:
+                phone_verified = True
             row_fingerprint = str(row.get("fingerprint") or "").strip()
             stable_key = make_stable_key(
                 request_id=request_id or row_fingerprint,
@@ -1553,6 +1770,8 @@ class DOMJoinParser:
                     application_time=application_time,
                     application_answer=application_answer,
                     application_reply=application_reply,
+                    verified_phone=verified_phone,
+                    phone_verified=phone_verified,
                     status="PENDING",
                     source="DOM",
                 )
@@ -1974,6 +2193,9 @@ class BandJoinMonitor:
             processed_state_limit=int(config["processed_state_limit"]),
         )
         self.profile_matcher = ProfileRuleMatcher(config.get("profile_rules", {}))
+        self.phone_matcher = PhoneVerificationMatcher(
+            config.get("phone_verification_rules", {})
+        )
         self.answer_matcher = JoinAnswerMatcher(config.get("answer_rules", {}))
         self.ws_parser = WebSocketJoinParser()
         self.network_parser = NetworkJoinParser()
@@ -2212,29 +2434,43 @@ class BandJoinMonitor:
             finally:
                 self.logger.removeHandler(handler)
 
-    def _enable_cdp(self, connection: CDPConnection) -> None:
-        for method, params in (
+    def _enable_cdp(self, connection: CDPConnection) -> bool:
+        methods = [
             ("Network.enable", {"maxTotalBufferSize": 5_000_000}),
             ("Runtime.enable", {}),
-            ("Runtime.addBinding", {"name": DOM_SIGNAL_BINDING}),
             ("Page.enable", {}),
-        ):
+        ]
+        if bool(self.config.get("dom_read_enabled", True)):
+            methods.insert(
+                2,
+                ("Runtime.addBinding", {"name": DOM_SIGNAL_BINDING}),
+            )
+        for method, params in methods:
             connection.call(method, params)
         connection.call(
             "Page.addScriptToEvaluateOnNewDocument",
             {"source": WEBPACK_CAPTURE_SCRIPT},
         )
         installed_cookies = self._install_bootstrap_cookies(connection)
-        if installed_cookies:
-            target_url = str(
-                self.config.get("band_start_url", "https://www.band.us/")
-            )
+        target_url = str(
+            self.config.get("band_start_url", "https://www.band.us/")
+        )
+        current_url = str((self.tab or {}).get("url", ""))
+        navigated = installed_cookies or "/applications" not in current_url.lower()
+        if navigated:
             connection.call("Page.navigate", {"url": target_url})
             if self.tab is not None:
                 self.tab["url"] = target_url
-        self._install_dom_monitor(connection)
+        if bool(self.config.get("dom_read_enabled", True)):
+            self._install_dom_monitor(connection)
+        else:
+            self._dom_install_needed = False
+        return navigated
 
     def _install_dom_monitor(self, connection: CDPConnection) -> None:
+        if not bool(self.config.get("dom_read_enabled", True)):
+            self._dom_install_needed = False
+            return
         try:
             connection.call(
                 "Runtime.evaluate",
@@ -2276,8 +2512,11 @@ class BandJoinMonitor:
                 with self.connection_lock:
                     self.connection = connection
                     self.tab = tab
-                self._enable_cdp(connection)
-                if "/applications" in str(tab.get("url", "")).lower():
+                navigated = self._enable_cdp(connection)
+                if (
+                    not navigated
+                    and "/applications" in str(tab.get("url", "")).lower()
+                ):
                     self._reload_applications_page(
                         connection,
                         "가입 건수 감시 초기화",
@@ -2365,11 +2604,19 @@ class BandJoinMonitor:
                     )
         elif method == "Runtime.executionContextsCleared":
             self._reset_application_count_tracking()
-            self._dom_install_needed = True
-            self.set_state("FALLBACK", "페이지가 다시 로드되어 DOM 감시를 재설치합니다.")
+            if bool(self.config.get("dom_read_enabled", True)):
+                self._dom_install_needed = True
+                self.set_state(
+                    "FALLBACK",
+                    "페이지가 다시 로드되어 DOM 감시를 재설치합니다.",
+                )
         elif method == "Page.loadEventFired":
-            self._dom_install_needed = True
-            self.set_state("FALLBACK", "페이지가 다시 로드되어 DOM 감시를 재설치합니다.")
+            if bool(self.config.get("dom_read_enabled", True)):
+                self._dom_install_needed = True
+                self.set_state(
+                    "FALLBACK",
+                    "페이지가 다시 로드되어 DOM 감시를 재설치합니다.",
+                )
         elif method in {"Inspector.detached", "Target.detachedFromTarget"}:
             raise ConnectionError("Chrome 탭 연결이 분리되었습니다.")
 
@@ -2482,7 +2729,23 @@ class BandJoinMonitor:
                     "body": body,
                 },
             )
-        self._accept_requests(self.network_parser.parse(body, url))
+        response_path = urllib.parse.urlsplit(url).path.lower()
+        if (
+            not bool(self.config.get("dom_read_enabled", True))
+            and "/get_application_of_band" not in response_path
+        ):
+            return
+        requests = self.network_parser.parse(body, url)
+        if "/get_application_of_band" in response_path:
+            for request in requests:
+                request.source = "BAND_API"
+                request.stable_key = make_stable_key(
+                    request_id=request.request_id or request.applicant_key,
+                    display_name=request.display_name,
+                    application_time=request.application_time,
+                    source=request.source,
+                )
+        self._accept_requests(requests)
 
     def _handle_application_count_response(
         self,
@@ -2534,18 +2797,65 @@ class BandJoinMonitor:
               resolve({{ok: false, reason: "webpack-require-missing"}});
               return;
             }}
-            const api = require(637);
-            let commentApi = null;
-            try {{
-              commentApi = require(1228);
-            }} catch (_error) {{
-              commentApi = null;
+            const findApiOwner = (methodName) => {{
+              for (const moduleId of Object.keys(require.m || {{}})) {{
+                try {{
+                  const module = require(moduleId);
+                  for (const owner of [module, module && module.default]) {{
+                    if (owner && typeof owner[methodName] === "function") {{
+                      return owner;
+                    }}
+                  }}
+                }} catch (_error) {{}}
+              }}
+              return null;
+            }};
+            const api = findApiOwner("getApplicationOfBand");
+            const commentOwner = findApiOwner("getApplicantComments");
+            if (!api) {{
+              resolve({{ok: false, reason: "application-api-missing"}});
+              return;
             }}
             const clean = (value) => String(value == null ? "" : value).trim();
+            const readPhoneVerification = (root) => {{
+              let verifiedPhone = "";
+              let phoneVerified = null;
+              const asBool = (value) => {{
+                if (typeof value === "boolean") return value;
+                if (value === 1 || value === "1") return true;
+                if (value === 0 || value === "0") return false;
+                const text = clean(value).toLowerCase();
+                if (["true", "yes", "verified", "authenticated", "certified"].includes(text)) return true;
+                if (["false", "no", "unverified", "not_verified"].includes(text)) return false;
+                return null;
+              }};
+              const asPhone = (value) => {{
+                let digits = clean(value).replace(/\\D/g, "");
+                if (digits.startsWith("82") && digits.length === 12) digits = `0${{digits.slice(2)}}`;
+                return /^010\\d{{8}}$/.test(digits) ? digits : "";
+              }};
+              const visit = (node, depth = 0) => {{
+                if (!node || typeof node !== "object" || depth > 3) return;
+                for (const [rawKey, value] of Object.entries(node).slice(0, 80)) {{
+                  const key = String(rawKey).toLowerCase().replace(/[^a-z0-9]/g, "");
+                  const mentionsPhone = /(phone|mobile|cell|tel|contact)/.test(key);
+                  const mentionsVerification = /(verify|verified|auth|cert|confirm)/.test(key);
+                  if (mentionsPhone && (typeof value === "string" || typeof value === "number")) {{
+                    const phone = asPhone(value);
+                    if (phone && !verifiedPhone) verifiedPhone = phone;
+                  }}
+                  if (mentionsPhone && mentionsVerification) {{
+                    const flag = asBool(value);
+                    if (flag !== null) phoneVerified = flag;
+                  }}
+                  if (value && typeof value === "object") visit(value, depth + 1);
+                }}
+              }};
+              visit(root);
+              if (phoneVerified === null && verifiedPhone) phoneVerified = true;
+              return {{verifiedPhone, phoneVerified}};
+            }};
             const latestApplicantReply = async (item, applicantKey) => {{
-              const commentOwner = commentApi && commentApi.getApplicantComments
-                ? commentApi
-                : commentApi && commentApi.default;
               const getComments = commentOwner &&
                 commentOwner.getApplicantComments;
               if (
@@ -2558,8 +2868,10 @@ class BandJoinMonitor:
               try {{
                 value = await getComments.call(
                   commentOwner,
-                  {json.dumps(band_no)},
-                  applicantKey
+                  {{
+                    band_no: {json.dumps(band_no)},
+                    applicant_key: applicantKey
+                  }}
                 );
               }} catch (_error) {{
                 return "";
@@ -2650,6 +2962,7 @@ class BandJoinMonitor:
                     ? value.items
                     : [];
                   const rows = await Promise.all(items.map(async (item) => {{
+                    const phoneInfo = readPhoneVerification(item);
                     const memberKey = clean(
                       item.member_key || item.memberKey || ""
                     );
@@ -2680,6 +2993,8 @@ class BandJoinMonitor:
                         item,
                         applicantKey || memberKey
                       ),
+                      verified_phone: phoneInfo.verifiedPhone,
+                      phone_verified: phoneInfo.phoneVerified,
                       fingerprint: memberKey || applicantKey,
                       text: displayName
                     }};
@@ -2708,6 +3023,171 @@ class BandJoinMonitor:
             resolve({{ok: false, reason: String(error)}});
           }}
         }})
+        """
+        # Keep the returned promise directly owned by CDP. The callback-style
+        # wrapper above can be garbage-collected while BAND requests are pending.
+        script = f"""
+        (async () => {{
+          try {{
+            const require = window.__bandWebpackRequire;
+            if (typeof require !== "function") {{
+              return {{ok: false, reason: "webpack-require-missing"}};
+            }}
+            const findApiOwner = (methodName) => {{
+              for (const moduleId of Object.keys(require.m || {{}})) {{
+                try {{
+                  const module = require(moduleId);
+                  for (const owner of [module, module && module.default]) {{
+                    if (owner && typeof owner[methodName] === "function") {{
+                      return owner;
+                    }}
+                  }}
+                }} catch (_error) {{}}
+              }}
+              return null;
+            }};
+            const applicationApi = findApiOwner("getApplicationOfBand");
+            const commentApi = findApiOwner("getApplicantComments");
+            if (!applicationApi) {{
+              return {{ok: false, reason: "application-api-missing"}};
+            }}
+            const clean = (value) => String(value == null ? "" : value).trim();
+            const readPhoneVerification = (root) => {{
+              let verifiedPhone = "";
+              let phoneVerified = null;
+              const asBool = (value) => {{
+                if (typeof value === "boolean") return value;
+                if (value === 1 || value === "1") return true;
+                if (value === 0 || value === "0") return false;
+                const text = clean(value).toLowerCase();
+                if (["true", "yes", "verified", "authenticated", "certified"].includes(text)) return true;
+                if (["false", "no", "unverified", "not_verified"].includes(text)) return false;
+                return null;
+              }};
+              const asPhone = (value) => {{
+                let digits = clean(value).replace(/\\D/g, "");
+                if (digits.startsWith("82") && digits.length === 12) digits = `0${{digits.slice(2)}}`;
+                return /^010\\d{{8}}$/.test(digits) ? digits : "";
+              }};
+              const visit = (node, depth = 0) => {{
+                if (!node || typeof node !== "object" || depth > 3) return;
+                for (const [rawKey, value] of Object.entries(node).slice(0, 80)) {{
+                  const key = String(rawKey).toLowerCase().replace(/[^a-z0-9]/g, "");
+                  const mentionsPhone = /(phone|mobile|cell|tel|contact)/.test(key);
+                  const mentionsVerification = /(verify|verified|auth|cert|confirm)/.test(key);
+                  if (mentionsPhone && (typeof value === "string" || typeof value === "number")) {{
+                    const phone = asPhone(value);
+                    if (phone && !verifiedPhone) verifiedPhone = phone;
+                  }}
+                  if (mentionsPhone && mentionsVerification) {{
+                    const flag = asBool(value);
+                    if (flag !== null) phoneVerified = flag;
+                  }}
+                  if (value && typeof value === "object") visit(value, depth + 1);
+                }}
+              }};
+              visit(root);
+              if (phoneVerified === null && verifiedPhone) phoneVerified = true;
+              return {{verifiedPhone, phoneVerified}};
+            }};
+            const latestReply = (value, applicantKey) => {{
+              const candidates = [];
+              const visit = (node, depth = 0) => {{
+                if (!node || depth > 6) return;
+                if (Array.isArray(node)) {{
+                  node.forEach((child) => visit(child, depth + 1));
+                  return;
+                }}
+                if (typeof node !== "object") return;
+                const body = clean(
+                  node.body || node.comment_body || node.commentBody ||
+                  node.content || node.text || node.message || ""
+                );
+                const writer = node.writer || node.author || node.member || {{}};
+                const writerKey = clean(
+                  node.writer_member_key || node.writerMemberKey ||
+                  node.member_key || node.memberKey || node.user_key ||
+                  node.userKey || writer.member_key || writer.memberKey ||
+                  writer.user_key || writer.userKey || ""
+                );
+                const authorType = clean(
+                  node.author_type || node.authorType || node.writer_type ||
+                  node.writerType || node.commenter_type || ""
+                ).toLowerCase();
+                const fromApplicant =
+                  node.is_applicant === true || node.isApplicant === true ||
+                  node.is_mine === false || node.isMine === false ||
+                  authorType.includes("applicant") ||
+                  Boolean(writerKey && writerKey === applicantKey);
+                if (body && fromApplicant) {{
+                  const order = Number(
+                    node.created_at || node.createdAt || node.updated_at ||
+                    node.updatedAt || node.comment_no || node.commentNo ||
+                    candidates.length
+                  );
+                  candidates.push({{
+                    body,
+                    order: Number.isFinite(order) ? order : candidates.length
+                  }});
+                }}
+                Object.values(node).forEach((child) => {{
+                  if (child && typeof child === "object") {{
+                    visit(child, depth + 1);
+                  }}
+                }});
+              }};
+              visit(value);
+              candidates.sort((left, right) => left.order - right.order);
+              return candidates.length ? candidates[candidates.length - 1].body : "";
+            }};
+            const value = await applicationApi.getApplicationOfBand(
+              {json.dumps(band_no)}
+            );
+            const items = value && Array.isArray(value.items) ? value.items : [];
+            const rows = [];
+            for (const item of items) {{
+              const phoneInfo = readPhoneVerification(item);
+              const memberKey = clean(item.member_key || item.memberKey || "");
+              const applicantKey = clean(
+                item.applicant_key || item.applicantKey || memberKey
+              );
+              let comments = null;
+              if (commentApi && applicantKey) {{
+                try {{
+                  comments = await Promise.race([
+                    commentApi.getApplicantComments({{
+                      band_no: {json.dumps(band_no)},
+                      applicant_key: applicantKey
+                    }}),
+                    new Promise((resolve) => setTimeout(() => resolve(null), 2000))
+                  ]);
+                }} catch (_error) {{
+                  comments = null;
+                }}
+              }}
+              const displayName = clean(
+                item.applicant_name || item.applicantName ||
+                item.profile_name || item.profileName || item.name || ""
+              );
+              if (!displayName || !memberKey) continue;
+              rows.push({{
+                display_name: displayName,
+                request_id: memberKey,
+                applicant_key: applicantKey || memberKey,
+                application_time: clean(item.created_at || item.createdAt || ""),
+                application_answer: clean(item.join_answer || item.joinAnswer || ""),
+                application_reply: latestReply(comments, applicantKey || memberKey),
+                verified_phone: phoneInfo.verifiedPhone,
+                phone_verified: phoneInfo.phoneVerified,
+                fingerprint: memberKey,
+                text: displayName
+              }});
+            }}
+            return {{ok: true, rows}};
+          }} catch (error) {{
+            return {{ok: false, reason: String(error)}};
+          }}
+        }})()
         """
         try:
             result = connection.call(
@@ -2819,7 +3299,18 @@ class BandJoinMonitor:
         if now - self._last_session_check < 5:
             return
         self._last_session_check = now
-        script = r"""
+        if not bool(self.config.get("dom_read_enabled", True)):
+            script = r"""
+            (() => ({
+              url: String(location.href || ""),
+              login_required: Boolean(
+                /\/login(?:[/?#]|$)/i.test(location.pathname) ||
+                /(^|\.)auth\.band\.us$/i.test(location.hostname)
+              )
+            }))()
+            """
+        else:
+            script = r"""
         (() => {
           const clean = (value) => String(value || "").replace(/\s+/g, " ").trim();
           const loginControl = Array.from(
@@ -2863,8 +3354,46 @@ class BandJoinMonitor:
     def _periodic_dom_tasks(self, connection: CDPConnection) -> None:
         now = time.monotonic()
         self._periodic_session_check(connection, now)
+        tab_url = str((self.tab or {}).get("url", ""))
+        if (
+            self.state != "LOGIN_REQUIRED"
+            and "/applications" not in tab_url.lower()
+        ):
+            target_url = str(
+                self.config.get("band_start_url", "https://www.band.us/")
+            )
+            try:
+                self._reset_application_count_tracking()
+                connection.call("Page.navigate", {"url": target_url})
+                if self.tab is not None:
+                    self.tab["url"] = target_url
+                self._last_safety_refresh = now
+                self.logger.info(
+                    "Dedicated BAND tab returned to applications page (from=%s)",
+                    safe_for_log(tab_url, 160),
+                )
+            except Exception as exc:
+                self.logger.warning(
+                    "Failed to return dedicated BAND tab: %s",
+                    safe_for_log(exc),
+                )
+            return
         self._periodic_application_count_poll(connection, now)
         self._periodic_follow_up_scan(connection, now)
+        if not bool(self.config.get("dom_read_enabled", True)):
+            safety_interval = max(
+                0.0,
+                float(self.config["applications_safety_refresh_seconds"]),
+            )
+            if (
+                safety_interval > 0
+                and now - self._last_safety_refresh >= safety_interval
+            ):
+                self._last_safety_refresh = now
+                self._reload_applications_page(
+                    connection, "API 누락 방지 주기 확인"
+                )
+            return
         if self._dom_install_needed:
             self._install_dom_monitor(connection)
         event_interval = max(0.05, float(self.config["dom_event_poll_seconds"]))
@@ -2935,7 +3464,9 @@ class BandJoinMonitor:
         try:
             self._reset_application_count_tracking()
             connection.call("Page.reload", {"ignoreCache": False})
-            self._dom_install_needed = True
+            self._dom_install_needed = bool(
+                self.config.get("dom_read_enabled", True)
+            )
             self._last_safety_refresh = time.monotonic()
             self.logger.info("가입 신청 페이지 재확인: %s", safe_for_log(reason))
             return True
@@ -2993,11 +3524,28 @@ class BandJoinMonitor:
             answer = original_answer
             if not original_answer.eligible and stored.application_reply:
                 answer = self.answer_matcher.match(stored.application_reply)
+            phone_verification = self.phone_matcher.match(profile, stored)
 
-            stored.eligible = profile.eligible and answer.eligible
+            stored.eligible = (
+                profile.eligible
+                and answer.eligible
+                and phone_verification.eligible
+            )
+            stored.auto_rejectable = (
+                not stored.eligible
+                and (
+                    not profile.eligible
+                    or not answer.eligible
+                    or phone_verification.definitive
+                )
+            )
             stored.eligibility_reason = "; ".join(
                 reason
-                for reason in (profile.reason, answer.reason)
+                for reason in (
+                    profile.reason,
+                    answer.reason,
+                    phone_verification.reason,
+                )
                 if reason
             )
             follow_up_status = self.registry.follow_up_status(
@@ -3005,6 +3553,8 @@ class BandJoinMonitor:
             )
             if stored.eligible:
                 stored.status = "ELIGIBLE"
+            elif not phone_verification.definitive and not stored.auto_rejectable:
+                stored.status = "VERIFICATION_PENDING"
             elif follow_up_status == "SENT":
                 stored.status = "AWAITING_CORRECTION"
             elif follow_up_status == "SENDING":
@@ -3025,7 +3575,13 @@ class BandJoinMonitor:
             elif not stored.eligible and self._follow_up_enabled():
                 if not follow_up_status:
                     self._enqueue_follow_up(stored)
-            elif not stored.eligible and bool(self.config["auto_reject_enabled"]):
+                elif follow_up_status == "SENT" and stored.application_reply:
+                    self._enqueue_feedback(stored)
+            elif (
+                not stored.eligible
+                and stored.auto_rejectable
+                and bool(self.config["auto_reject_enabled"])
+            ):
                 self.auto_queue.put(("reject", stored.stable_key))
 
     def _follow_up_enabled(self) -> bool:
@@ -3042,11 +3598,14 @@ class BandJoinMonitor:
         answer = original_answer
         if not original_answer.eligible and request.application_reply:
             answer = self.answer_matcher.match(request.application_reply)
+        phone_verification = self.phone_matcher.match(profile, request)
         codes: list[str] = []
         if not profile.eligible:
             codes.append("profile")
         if not answer.eligible:
             codes.append("answer")
+        if not phone_verification.eligible:
+            codes.append("phone_verification")
         settings = self.config.get("follow_up_question", {})
         if not isinstance(settings, Mapping):
             return codes, ""
@@ -3067,6 +3626,44 @@ class BandJoinMonitor:
                 return
             self._follow_up_enqueued.add(identity)
         self.auto_queue.put(("question", request.stable_key))
+
+    def _feedback_message(
+        self, request: BandJoinRequest
+    ) -> tuple[list[str], str]:
+        reason_codes, _message = self._follow_up_reason_codes(request)
+        settings = self.config.get("follow_up_question", {})
+        if not isinstance(settings, Mapping):
+            return reason_codes, ""
+        if reason_codes == ["profile"]:
+            key = "feedback_profile_message"
+        elif reason_codes == ["answer"]:
+            key = "feedback_answer_message"
+        else:
+            key = "feedback_profile_and_answer_message"
+        return reason_codes, str(settings.get(key, "")).strip()
+
+    def _enqueue_feedback(self, request: BandJoinRequest) -> None:
+        settings = self.config.get("follow_up_question", {})
+        maximum = (
+            int(settings.get("max_feedback_messages", 2))
+            if isinstance(settings, Mapping)
+            else 2
+        )
+        if maximum <= 0:
+            return
+        parent_identity = request.follow_up_identity
+        if self.registry.feedback_count(parent_identity) >= maximum:
+            return
+        identity = request.feedback_identity
+        if self.registry.follow_up_status(identity):
+            return
+        with self._follow_up_queue_lock:
+            if identity in self._follow_up_enqueued:
+                return
+            if time.monotonic() < self._follow_up_retry_after.get(identity, 0.0):
+                return
+            self._follow_up_enqueued.add(identity)
+        self.auto_queue.put(("feedback", request.stable_key))
 
     def _print_new_request(self, request: BandJoinRequest) -> None:
         time_text = request.application_time or request.first_seen
@@ -3144,16 +3741,25 @@ class BandJoinMonitor:
                 None,
             )
             if request:
-                if action == "question":
-                    identity = request.follow_up_identity
+                if action in {"question", "feedback"}:
+                    identity = (
+                        request.follow_up_identity
+                        if action == "question"
+                        else request.feedback_identity
+                    )
                     try:
                         try:
-                            success, message = self.send_follow_up_question(
-                                request
-                            )
+                            if action == "question":
+                                success, message = self.send_follow_up_question(
+                                    request
+                                )
+                            else:
+                                success, message = self.send_correction_feedback(
+                                    request
+                                )
                         except Exception as exc:
                             success = False
-                            message = f"추가 질문 처리 오류: {exc}"
+                            message = f"추가 안내 처리 오류: {exc}"
                         if (
                             not success
                             and not self.registry.follow_up_status(identity)
@@ -3190,11 +3796,35 @@ class BandJoinMonitor:
                     safe_for_log(message),
                 )
 
-    def send_follow_up_question(
+    def send_correction_feedback(
         self,
         request: BandJoinRequest,
     ) -> tuple[bool, str]:
+        reason_codes, message = self._feedback_message(request)
+        if not reason_codes:
+            return True, "추가 답변으로 가입 조건이 충족되어 재안내하지 않았습니다."
+        if not request.application_reply:
+            return False, "재안내할 추가 답변이 없습니다."
+        return self.send_follow_up_question(
+            request,
+            delivery_identity=request.feedback_identity,
+            message_override=message,
+            kind="feedback",
+            parent_identity=request.follow_up_identity,
+        )
+
+    def send_follow_up_question(
+        self,
+        request: BandJoinRequest,
+        *,
+        delivery_identity: str = "",
+        message_override: str = "",
+        kind: str = "initial",
+        parent_identity: str = "",
+    ) -> tuple[bool, str]:
         reason_codes, message = self._follow_up_reason_codes(request)
+        if message_override:
+            message = message_override
         if not reason_codes:
             return True, "신청 조건이 이미 충족되어 추가 질문을 보내지 않았습니다."
         if not message:
@@ -3206,6 +3836,8 @@ class BandJoinMonitor:
             return False, "추가 질문 전송에 필요한 밴드 식별자가 없습니다."
 
         if not applicant_key or "BAND_API" not in request.source.split("+"):
+            if kind == "feedback":
+                return False, "추가 답변 재안내에는 BAND API 식별자가 필요합니다."
             return self._send_follow_up_question_dom(
                 request,
                 reason_codes,
@@ -3224,10 +3856,22 @@ class BandJoinMonitor:
             if (typeof require !== "function") {
               return {ok: false, reason: "webpack-require-missing"};
             }
-            const api = require(1228);
-            const owner = api && api.createApplicantComment
-              ? api
-              : api && api.default;
+            let owner = null;
+            for (const moduleId of Object.keys(require.m || {})) {
+              try {
+                const module = require(moduleId);
+                for (const candidate of [module, module && module.default]) {
+                  if (
+                    candidate &&
+                    typeof candidate.createApplicantComment === "function"
+                  ) {
+                    owner = candidate;
+                    break;
+                  }
+                }
+              } catch (_error) {}
+              if (owner) break;
+            }
             const fn = owner && owner.createApplicantComment;
             return {
               ok: typeof fn === "function",
@@ -3253,18 +3897,22 @@ class BandJoinMonitor:
         except Exception as exc:
             return False, f"추가 질문 API 준비 확인 실패: {exc}"
         if not isinstance(preflight, Mapping) or not preflight.get("ok"):
+            if kind == "feedback":
+                return False, "추가 답변 재안내 API를 준비하지 못했습니다."
             return self._send_follow_up_question_dom(
                 request,
                 reason_codes,
                 message,
             )
 
-        identity = request.follow_up_identity
+        identity = delivery_identity or request.follow_up_identity
         if not self.registry.begin_follow_up(
             identity,
             stable_key=request.stable_key,
             reason_codes=reason_codes,
             message=message,
+            kind=kind,
+            parent_identity=parent_identity,
         ):
             status = self.registry.follow_up_status(identity) or "기록됨"
             return False, f"동일 신청에 추가 질문 발송 기록이 있습니다: {status}"
@@ -3278,10 +3926,22 @@ class BandJoinMonitor:
               resolve({{ok: false, reason: "webpack-require-missing"}});
               return;
             }}
-            const api = require(1228);
-            const owner = api && api.createApplicantComment
-              ? api
-              : api && api.default;
+            let owner = null;
+            for (const moduleId of Object.keys(require.m || {{}})) {{
+              try {{
+                const module = require(moduleId);
+                for (const candidate of [module, module && module.default]) {{
+                  if (
+                    candidate &&
+                    typeof candidate.createApplicantComment === "function"
+                  ) {{
+                    owner = candidate;
+                    break;
+                  }}
+                }}
+              }} catch (_error) {{}}
+              if (owner) break;
+            }}
             const fn = owner && owner.createApplicantComment;
             if (typeof fn !== "function") {{
               resolve({{
@@ -3330,6 +3990,8 @@ class BandJoinMonitor:
         if isinstance(value, Mapping) and value.get("ok"):
             self.registry.finish_follow_up(identity, "SENT")
             self.registry.set_status(request.stable_key, "AWAITING_CORRECTION")
+            if kind == "feedback":
+                return True, "현재 미충족 사유를 추가 답변에 1회 안내했습니다."
             return True, "추가 질문을 1회 전송하고 수정 대기 상태로 전환했습니다."
 
         reason = value.get("reason", "") if isinstance(value, Mapping) else ""
@@ -3521,7 +4183,26 @@ class BandJoinMonitor:
               resolve({{ok: false, reason: "webpack-require-missing"}});
               return;
             }}
-            const api = require(637);
+            let api = null;
+            for (const moduleId of Object.keys(require.m || {{}})) {{
+              try {{
+                const module = require(moduleId);
+                for (const owner of [module, module && module.default]) {{
+                  if (
+                    owner &&
+                    typeof owner[{json.dumps(function_name)}] === "function"
+                  ) {{
+                    api = owner;
+                    break;
+                  }}
+                }}
+              }} catch (_error) {{}}
+              if (api) break;
+            }}
+            if (!api) {{
+              resolve({{ok: false, reason: "application-action-api-missing"}});
+              return;
+            }}
             api[{json.dumps(function_name)}](
               {json.dumps(band_no)},
               {json.dumps(member_key)}
@@ -3636,14 +4317,21 @@ class BandJoinMonitor:
             isinstance(follow_up, Mapping)
             and bool(follow_up.get("enabled", False))
         )
+        phone_rules = self.config.get("phone_verification_rules", {})
+        phone_verification_enabled = (
+            isinstance(phone_rules, Mapping)
+            and bool(phone_rules.get("enabled", False))
+        )
         return (
             f"상태={self.state}, 상세={self.state_detail}, "
             f"포트={self.config['chrome_port']}, 탭={tab_url or '-'}, "
             f"진단={'ON' if self.config['diagnostic_mode'] else 'OFF'}, "
             f"알림감지={'ON' if self.config['notification_trigger_enabled'] else 'OFF'}, "
+            f"DOM읽기={'ON' if self.config.get('dom_read_enabled', True) else 'OFF'}, "
             f"DOM동작={'ON' if self.config['dom_action_enabled'] else 'OFF'}, "
             f"자동승인={'ON' if self.config['auto_approve_enabled'] else 'OFF'}, "
             f"자동거절={'ON' if self.config['auto_reject_enabled'] else 'OFF'}, "
+            f"번호대조={'ON' if phone_verification_enabled else 'OFF'}, "
             f"추가질문={'ON' if follow_up_enabled else 'OFF'}"
         )
 

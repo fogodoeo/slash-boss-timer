@@ -7,12 +7,13 @@
   "band_start_url": "https://www.band.us/band/101992972/applications",
   "monitor_enabled": true,
   "notification_enabled": true,
-  "notification_trigger_enabled": true,
+  "notification_trigger_enabled": false,
   "notification_refresh_cooldown_seconds": 2,
   "application_count_poll_seconds": 0.5,
   "applications_safety_refresh_seconds": 60,
   "auto_approve_enabled": true,
-  "auto_reject_enabled": false,
+  "auto_reject_enabled": true,
+  "dom_read_enabled": false,
   "dom_action_enabled": true,
   "poll_fallback_seconds": 3,
   "dom_event_poll_seconds": 0.1,
@@ -34,8 +35,14 @@
     "phone_digits": 11,
     "ignore_region_words": true
   },
+  "phone_verification_rules": {
+    "enabled": true,
+    "require_verified": true,
+    "require_number_match": true
+  },
   "answer_rules": {
-    "required": true,
+    "enabled": false,
+    "required": false,
     "allowed_codes": [
       "R",
       "G",
@@ -45,7 +52,7 @@
     "case_insensitive": true
   },
   "follow_up_question": {
-    "enabled": true,
+    "enabled": false,
     "recheck_seconds": 2,
     "prepare_retry_seconds": 10,
     "profile_message": "프로필명을 '한글이름 010전화번호' 형식으로 수정해 주세요. 예: 김상정 01049278600\n수정 후 '수정완료'라고 답변해 주세요.",

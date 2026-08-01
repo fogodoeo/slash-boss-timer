@@ -122,8 +122,18 @@ class SyncedBandJoinMonitor(BaseBandJoinMonitor):
             )
             return True, f"{message} 회원 명단에는 전화번호를 확인하지 못해 등록하지 못했습니다."
 
+        phone_verification = self.phone_matcher.match(profile, request)
+        if not phone_verification.eligible or not phone_verification.phone:
+            self.logger.error(
+                "BAND 승인 후 회원 명단 동기화 생략: 인증 전화번호 불일치 또는 확인 대기"
+            )
+            return True, (
+                f"{message} 인증 전화번호를 확인하지 못해 회원 명단에는 "
+                "등록하지 않았습니다."
+            )
+
         synced, detail = self.member_directory.upsert(
-            phone=profile.phone,
+            phone=phone_verification.phone,
             display_name=profile.name,
             member_key=request.applicant_key or request.request_id,
         )

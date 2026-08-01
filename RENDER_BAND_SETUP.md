@@ -49,6 +49,10 @@ python3 render_start.py
 BAND_MONITOR_ENABLED=true
 BAND_CHROME_HEADLESS=true
 BAND_START_URL=https://www.band.us/band/101992972/applications
+BAND_MEMBER_SYNC_ENABLED=true
+SUPABASE_URL=<CREWARTS와 같은 Supabase 프로젝트 URL>
+SUPABASE_SERVICE_ROLE_KEY=<Render Secret>
+BAND_MEMBER_TABLE=band_members
 NODE_OPTIONS=--max-old-space-size=160
 ```
 
@@ -65,6 +69,19 @@ Chrome 프로필 경로도 그 아래로 지정한다.
 첫 배포부터 `BAND_MONITOR_ENABLED=true`로 실행한다. BAND 세션이 아직 없다면
 기존 웹서비스는 정상 실행되고 `/health`의 `bandMonitor.state`만
 `LOGIN_REQUIRED`로 표시된다.
+
+## 가입 조건과 전화번호 대조
+
+BAND 앱에서 아래 두 설정을 모두 켠다.
+
+1. `밴드 설정 > 멤버 가입 관리 > 가입 조건 설정 > 휴대폰 번호 인증`
+2. `가입 승인 설정 > 휴대폰 번호 공개 요청`
+
+승인 모니터는 신청자의 공개된 인증 전화번호와 `이름 / 전화번호` 형식의
+프로필 전화번호를 숫자로 정규화해 비교한다. 두 번호가 일치할 때만 승인하고
+Supabase `band_members` 명단에 등록한다. 명시적인 불일치는 반려하며, BAND가
+인증 전화번호 정보를 아직 전달하지 않은 경우에는 오반려하지 않고
+`VERIFICATION_PENDING` 상태로 대기한다.
 
 ## BAND 로그인 세션
 

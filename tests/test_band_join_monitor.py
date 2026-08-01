@@ -23,6 +23,7 @@ from band_join_monitor import (
     JoinAnswerMatcher,
     JoinActionAdapter,
     NetworkJoinParser,
+    PhoneVerificationMatcher,
     ProfileRuleMatcher,
     ReconnectPolicy,
     WebSocketJoinParser,
@@ -90,7 +91,79 @@ class ProfileRuleMatcherTests(unittest.TestCase):
                 self.assertFalse(self.matcher.match(example).eligible)
 
 
+class PhoneVerificationMatcherTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.profile_matcher = ProfileRuleMatcher(DEFAULT_CONFIG["profile_rules"])
+        self.matcher = PhoneVerificationMatcher(
+            {
+                "enabled": True,
+                "require_verified": True,
+                "require_number_match": True,
+            }
+        )
+        self.profile = self.profile_matcher.match("김상정 01040288600")
+
+    def request(
+        self,
+        *,
+        verified_phone: str = "",
+        phone_verified: bool | None = None,
+    ) -> BandJoinRequest:
+        return BandJoinRequest(
+            "v" * 64,
+            "김상정 01040288600",
+            verified_phone=verified_phone,
+            phone_verified=phone_verified,
+        )
+
+    def test_accepts_only_matching_verified_phone(self) -> None:
+        result = self.matcher.match(
+            self.profile,
+            self.request(
+                verified_phone="01040288600",
+                phone_verified=True,
+            ),
+        )
+        self.assertTrue(result.eligible)
+        self.assertTrue(result.definitive)
+        self.assertEqual(result.phone, "01040288600")
+
+    def test_mismatch_is_definitively_rejected(self) -> None:
+        result = self.matcher.match(
+            self.profile,
+            self.request(
+                verified_phone="01099998888",
+                phone_verified=True,
+            ),
+        )
+        self.assertFalse(result.eligible)
+        self.assertTrue(result.definitive)
+        self.assertIn("불일치", result.reason)
+
+    def test_missing_public_number_waits_instead_of_rejecting(self) -> None:
+        result = self.matcher.match(
+            self.profile,
+            self.request(phone_verified=True),
+        )
+        self.assertFalse(result.eligible)
+        self.assertFalse(result.definitive)
+        self.assertIn("공개", result.reason)
+
+
 class JoinAnswerMatcherTests(unittest.TestCase):
+    def test_join_answer_can_be_ignored_entirely(self) -> None:
+        matcher = JoinAnswerMatcher(
+            {
+                "enabled": False,
+                "required": False,
+                "allowed_codes": ["R", "G", "B", "Y"],
+                "case_insensitive": True,
+            }
+        )
+
+        self.assertTrue(matcher.match("").eligible)
+        self.assertTrue(matcher.match("anything").eligible)
+
     def setUp(self) -> None:
         self.matcher = JoinAnswerMatcher(
             {
@@ -141,6 +214,36 @@ class ParserTests(unittest.TestCase):
         self.assertEqual(len(requests), 1)
         self.assertEqual(requests[0].request_id, "fixture-request-002")
 
+    def test_live_band_application_response_uses_member_key(self) -> None:
+        body = json.dumps(
+            {
+                "result_code": 1,
+                "result_data": {
+                    "items": [
+                        {
+                            "applicant_name": "김상정 01040288600",
+                            "member_key": "member-live-1",
+                            "created_at": 1000,
+                            "join_answer": "G",
+                            "phone_number": "010-4028-8600",
+                            "is_phone_number_verified": True,
+                        }
+                    ]
+                },
+            },
+            ensure_ascii=False,
+        )
+        requests = NetworkJoinParser().parse(
+            body,
+            "https://api-kr.band.us/v2.0.1/get_application_of_band",
+        )
+        self.assertEqual(len(requests), 1)
+        self.assertEqual(requests[0].request_id, "member-live-1")
+        self.assertEqual(requests[0].applicant_key, "member-live-1")
+        self.assertEqual(requests[0].application_answer, "G")
+        self.assertEqual(requests[0].verified_phone, "01040288600")
+        self.assertTrue(requests[0].phone_verified)
+
     def test_malformed_json_is_ignored(self) -> None:
         self.assertEqual(WebSocketJoinParser().parse("{broken"), [])
         self.assertEqual(NetworkJoinParser().parse("{broken", "https://band.us"), [])
@@ -152,12 +255,16 @@ class ParserTests(unittest.TestCase):
                 "request_id": "dom-1",
                 "application_time": "10:00",
                 "application_answer": "R",
+                "verified_phone": "01040288600",
+                "phone_verified": True,
             }
         ]
         requests = DOMJoinParser().parse_rows(rows)
         self.assertEqual(len(requests), 1)
         self.assertEqual(requests[0].source, "DOM")
         self.assertEqual(requests[0].application_answer, "R")
+        self.assertEqual(requests[0].verified_phone, "01040288600")
+        self.assertTrue(requests[0].phone_verified)
 
     def test_live_band_dom_selectors_are_supported(self) -> None:
         self.assertIn("._newsCountLabel", DOM_MONITOR_SCRIPT)
@@ -392,6 +499,88 @@ class ChromeSelectionTests(unittest.TestCase):
         selected = BandTabFinder.choose_tab(tabs)
         self.assertIsNotNone(selected)
         self.assertEqual(selected["webSocketDebuggerUrl"], "ws://two")
+
+    def test_applications_tab_wins_over_join_qna_tab(self) -> None:
+        tabs = [
+            {
+                "type": "page",
+                "title": "가입 질문과 답변",
+                "url": "https://www.band.us/band/123/applicant/key/join-qna",
+                "webSocketDebuggerUrl": "ws://qna",
+            },
+            {
+                "type": "page",
+                "title": "가입 신청자",
+                "url": "https://www.band.us/band/123/applications",
+                "webSocketDebuggerUrl": "ws://applications",
+            },
+        ]
+        selected = BandTabFinder.choose_tab(tabs)
+        self.assertIsNotNone(selected)
+        self.assertEqual(
+            selected["webSocketDebuggerUrl"],
+            "ws://applications",
+        )
+
+    def test_api_only_mode_does_not_install_dom_monitor(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            config = json.loads(json.dumps(DEFAULT_CONFIG))
+            config["log_file"] = str(Path(temp_dir) / "monitor.log")
+            config["state_file"] = str(Path(temp_dir) / "state.json")
+            config["diagnostic_file"] = str(Path(temp_dir) / "diagnostic.jsonl")
+            config["dom_read_enabled"] = False
+            monitor = BandJoinMonitor(config, Path(temp_dir))
+            connection = _CookieConnection()
+            monitor._enable_cdp(connection)  # type: ignore[arg-type]
+            methods = [method for method, _params in connection.calls]
+            self.assertNotIn("Runtime.addBinding", methods)
+            evaluated = [
+                params.get("expression", "")
+                for method, params in connection.calls
+                if method == "Runtime.evaluate"
+            ]
+            self.assertFalse(
+                any("MutationObserver" in expression for expression in evaluated)
+            )
+            monitor.stop()
+
+    def test_api_only_mode_ignores_applicant_comment_as_join_request(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            config = json.loads(json.dumps(DEFAULT_CONFIG))
+            config["log_file"] = str(Path(temp_dir) / "monitor.log")
+            config["state_file"] = str(Path(temp_dir) / "state.json")
+            config["diagnostic_file"] = str(Path(temp_dir) / "diagnostic.jsonl")
+            config["dom_read_enabled"] = False
+            monitor = BandJoinMonitor(config, Path(temp_dir))
+            monitor._response_meta["comment-1"] = {
+                "url": "https://api-kr.band.us/v2.3.0/get_applicant_comments",
+                "status": 200,
+                "mime_type": "application/json",
+            }
+            connection = _FakeConnection(
+                {
+                    "body": json.dumps(
+                        {
+                            "result_data": {
+                                "items": [
+                                    {
+                                        "name": "김기미",
+                                        "member_key": "comment-author",
+                                        "body": "g",
+                                    }
+                                ]
+                            }
+                        },
+                        ensure_ascii=False,
+                    )
+                }
+            )
+            monitor._handle_loading_finished(  # type: ignore[arg-type]
+                connection,
+                {"requestId": "comment-1"},
+            )
+            self.assertEqual(monitor.registry.list_items(), [])
+            monitor.stop()
 
     def test_reconnect_policy_resets_after_success(self) -> None:
         policy = ReconnectPolicy(minimum=1, maximum=10)
@@ -670,6 +859,64 @@ class FollowUpQuestionTests(unittest.TestCase):
         config["follow_up_question"]["enabled"] = True
         return BandJoinMonitor(config, Path(temp_dir))
 
+    def _verified_monitor(self, temp_dir: str) -> BandJoinMonitor:
+        monitor = self._monitor(temp_dir)
+        monitor.config["follow_up_question"]["enabled"] = False
+        monitor.config["auto_reject_enabled"] = True
+        monitor.answer_matcher = JoinAnswerMatcher(
+            {"enabled": False, "required": False}
+        )
+        monitor.phone_matcher = PhoneVerificationMatcher(
+            {
+                "enabled": True,
+                "require_verified": True,
+                "require_number_match": True,
+            }
+        )
+        return monitor
+
+    def test_verified_phone_match_approves_and_mismatch_rejects(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            monitor = self._verified_monitor(temp_dir)
+            matching = BandJoinRequest(
+                stable_key="verified-match",
+                display_name="김상정 01040288600",
+                request_id="member-match",
+                verified_phone="01040288600",
+                phone_verified=True,
+                source="BAND_API",
+            )
+            monitor._accept_requests([matching])
+            self.assertEqual(monitor.auto_queue.get(timeout=0.1)[0], "approve")
+
+            mismatch = BandJoinRequest(
+                stable_key="verified-mismatch",
+                display_name="홍길동 01012345678",
+                request_id="member-mismatch",
+                verified_phone="01099998888",
+                phone_verified=True,
+                source="BAND_API",
+            )
+            monitor._accept_requests([mismatch])
+            self.assertEqual(monitor.auto_queue.get(timeout=0.1)[0], "reject")
+            monitor.stop()
+
+    def test_missing_verified_number_is_held_without_auto_action(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            monitor = self._verified_monitor(temp_dir)
+            request = BandJoinRequest(
+                stable_key="verified-pending",
+                display_name="김상정 01040288600",
+                request_id="member-pending",
+                phone_verified=True,
+                source="BAND_API",
+            )
+            monitor._accept_requests([request])
+            stored = monitor.registry.list_items()[0]
+            self.assertEqual(stored.status, "VERIFICATION_PENDING")
+            self.assertEqual(monitor.auto_queue.queue.qsize(), 0)
+            monitor.stop()
+
     def test_invalid_application_is_queued_for_question_only_once(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             monitor = self._monitor(temp_dir)
@@ -802,6 +1049,80 @@ class FollowUpQuestionTests(unittest.TestCase):
             action, _key = monitor.auto_queue.get(timeout=0.1)
             self.assertEqual(action, "approve")
             self.assertTrue(monitor.registry.list_items()[0].eligible)
+            monitor.stop()
+
+    def test_new_invalid_reply_queues_one_reason_feedback(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            monitor = self._monitor(temp_dir)
+            key = make_stable_key(
+                request_id="member-1",
+                display_name="김상정",
+                application_time="1000",
+                source="BAND_API",
+            )
+            first = BandJoinRequest(
+                stable_key=key,
+                display_name="김상정",
+                request_id="member-1",
+                applicant_key="member-1",
+                application_time="1000",
+                application_answer="FF",
+                source="BAND_API",
+            )
+            monitor._accept_requests([first])
+            self.assertEqual(monitor.auto_queue.get(timeout=0.1)[0], "question")
+            monitor.registry.begin_follow_up(
+                first.follow_up_identity,
+                stable_key=first.stable_key,
+                reason_codes=["profile", "answer"],
+                message="initial",
+            )
+            monitor.registry.finish_follow_up(first.follow_up_identity, "SENT")
+
+            reply = BandJoinRequest(
+                stable_key=key,
+                display_name="김상정",
+                request_id="member-1",
+                applicant_key="member-1",
+                application_time="1000",
+                application_answer="FF",
+                application_reply="네",
+                source="BAND_API",
+            )
+            monitor._accept_requests([reply])
+            self.assertEqual(monitor.auto_queue.get(timeout=0.1)[0], "feedback")
+            monitor._accept_requests([reply])
+            self.assertEqual(monitor.auto_queue.queue.qsize(), 0)
+            monitor.stop()
+
+    def test_valid_code_with_bad_profile_gets_profile_feedback(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            monitor = self._monitor(temp_dir)
+            monitor.tab = {
+                "url": "https://www.band.us/band/101992972/applications"
+            }
+            connection = _FollowUpConnection()
+            monitor.connection = connection  # type: ignore[assignment]
+            request = BandJoinRequest(
+                stable_key="feedback-1",
+                display_name="김기미",
+                request_id="member-1",
+                applicant_key="member-1",
+                application_time="1000",
+                application_answer="FF",
+                application_reply="g",
+                source="BAND_API",
+            )
+            monitor.registry.upsert(request)
+            reason_codes, feedback_message = monitor._feedback_message(request)
+            self.assertEqual(reason_codes, ["profile"])
+            self.assertIn("프로필명이 아직", feedback_message)
+            success, _message = monitor.send_correction_feedback(request)
+            self.assertTrue(success)
+            self.assertEqual(
+                monitor.registry.follow_up_status(request.feedback_identity),
+                "SENT",
+            )
             monitor.stop()
 
     def test_successful_question_send_is_recorded(self) -> None:
